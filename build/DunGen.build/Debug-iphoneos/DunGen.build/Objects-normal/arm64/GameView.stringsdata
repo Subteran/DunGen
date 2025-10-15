@@ -1,0 +1,16 @@
+{
+  "source": "/Users/giant/Projects/DunGen/DunGen/GameView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Done",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 246
+        }
+      }
+    ]
+  },
+  "version": 1
+}

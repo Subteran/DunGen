@@ -1,0 +1,46 @@
+import Foundation
+import FoundationModels
+
+@Generable(description: "A monster affix that modifies behavior and abilities")
+struct MonsterAffix: Codable, Equatable {
+    @Guide(description: "Affix name (e.g., 'Ancient', 'Frenzied', 'of Shadows', 'the Eternal')")
+    var name: String
+    @Guide(description: "Affix type: prefix or suffix")
+    var type: String
+    @Guide(description: "Modifier effect description")
+    var effect: String
+}
+
+@Generable(description: "A modified monster for an encounter")
+struct MonsterDefinition: Codable, Equatable, Identifiable {
+    @Guide(description: "Base monster name from the database")
+    var baseName: String
+    @Guide(description: "Optional prefix affix")
+    var prefix: MonsterAffix?
+    @Guide(description: "Optional suffix affix")
+    var suffix: MonsterAffix?
+    @Guide(description: "Scaled HP for character level")
+    var hp: Int
+    @Guide(description: "Scaled damage dice (e.g., '2d6+3')")
+    var damage: String
+    @Guide(description: "Scaled defense/armor class")
+    var defense: Int
+    @Guide(description: "Combat abilities for this monster level, 1-5 abilities based on difficulty", .count(1...5))
+    var abilities: [String]
+    @Guide(description: "Modified description incorporating affixes")
+    var description: String
+
+    var id: String { fullName }
+
+    var fullName: String {
+        var name = ""
+        if let prefix = prefix {
+            name += "\(prefix.name) "
+        }
+        name += baseName
+        if let suffix = suffix {
+            name += " \(suffix.name)"
+        }
+        return name
+    }
+}

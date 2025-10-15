@@ -1,0 +1,16 @@
+{
+  "source": "/Users/giant/Projects/DunGen/DunGen/ItemDetailView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Enchantments",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 35
+        }
+      }
+    ]
+  },
+  "version": 1
+}

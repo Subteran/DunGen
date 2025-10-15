@@ -1,0 +1,139 @@
+{
+  "" : {
+    "diagnostics" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/DunGen-primary.dia",
+    "emit-module-dependencies" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/DunGen-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/DunGen-primary-emit-module.dia",
+    "pch" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/DunGen-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/DunGen-primary.swiftdeps"
+  },
+  "/Users/giant/Projects/DunGen/DunGen/CharacterClass.swift" : {
+    "const-values" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/CharacterClass.swiftconstvalues",
+    "dependencies" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/CharacterClass.d",
+    "diagnostics" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/CharacterClass.dia",
+    "index-unit-output-path" : "/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/CharacterClass.o",
+    "llvm-bc" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/CharacterClass.bc",
+    "object" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/CharacterClass.o",
+    "swift-dependencies" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/CharacterClass.swiftdeps",
+    "swiftmodule" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/CharacterClass~partial.swiftmodule"
+  },
+  "/Users/giant/Projects/DunGen/DunGen/CharacterView.swift" : {
+    "const-values" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/CharacterView.swiftconstvalues",
+    "dependencies" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/CharacterView.d",
+    "diagnostics" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/CharacterView.dia",
+    "index-unit-output-path" : "/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/CharacterView.o",
+    "llvm-bc" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/CharacterView.bc",
+    "object" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/CharacterView.o",
+    "swift-dependencies" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/CharacterView.swiftdeps",
+    "swiftmodule" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/CharacterView~partial.swiftmodule"
+  },
+  "/Users/giant/Projects/DunGen/DunGen/ContentView.swift" : {
+    "const-values" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/ContentView.swiftconstvalues",
+    "dependencies" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/ContentView.d",
+    "diagnostics" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/ContentView.dia",
+    "index-unit-output-path" : "/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/ContentView.o",
+    "llvm-bc" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/ContentView.bc",
+    "object" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/ContentView.o",
+    "swift-dependencies" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/ContentView.swiftdeps",
+    "swiftmodule" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/ContentView~partial.swiftmodule"
+  },
+  "/Users/giant/Projects/DunGen/DunGen/DunGenApp.swift" : {
+    "const-values" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/DunGenApp.swiftconstvalues",
+    "dependencies" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/DunGenApp.d",
+    "diagnostics" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/DunGenApp.dia",
+    "index-unit-output-path" : "/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/DunGenApp.o",
+    "llvm-bc" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/DunGenApp.bc",
+    "object" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/DunGenApp.o",
+    "swift-dependencies" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/DunGenApp.swiftdeps",
+    "swiftmodule" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/DunGenApp~partial.swiftmodule"
+  },
+  "/Users/giant/Projects/DunGen/DunGen/GameStatePersistence.swift" : {
+    "const-values" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/GameStatePersistence.swiftconstvalues",
+    "dependencies" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/GameStatePersistence.d",
+    "diagnostics" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/GameStatePersistence.dia",
+    "index-unit-output-path" : "/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/GameStatePersistence.o",
+    "llvm-bc" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/GameStatePersistence.bc",
+    "object" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/GameStatePersistence.o",
+    "swift-dependencies" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/GameStatePersistence.swiftdeps",
+    "swiftmodule" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/GameStatePersistence~partial.swiftmodule"
+  },
+  "/Users/giant/Projects/DunGen/DunGen/GameView.swift" : {
+    "const-values" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/GameView.swiftconstvalues",
+    "dependencies" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/GameView.d",
+    "diagnostics" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/GameView.dia",
+    "index-unit-output-path" : "/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/GameView.o",
+    "llvm-bc" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/GameView.bc",
+    "object" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/GameView.o",
+    "swift-dependencies" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/GameView.swiftdeps",
+    "swiftmodule" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/GameView~partial.swiftmodule"
+  },
+  "/Users/giant/Projects/DunGen/DunGen/Item.swift" : {
+    "const-values" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/Item.swiftconstvalues",
+    "dependencies" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/Item.d",
+    "diagnostics" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/Item.dia",
+    "index-unit-output-path" : "/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/Item.o",
+    "llvm-bc" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/Item.bc",
+    "object" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/Item.o",
+    "swift-dependencies" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/Item.swiftdeps",
+    "swiftmodule" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/Item~partial.swiftmodule"
+  },
+  "/Users/giant/Projects/DunGen/DunGen/ItemDetailView.swift" : {
+    "const-values" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/ItemDetailView.swiftconstvalues",
+    "dependencies" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/ItemDetailView.d",
+    "diagnostics" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/ItemDetailView.dia",
+    "index-unit-output-path" : "/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/ItemDetailView.o",
+    "llvm-bc" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/ItemDetailView.bc",
+    "object" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/ItemDetailView.o",
+    "swift-dependencies" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/ItemDetailView.swiftdeps",
+    "swiftmodule" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/ItemDetailView~partial.swiftmodule"
+  },
+  "/Users/giant/Projects/DunGen/DunGen/L10n.swift" : {
+    "const-values" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/L10n.swiftconstvalues",
+    "dependencies" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/L10n.d",
+    "diagnostics" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/L10n.dia",
+    "index-unit-output-path" : "/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/L10n.o",
+    "llvm-bc" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/L10n.bc",
+    "object" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/L10n.o",
+    "swift-dependencies" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/L10n.swiftdeps",
+    "swiftmodule" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/L10n~partial.swiftmodule"
+  },
+  "/Users/giant/Projects/DunGen/DunGen/LLMGameEngine.swift" : {
+    "const-values" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/LLMGameEngine.swiftconstvalues",
+    "dependencies" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/LLMGameEngine.d",
+    "diagnostics" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/LLMGameEngine.dia",
+    "index-unit-output-path" : "/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/LLMGameEngine.o",
+    "llvm-bc" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/LLMGameEngine.bc",
+    "object" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/LLMGameEngine.o",
+    "swift-dependencies" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/LLMGameEngine.swiftdeps",
+    "swiftmodule" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/LLMGameEngine~partial.swiftmodule"
+  },
+  "/Users/giant/Projects/DunGen/DunGen/LevelingService.swift" : {
+    "const-values" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/LevelingService.swiftconstvalues",
+    "dependencies" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/LevelingService.d",
+    "diagnostics" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/LevelingService.dia",
+    "index-unit-output-path" : "/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/LevelingService.o",
+    "llvm-bc" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/LevelingService.bc",
+    "object" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/LevelingService.o",
+    "swift-dependencies" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/LevelingService.swiftdeps",
+    "swiftmodule" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/LevelingService~partial.swiftmodule"
+  },
+  "/Users/giant/Projects/DunGen/DunGen/MonsterDatabase.swift" : {
+    "const-values" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/MonsterDatabase.swiftconstvalues",
+    "dependencies" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/MonsterDatabase.d",
+    "diagnostics" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/MonsterDatabase.dia",
+    "index-unit-output-path" : "/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/MonsterDatabase.o",
+    "llvm-bc" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/MonsterDatabase.bc",
+    "object" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/MonsterDatabase.o",
+    "swift-dependencies" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/MonsterDatabase.swiftdeps",
+    "swiftmodule" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/MonsterDatabase~partial.swiftmodule"
+  },
+  "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/DerivedSources/GeneratedAssetSymbols.swift" : {
+    "const-values" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/GeneratedAssetSymbols.swiftconstvalues",
+    "dependencies" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/GeneratedAssetSymbols.d",
+    "diagnostics" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/GeneratedAssetSymbols.dia",
+    "index-unit-output-path" : "/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/GeneratedAssetSymbols.o",
+    "llvm-bc" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/GeneratedAssetSymbols.bc",
+    "object" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/GeneratedAssetSymbols.o",
+    "swift-dependencies" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/GeneratedAssetSymbols.swiftdeps",
+    "swiftmodule" : "/Users/giant/Projects/DunGen/build/DunGen.build/Debug-iphoneos/DunGen.build/Objects-normal/arm64/GeneratedAssetSymbols~partial.swiftmodule"
+  }
+}
