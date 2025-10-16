@@ -22,3 +22,9 @@ struct ProgressionRewards: Codable {
     @Guide(description: "Number of items to drop (0-3)", .range(0...3))
     var itemDropCount: Int
 }
+
+@Generable(description: "Monster attack decision based on player action")
+struct MonsterAttackDecision: Codable {
+    @Guide(description: "Whether the monster attacks (true) or is prevented/distracted by the player's action (false)")
+    var attacks: Bool
+}

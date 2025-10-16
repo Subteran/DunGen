@@ -4,12 +4,14 @@ struct CharacterView: View {
     let character: CharacterProfile?
     let detailedInventory: [ItemDefinition]
     let levelingService: LevelingServiceProtocol
+    let onUseItem: ((String) -> Bool)?
     @State private var selectedItem: ItemDefinition?
 
-    init(character: CharacterProfile?, detailedInventory: [ItemDefinition] = [], levelingService: LevelingServiceProtocol = DefaultLevelingService()) {
+    init(character: CharacterProfile?, detailedInventory: [ItemDefinition] = [], levelingService: LevelingServiceProtocol = DefaultLevelingService(), onUseItem: ((String) -> Bool)? = nil) {
         self.character = character
         self.detailedInventory = detailedInventory
         self.levelingService = levelingService
+        self.onUseItem = onUseItem
     }
 
     var body: some View {
@@ -22,8 +24,14 @@ struct CharacterView: View {
         }
         .navigationTitle(L10n.tabCharacterTitle)
         .sheet(item: $selectedItem) { item in
-            ItemDetailView(item: item)
-                .presentationDetents([.medium, .large])
+            ItemDetailView(item: item, onUse: { itemName in
+                let success = onUseItem?(itemName) ?? false
+                if success {
+                    selectedItem = nil
+                }
+                return success
+            })
+            .presentationDetents([.medium, .large])
         }
     }
 
@@ -133,10 +141,24 @@ struct CharacterView: View {
                 }
 
                 ForEach(character.inventory, id: \.self) { item in
-                    HStack {
-                        Image(systemName: "bag.fill")
-                            .foregroundStyle(.gray)
-                        Text(item)
+                    Button {
+                        // For simple items that are consumable, use them directly
+                        if isConsumable(item) {
+                            let _ = onUseItem?(item)
+                        }
+                    } label: {
+                        HStack {
+                            Image(systemName: itemIconForSimple(item))
+                                .foregroundStyle(isConsumable(item) ? .green : .gray)
+                            Text(item)
+                                .foregroundStyle(.primary)
+                            if isConsumable(item) {
+                                Spacer()
+                                Text("Use")
+                                    .font(.caption)
+                                    .foregroundStyle(.blue)
+                            }
+                        }
                     }
                 }
             }
@@ -162,6 +184,18 @@ struct CharacterView: View {
         case "legendary": return .orange
         default: return .primary
         }
+    }
+
+    private func isConsumable(_ itemName: String) -> Bool {
+        let lowerName = itemName.lowercased()
+        return lowerName.contains("potion") || lowerName.contains("elixir") || lowerName.contains("scroll")
+    }
+
+    private func itemIconForSimple(_ itemName: String) -> String {
+        if isConsumable(itemName) {
+            return "potion.fill"
+        }
+        return "bag.fill"
     }
 }
 

@@ -13,7 +13,7 @@ struct ItemAffix: Codable, Equatable {
 
 @Generable(description: "A detailed equipment item")
 struct ItemDefinition: Codable, Equatable, Identifiable {
-    @Guide(description: "Base item name (e.g., 'Sword', 'Armor', 'Shield')")
+    @Guide(description: "Base item name (e.g., 'Sword', 'Armor', 'Shield', 'Healing Potion')")
     var baseName: String
     @Guide(description: "Optional prefix affix")
     var prefix: ItemAffix?
@@ -25,8 +25,14 @@ struct ItemDefinition: Codable, Equatable, Identifiable {
     var description: String
     @Guide(description: "Item rarity: common, uncommon, rare, epic, legendary")
     var rarity: String
+    @Guide(description: "For consumables only: the attribute affected (hp, gold, xp). Leave empty for non-consumables.")
+    var consumableEffect: String?
+    @Guide(description: "For consumables only: minimum value of the effect (e.g., 2 for 2-5 HP healing). Leave empty for non-consumables.")
+    var consumableMinValue: Int?
+    @Guide(description: "For consumables only: maximum value of the effect (e.g., 5 for 2-5 HP healing). Leave empty for non-consumables.")
+    var consumableMaxValue: Int?
 
-    var id: UUID = UUID()
+    var id: String { fullName + "-\(baseName)-\(itemType)" }
 
     var fullName: String {
         var name = ""

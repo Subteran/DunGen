@@ -94,13 +94,17 @@ final class LLMGameEngine: GameEngineProtocol {
     var pendingLoot: [ItemDefinition] = []
     private let maxInventorySlots = 20
 
+    // New game flow state
+    var awaitingWorldContinue: Bool = false
+    var awaitingLocationsContinue: Bool = false
+
     // Model availability
     var availability: AvailabilityState = .unavailable("Checking model…")
 
     // MARK: - Private
 
     private let logger = Logger(subsystem: "com.yourcompany.DunGen", category: "LLMGameEngine")
-    private let levelingService: LevelingServiceProtocol
+    nonisolated(unsafe) private let levelingService: LevelingServiceProtocol
 
     // MARK: - Managers
     private let sessionManager = SpecialistSessionManager()
@@ -113,7 +117,7 @@ final class LLMGameEngine: GameEngineProtocol {
     var currentMonsterHP: Int { combatManager.currentMonsterHP }
 
     // MARK: - Setup
-    nonisolated init(levelingService: LevelingServiceProtocol = DefaultLevelingService()) {
+    nonisolated init(levelingService: LevelingServiceProtocol) {
         self.levelingService = levelingService
     }
 
@@ -191,11 +195,10 @@ final class LLMGameEngine: GameEngineProtocol {
 
             if let world = worldState {
                 appendModel("\u{1F30D} \(world.worldStory)")
-                appendModel("\nDiscovered locations:")
-                for location in world.locations {
-                    appendModel("\u{2022} \(location.name) (\(location.locationType.rawValue)): \(location.description)")
-                }
-                appendModel("")
+                awaitingWorldContinue = true
+                saveState()
+                isGenerating = false
+                return
             }
 
             let characterPrompt = "Create a new character for a fantasy text adventure. Choose a random class from the available options to ensure variety."
@@ -222,7 +225,22 @@ final class LLMGameEngine: GameEngineProtocol {
             }
 
             if let generatedCharacter {
-                character = generatedCharacter
+                var char = generatedCharacter
+                // Add starting healing potion to detailed inventory
+                let startingPotion = ItemDefinition(
+                    baseName: "Healing Potion",
+                    prefix: nil,
+                    suffix: nil,
+                    itemType: "consumable",
+                    description: "A small vial of red liquid that restores health when consumed.",
+                    rarity: "common",
+                    consumableEffect: "hp",
+                    consumableMinValue: 2,
+                    consumableMaxValue: 5
+                )
+                detailedInventory.append(startingPotion)
+                char.inventory.append(startingPotion.fullName)
+                character = char
             } else {
                 // Failed to generate unique name after max attempts
                 logger.warning("[Character LLM] Failed to generate unique name after \(maxAttempts) attempts")
@@ -257,6 +275,115 @@ final class LLMGameEngine: GameEngineProtocol {
             logger.error("\(error.localizedDescription, privacy: .public)")
             appendModel(String(format: L10n.errorStartGameFormat, error.localizedDescription))
         }
+        isGenerating = false
+    }
+
+    func continueNewGame(usedNames: [String] = []) async {
+        guard case .available = availability else { return }
+
+        isGenerating = true
+
+        do {
+            if awaitingWorldContinue {
+                // Show locations
+                awaitingWorldContinue = false
+                if let world = worldState {
+                    appendModel("\nDiscovered locations:")
+                    for location in world.locations {
+                        appendModel("• \(location.name) (\(location.locationType.rawValue)): \(location.description)")
+                    }
+                    appendModel("")
+                }
+                awaitingLocationsContinue = true
+                saveState()
+                isGenerating = false
+                return
+            }
+
+            if awaitingLocationsContinue {
+                // Continue to character generation
+                awaitingLocationsContinue = false
+                guard let _ = getSession(for: .world),
+                      let characterSession = getSession(for: .character) else {
+                    isGenerating = false
+                    return
+                }
+                let characterPrompt = "Create a new character for a fantasy text adventure. Choose a random class from the available options to ensure variety."
+                logger.debug("[Character LLM] Prompt length: \(characterPrompt.count) chars")
+
+                var attempts = 0
+                let maxAttempts = 5
+                var generatedCharacter: CharacterProfile?
+                var lastCandidate: CharacterProfile?
+
+                while attempts < maxAttempts {
+                    let characterResponse = try await characterSession.respond(to: characterPrompt, generating: CharacterProfile.self)
+                    let candidate = characterResponse.content
+                    lastCandidate = candidate
+
+                    if !usedNames.contains(candidate.name) {
+                        generatedCharacter = candidate
+                        logger.debug("[Character LLM] Generated unique character: \(candidate.name) the \(candidate.className)")
+                        break
+                    } else {
+                        logger.debug("[Character LLM] Name '\(candidate.name)' already used, regenerating... (attempt \(attempts + 1))")
+                        attempts += 1
+                    }
+                }
+
+                if let generatedCharacter {
+                    var char = generatedCharacter
+                    // Add starting healing potion to detailed inventory
+                    let startingPotion = ItemDefinition(
+                        baseName: "Healing Potion",
+                        prefix: nil,
+                        suffix: nil,
+                        itemType: "consumable",
+                        description: "A small vial of red liquid that restores health when consumed.",
+                        rarity: "common",
+                        consumableEffect: "hp",
+                        consumableMinValue: 2,
+                        consumableMaxValue: 5
+                    )
+                    detailedInventory.append(startingPotion)
+                    char.inventory.append(startingPotion.fullName)
+                    character = char
+                } else {
+                    // Failed to generate unique name after max attempts
+                    logger.warning("[Character LLM] Failed to generate unique name after \(maxAttempts) attempts")
+                    partialCharacter = lastCandidate
+                    awaitingCustomCharacterName = true
+                    appendModel("\n⚠️ Unable to generate a unique character name automatically.")
+                    appendModel("Please enter a unique name for your character:")
+                    saveState()
+                    isGenerating = false
+                    return
+                }
+
+                appendModel(L10n.gameWelcome)
+                appendModel(String(format: L10n.gameIntroFormat, character!.name, character!.race, character!.className, character!.backstory))
+                appendModel(String(format: L10n.startingAttributesFormat,
+                                   character!.attributes.strength,
+                                   character!.attributes.dexterity,
+                                   character!.attributes.constitution,
+                                   character!.attributes.intelligence,
+                                   character!.attributes.wisdom,
+                                   character!.attributes.charisma))
+
+                // Prompt player to choose starting location
+                if let world = worldState {
+                    appendModel("\nWhere would you like to begin your adventure?")
+                    suggestedActions = world.locations.map { $0.name }
+                    awaitingLocationSelection = true
+                }
+
+                saveState()
+            }
+        } catch {
+            logger.error("\(error.localizedDescription, privacy: .public)")
+            appendModel(String(format: L10n.errorStartGameFormat, error.localizedDescription))
+        }
+
         isGenerating = false
     }
 
@@ -309,7 +436,43 @@ final class LLMGameEngine: GameEngineProtocol {
             return
         }
 
-        guard let character else { return }
+        guard character != nil else { return }
+
+        // Check if player is fleeing from a pending monster
+        if let pendingMonster = combatManager.pendingMonster,
+           !combatManager.inCombat,
+           truncatedInput.lowercased().contains("flee") {
+            combatManager.pendingMonster = nil
+            appendModel("You attempt to flee from the \(pendingMonster.fullName)!")
+
+            // 50% chance the monster attacks as the player flees
+            let isAttacked = Bool.random()
+            if isAttacked, var character = character {
+                let damage = Int.random(in: 2...8)
+                character.hp -= damage
+                self.character = character
+                appendModel("💔 The \(pendingMonster.fullName) strikes as you flee, dealing \(damage) damage!")
+
+                if character.hp <= 0 {
+                    handleCharacterDeath(monster: pendingMonster)
+                    saveState()
+                    isGenerating = false
+                    return
+                }
+            } else {
+                appendModel("You successfully escape!")
+            }
+
+            do {
+                try await advanceScene(kind: currentLocation, playerAction: "flee from danger")
+                saveState()
+            } catch {
+                logger.error("\(error.localizedDescription, privacy: .public)")
+                appendModel(String(format: L10n.errorGenericFormat, error.localizedDescription))
+            }
+            isGenerating = false
+            return
+        }
 
         // Check if player is initiating combat with a pending monster
         if let pendingMonster = combatManager.pendingMonster,
@@ -319,6 +482,31 @@ final class LLMGameEngine: GameEngineProtocol {
             saveState()
             isGenerating = false
             return
+        }
+
+        // If there's a pending monster and player chose a non-combat action, evaluate if action prevents attack
+        if let pendingMonster = combatManager.pendingMonster, !combatManager.inCombat {
+            let monsterAttacks = await shouldMonsterAttack(monster: pendingMonster, playerAction: truncatedInput)
+
+            if monsterAttacks, var character = character {
+                let damage = Int.random(in: 3...10)
+                character.hp -= damage
+                self.character = character
+                appendModel("💔 The \(pendingMonster.fullName) attacks while you're distracted, dealing \(damage) damage!")
+
+                if character.hp <= 0 {
+                    handleCharacterDeath(monster: pendingMonster)
+                    combatManager.pendingMonster = nil
+                    saveState()
+                    isGenerating = false
+                    return
+                }
+                // Monster remains after attacking - player can still choose to fight or flee next turn
+            } else {
+                // Monster doesn't attack - clear it and player's action succeeds
+                combatManager.pendingMonster = nil
+                appendModel("Your action successfully prevents the \(pendingMonster.fullName) from attacking!")
+            }
         }
 
         // Handle location selection
@@ -399,6 +587,24 @@ final class LLMGameEngine: GameEngineProtocol {
             if !monster.abilities.isEmpty {
                 appendModel("Abilities: \(monster.abilities.prefix(3).joined(separator: ", "))")
             }
+
+            // Override suggested actions to give player combat choices
+            var combatActions = ["Attack the \(monster.fullName)", "Flee"]
+            // Keep one non-combat action if available (filter out any combat-triggering words)
+            let nonCombatActions = turn.suggestedActions.filter { action in
+                let lowercased = action.lowercased()
+                return !lowercased.contains("attack") &&
+                       !lowercased.contains("fight") &&
+                       !lowercased.contains("engage") &&
+                       !lowercased.contains("strike") &&
+                       !lowercased.contains("hit")
+            }
+            if let firstNonCombatAction = nonCombatActions.first {
+                combatActions.insert(firstNonCombatAction, at: 1)
+            }
+            self.suggestedActions = combatActions
+        } else {
+            self.suggestedActions = turn.suggestedActions
         }
 
         if let npc = npc {
@@ -408,7 +614,11 @@ final class LLMGameEngine: GameEngineProtocol {
             }
         }
 
-        if let xpGain = rewards?.xpGain {
+        // Don't apply rewards if a monster is pending - rewards only apply after player chooses action
+        // This prevents damage from being applied when monster first appears
+        let shouldApplyRewards = monster == nil
+
+        if shouldApplyRewards, let xpGain = rewards?.xpGain {
             if var c = self.character {
                 let outcome = levelingService.applyXPGain(xpGain, to: &c)
                 self.character = c
@@ -420,20 +630,22 @@ final class LLMGameEngine: GameEngineProtocol {
                 }
             }
         }
-        if let hpDelta = rewards?.hpDelta {
+        if shouldApplyRewards, let hpDelta = rewards?.hpDelta {
             self.character?.hp += hpDelta
             if hpDelta < 0 {
                 appendModel("💔 Took \(abs(hpDelta)) damage!")
+                // Check if damage killed the character
+                checkDeath()
             } else if hpDelta > 0 {
                 appendModel("❤️ Healed \(hpDelta) HP!")
             }
         }
-        if let gold = rewards?.goldGain, gold > 0 {
+        if shouldApplyRewards, let gold = rewards?.goldGain, gold > 0 {
             self.character?.gold += gold
             appendModel("💰 Found \(gold) gold!")
         }
 
-        if !loot.isEmpty {
+        if shouldApplyRewards, !loot.isEmpty {
             // Check if adding items would exceed inventory limit
             let totalItems = detailedInventory.count + loot.count
             if totalItems > maxInventorySlots {
@@ -454,8 +666,6 @@ final class LLMGameEngine: GameEngineProtocol {
             }
         }
 
-        if let nextType = turn.nextLocationType { self.currentLocation = nextType }
-
         if let environment = turn.currentEnvironment {
             self.currentEnvironment = environment
         }
@@ -464,8 +674,6 @@ final class LLMGameEngine: GameEngineProtocol {
         if let prompt = turn.playerPrompt, !prompt.isEmpty {
             appendModel(prompt)
         }
-
-        self.suggestedActions = turn.suggestedActions
     }
 
     private func trackEncounter(_ type: String) {
@@ -688,7 +896,70 @@ final class LLMGameEngine: GameEngineProtocol {
     }
 
     func performCombatAction(_ action: String) async {
+        let wasInCombat = combatManager.inCombat
         combatManager.performCombatAction(action)
+
+        if wasInCombat && !combatManager.inCombat {
+            saveState()
+            if let char = character, char.hp > 0, !characterDied {
+                appendModel("\n🎯 Continuing your adventure...")
+                try? await Task.sleep(nanoseconds: 500_000_000)
+                await submitPlayer(input: "continue")
+            }
+        }
+    }
+
+    func applyMonsterDefeatRewards(monster: MonsterDefinition) {
+        guard var char = character else { return }
+
+        let charLevel = levelingService.level(forXP: char.xp)
+        let baseXP = 10 + (charLevel * 5)
+        let xpVariance = Int.random(in: -3...10)
+        let xpGain = max(5, baseXP + xpVariance)
+
+        let outcome = levelingService.applyXPGain(xpGain, to: &char)
+        character = char
+        if outcome.didLevelUp {
+            appendModel(outcome.logLine)
+        } else {
+            appendModel("✨ Gained \(xpGain) XP!")
+        }
+
+        let goldGain = Int.random(in: 5...25)
+        char.gold += goldGain
+        character = char
+        appendModel("💰 Found \(goldGain) gold!")
+
+        let shouldDropLoot = Int.random(in: 1...100) <= 30
+        if shouldDropLoot {
+            Task {
+                do {
+                    let loot = try await generateLoot(count: 1, difficulty: "medium", characterLevel: charLevel, characterClass: char.className)
+                    if !loot.isEmpty {
+                        let currentInventoryCount = detailedInventory.count
+                        if currentInventoryCount + loot.count > maxInventorySlots {
+                            pendingLoot = loot
+                            needsInventoryManagement = true
+                            appendModel("⚠️ Inventory full! You need to make room for new items.")
+                        } else {
+                            for item in loot {
+                                detailedInventory.append(item)
+                                var inventory = Set(character?.inventory ?? [])
+                                inventory.insert(item.fullName)
+                                character?.inventory = Array(inventory)
+                                appendModel("✨ Obtained: \(item.fullName) (\(item.rarity))")
+                                itemsCollected += 1
+                            }
+                        }
+                        saveState()
+                    }
+                } catch {
+                    logger.error("Failed to generate combat loot: \(error.localizedDescription, privacy: .public)")
+                }
+            }
+        }
+
+        saveState()
     }
 
     func fleeCombat() -> Bool {
@@ -697,6 +968,57 @@ final class LLMGameEngine: GameEngineProtocol {
 
     func surrenderCombat() {
         combatManager.surrenderCombat()
+    }
+
+    func useItem(itemName: String) -> Bool {
+        guard var char = character else { return false }
+
+        // Check if item exists in inventory
+        guard char.inventory.contains(itemName) else { return false }
+
+        // Find the item in detailed inventory
+        guard let item = detailedInventory.first(where: { $0.fullName == itemName || $0.baseName == itemName }) else {
+            return false
+        }
+
+        // Check if item is consumable
+        guard item.itemType.lowercased() == "consumable",
+              let effect = item.consumableEffect,
+              let minValue = item.consumableMinValue,
+              let maxValue = item.consumableMaxValue else {
+            return false
+        }
+
+        // Calculate effect value
+        let effectValue = Int.random(in: minValue...maxValue)
+
+        // Apply effect based on type
+        switch effect.lowercased() {
+        case "hp":
+            char.hp += effectValue
+            appendModel("💚 Used \(itemName) and healed \(effectValue) HP!")
+        case "gold":
+            char.gold += effectValue
+            appendModel("💰 Used \(itemName) and gained \(effectValue) gold!")
+        case "xp":
+            let outcome = levelingService.applyXPGain(effectValue, to: &char)
+            if outcome.didLevelUp {
+                appendModel("✨ Used \(itemName) and gained \(effectValue) XP!")
+                appendModel(outcome.logLine)
+            } else {
+                appendModel("✨ Used \(itemName) and gained \(effectValue) XP!")
+            }
+        default:
+            return false
+        }
+
+        // Remove from inventory
+        char.inventory.removeAll { $0 == itemName }
+        detailedInventory.removeAll { $0.fullName == itemName || $0.baseName == itemName }
+
+        character = char
+        saveState()
+        return true
     }
 
     func finalizeInventorySelection(_ selectedItems: [ItemDefinition]) {
@@ -740,6 +1062,65 @@ final class LLMGameEngine: GameEngineProtocol {
         }
     }
 
+    private func handleCharacterDeath(monster: MonsterDefinition) {
+        guard let char = character else { return }
+
+        characterDied = true
+        let playTime = gameStartTime.map { Date().timeIntervalSince($0) } ?? 0
+
+        deathReport = CharacterDeathReport(
+            character: char,
+            finalLevel: levelingService.level(forXP: char.xp),
+            adventuresCompleted: adventuresCompleted,
+            monstersDefeated: combatManager.monstersDefeated,
+            itemsCollected: itemsCollected,
+            causeOfDeath: "Defeated by \(monster.fullName)",
+            playTime: playTime
+        )
+
+        combatManager.reset()
+        appendModel("\n💀 You have fallen...")
+    }
+
+    private func shouldMonsterAttack(monster: MonsterDefinition, playerAction: String) async -> Bool {
+        guard let encounterSession = getSession(for: .encounter) else { return true }
+
+        let evaluationPrompt = """
+        A \(monster.fullName) has encountered the player.
+        Player's action: "\(playerAction)"
+
+        Evaluate if this action would prevent or distract the monster from attacking.
+
+        Actions that PREVENT attack (attacks = false):
+        - Calming, pacifying, or befriending (talk peacefully, calm down, soothe)
+        - Hiding or sneaking away (hide, sneak, stealth)
+        - Creating barriers or obstacles (block, barricade, create wall)
+        - Distracting with objects or magic (throw food, distract, create illusion)
+        - Intimidating or scaring (intimidate, threaten, scare if believable)
+        - Negotiating or reasoning (negotiate, reason, bargain)
+
+        Actions that DO NOT prevent attack (attacks = true):
+        - Searching or investigating (search, look around, examine)
+        - Gathering items (pick up, collect, take)
+        - Reading or studying (read, study, analyze)
+        - Moving without stealth (walk, run without hiding)
+        - Any action that leaves player vulnerable
+
+        Consider the monster's nature and intelligence when evaluating.
+        Smarter monsters are harder to fool. Aggressive monsters are harder to calm.
+
+        Determine if the monster attacks.
+        """
+
+        do {
+            let decision = try await encounterSession.respond(to: evaluationPrompt, generating: MonsterAttackDecision.self)
+            return decision.content.attacks
+        } catch {
+            logger.error("Failed to evaluate monster attack: \(error.localizedDescription, privacy: .public)")
+            return true
+        }
+    }
+
     private func advanceScene(kind: AdventureType, playerAction: String?) async throws {
         guard let adventureSession = getSession(for: .adventure),
               let encounterSession = getSession(for: .encounter),
@@ -772,7 +1153,14 @@ final class LLMGameEngine: GameEngineProtocol {
             npc = try await generateOrRetrieveNPC(for: location, encounter: encounter)
         }
 
-        let scenePrompt = String(format: L10n.scenePromptFormat, location, actionLine) + "\nEncounter: \(encounter.encounterType) (\(encounter.difficulty))\n" + contextSummary + buildEncounterContext(monster: monster, npc: npc)
+        var scenePrompt = String(format: L10n.scenePromptFormat, location, actionLine) + "\nEncounter: \(encounter.encounterType) (\(encounter.difficulty))\n" + contextSummary + buildEncounterContext(monster: monster, npc: npc)
+
+        let maxPromptLength = 1000
+        if scenePrompt.count > maxPromptLength {
+            logger.warning("[Adventure LLM] Prompt too long (\(scenePrompt.count) chars), truncating to \(maxPromptLength)")
+            scenePrompt = String(scenePrompt.prefix(maxPromptLength)) + "..."
+        }
+
         logger.debug("[Adventure LLM] Prompt length: \(scenePrompt.count) chars")
         let adventureResponse = try await adventureSession.respond(to: scenePrompt, generating: AdventureTurn.self)
         let turn = adventureResponse.content
@@ -808,40 +1196,33 @@ final class LLMGameEngine: GameEngineProtocol {
         }
 
         if let adventure = adventureProgress {
-            lines.append("Quest: \(adventure.questGoal)")
-            lines.append("Adventure Story: \(adventure.adventureStory)")
-            lines.append("Progress: Encounter \(adventure.currentEncounter) of \(adventure.totalEncounters)\(adventure.isFinalEncounter ? " [FINAL ENCOUNTER]" : "")")
+            let questGoal = adventure.questGoal.count > 60 ? String(adventure.questGoal.prefix(60)) + "..." : adventure.questGoal
+            lines.append("Quest: \(questGoal)")
+            lines.append("Progress: \(adventure.currentEncounter)/\(adventure.totalEncounters)")
         }
 
         if !detailedInventory.isEmpty {
-            let itemNames = detailedInventory.prefix(5).map { $0.displayName }.joined(separator: ", ")
-            lines.append("Key Items: \(itemNames)")
-        } else if !character.inventory.isEmpty {
-            let items = character.inventory.prefix(5).joined(separator: ", ")
-            lines.append("Equipment: \(items)")
+            let itemNames = detailedInventory.prefix(3).map { $0.displayName }.joined(separator: ", ")
+            let truncated = itemNames.count > 100 ? String(itemNames.prefix(100)) + "..." : itemNames
+            lines.append("Items: \(truncated)")
         }
 
         if !character.abilities.isEmpty {
-            let abilities = character.abilities.prefix(3).joined(separator: ", ")
+            let abilities = character.abilities.prefix(2).joined(separator: ", ")
             lines.append("Abilities: \(abilities)")
         }
 
         if !character.spells.isEmpty {
-            let spells = character.spells.prefix(3).joined(separator: ", ")
-            lines.append("Spells/Prayers: \(spells)")
+            let spells = character.spells.prefix(2).joined(separator: ", ")
+            lines.append("Spells: \(spells)")
         }
 
-        if !recentEncounterTypes.isEmpty {
-            lines.append("Recent Encounters: \(recentEncounterTypes.joined(separator: ", "))")
-        }
-
-        let recentActions = log.suffix(6).filter { !$0.isFromModel }.map { entry in
-            // Truncate long actions to prevent prompt bloat
+        let recentActions = log.suffix(2).filter { !$0.isFromModel }.map { entry in
             let content = entry.content
-            return content.count > 200 ? String(content.prefix(200)) + "..." : content
+            return content.count > 50 ? String(content.prefix(50)) + "..." : content
         }
         if !recentActions.isEmpty {
-            lines.append("Recent Actions: \(recentActions.joined(separator: " | "))")
+            lines.append("Recent: \(recentActions.joined(separator: " | "))")
         }
 
         return lines.joined(separator: "\n")

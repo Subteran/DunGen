@@ -27,7 +27,13 @@ struct ContentView: View {
             }
 
             NavigationStack {
-                CharacterView(character: engine.character, detailedInventory: engine.detailedInventory)
+                CharacterView(
+                    character: engine.character,
+                    detailedInventory: engine.detailedInventory,
+                    onUseItem: { itemName in
+                        return engine.useItem(itemName: itemName)
+                    }
+                )
             }
             .tabItem {
                 Label(L10n.tabCharacterTitle, systemImage: "person.fill")

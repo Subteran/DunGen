@@ -71,9 +71,6 @@ struct AdventureTurn: Codable, Equatable {
     @Guide(description: "Two distinct action options for the player to choose from (e.g., 'Attack the goblin', 'Search the room')", .count(2...2))
     var suggestedActions: [String]
 
-    @Guide(description: "Current specific environment/location description (e.g., 'Dark forest clearing', 'Tavern common room', 'Dungeon entrance hall'). Only change if player explicitly moves to a new location.")
+    @Guide(description: "Current specific environment/location description (e.g., 'Dark forest clearing', 'Tavern common room', 'Dungeon entrance hall'). Stay within the current adventure location - do not transition to different location types.")
     var currentEnvironment: String?
-
-    @Guide(description: "Suggested next location type if transitioning")
-    var nextLocationType: AdventureType?
 }

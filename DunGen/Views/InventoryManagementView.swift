@@ -6,7 +6,7 @@ struct InventoryManagementView: View {
     let maxSlots: Int
     let onConfirm: ([ItemDefinition]) -> Void
 
-    @State private var selectedItems: Set<UUID> = Set()
+    @State private var selectedItems: Set<String> = Set()
     @Environment(\.dismiss) private var dismiss
 
     init(currentInventory: [ItemDefinition], newItems: [ItemDefinition], maxSlots: Int, onConfirm: @escaping ([ItemDefinition]) -> Void) {

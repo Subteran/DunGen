@@ -20,6 +20,8 @@ final class DefaultLevelingService: LevelingServiceProtocol {
     private let baseXP = 100.0
     private let exponent = 1.5
 
+    nonisolated init() {}
+
     func level(forXP xp: Int) -> Int {
         if xp < Int(baseXP) {
             return 1

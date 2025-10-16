@@ -2,6 +2,13 @@ import SwiftUI
 
 struct ItemDetailView: View {
     let item: ItemDefinition
+    let onUse: ((String) -> Bool)?
+    @Environment(\.dismiss) private var dismiss
+
+    init(item: ItemDefinition, onUse: ((String) -> Bool)? = nil) {
+        self.item = item
+        self.onUse = onUse
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -69,10 +76,36 @@ struct ItemDetailView: View {
                 }
             }
 
+            if isConsumable {
+                Divider()
+
+                Button {
+                    let success = onUse?(item.fullName) ?? false
+                    if success {
+                        dismiss()
+                    }
+                } label: {
+                    HStack {
+                        Image(systemName: "hand.tap.fill")
+                        Text("Use Item")
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                }
+                .buttonStyle(.borderedProminent)
+            }
+
             Spacer()
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var isConsumable: Bool {
+        item.itemType.lowercased() == "consumable" ||
+        item.fullName.lowercased().contains("potion") ||
+        item.fullName.lowercased().contains("elixir") ||
+        item.fullName.lowercased().contains("scroll")
     }
 
     private var rarityColor: Color {

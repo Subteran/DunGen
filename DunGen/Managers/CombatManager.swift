@@ -18,17 +18,50 @@ final class CombatManager {
         self.gameEngine = engine
     }
 
+    var isFirstCombatAction = false
+
     func enterCombat(with monster: MonsterDefinition) {
         inCombat = true
         currentMonster = monster
         currentMonsterHP = monster.hp
         pendingMonster = nil
+        isFirstCombatAction = true
         gameEngine?.appendModel("\n⚔️ Combat initiated with \(monster.fullName)!")
     }
 
     func performCombatAction(_ action: String) {
         guard let monster = currentMonster, var char = gameEngine?.character else { return }
 
+        var monsterAlreadyAttacked = false
+
+        // Handle initiative on first combat action
+        if isFirstCombatAction {
+            isFirstCombatAction = false
+
+            // Initiative roll: 70% chance player attacks first
+            let playerWinsInitiative = Int.random(in: 1...10) <= 7
+
+            if playerWinsInitiative {
+                gameEngine?.appendModel("⚡ You strike first!")
+            } else {
+                gameEngine?.appendModel("⚠️ The \(monster.fullName) strikes first!")
+                let damage = Int.random(in: 3...12)
+                char.hp -= damage
+                gameEngine?.character = char
+                gameEngine?.appendModel("💔 \(monster.fullName) dealt \(damage) damage to you!")
+
+                if char.hp <= 0 {
+                    gameEngine?.checkDeath()
+                    inCombat = false
+                    currentMonster = nil
+                    return
+                }
+
+                monsterAlreadyAttacked = true
+            }
+        }
+
+        // Player attacks
         let damageToMonster = Int.random(in: 5...15)
         currentMonsterHP -= damageToMonster
         gameEngine?.appendModel("You dealt \(damageToMonster) damage to \(monster.fullName)!")
@@ -36,17 +69,23 @@ final class CombatManager {
         if currentMonsterHP <= 0 {
             gameEngine?.appendModel("✅ \(monster.fullName) defeated!")
             monstersDefeated += 1
+
+            gameEngine?.applyMonsterDefeatRewards(monster: monster)
+
             inCombat = false
             currentMonster = nil
             return
         }
 
-        let damageToPlayer = Int.random(in: 3...12)
-        char.hp -= damageToPlayer
-        gameEngine?.character = char
-        gameEngine?.appendModel("💔 \(monster.fullName) dealt \(damageToPlayer) damage to you!")
+        // Monster counter-attacks (if it hasn't already)
+        if !monsterAlreadyAttacked {
+            let damageToPlayer = Int.random(in: 3...12)
+            char.hp -= damageToPlayer
+            gameEngine?.character = char
+            gameEngine?.appendModel("💔 \(monster.fullName) dealt \(damageToPlayer) damage to you!")
 
-        gameEngine?.checkDeath()
+            gameEngine?.checkDeath()
+        }
     }
 
     func fleeCombat() -> Bool {

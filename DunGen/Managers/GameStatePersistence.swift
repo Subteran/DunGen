@@ -5,6 +5,10 @@ struct GameState: Codable, Equatable {
     var currentLocation: AdventureType
     var currentEnvironment: String
     var log: [SavedLogEntry]
+    var suggestedActions: [String]
+    var adventureProgress: AdventureProgress?
+    var detailedInventory: [ItemDefinition]
+    var worldState: WorldState?
 
     struct SavedLogEntry: Codable, Equatable, Identifiable {
         let id: UUID
@@ -66,7 +70,11 @@ extension LLMGameEngine {
             character: character,
             currentLocation: currentLocation,
             currentEnvironment: currentEnvironment,
-            log: logEntries
+            log: logEntries,
+            suggestedActions: suggestedActions,
+            adventureProgress: adventureProgress,
+            detailedInventory: detailedInventory,
+            worldState: worldState
         )
 
         do {
@@ -91,6 +99,10 @@ extension LLMGameEngine {
                         isFromModel: savedEntry.isFromModel
                     )
                 }
+                self.suggestedActions = state.suggestedActions
+                self.adventureProgress = state.adventureProgress
+                self.detailedInventory = state.detailedInventory
+                self.worldState = state.worldState
             }
         } catch {
             print("Failed to load game state: \(error)")

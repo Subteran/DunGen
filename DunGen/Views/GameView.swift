@@ -6,7 +6,6 @@ struct GameView: View {
     @State private var input: String = ""
     @State private var showNewGameConfirmation = false
     @State private var showCustomInputSheet = false
-    @State private var showCombatView = false
     @State private var showDeathReport = false
     @State private var showActionsSheet = false
     @State private var showQuestSheet = false
@@ -37,7 +36,23 @@ struct GameView: View {
                                 .id(entry.id)
                         }
 
-                        if !engine.suggestedActions.isEmpty {
+                        if engine.awaitingWorldContinue || engine.awaitingLocationsContinue {
+                            Button {
+                                Task {
+                                    let usedNames = getUsedCharacterNames()
+                                    await engine.continueNewGame(usedNames: usedNames)
+                                }
+                            } label: {
+                                HStack {
+                                    Text("Continue")
+                                    Image(systemName: "arrow.right.circle.fill")
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .padding(.top, 8)
+                        } else if !engine.suggestedActions.isEmpty {
                             Button {
                                 showActionsSheet = true
                             } label: {
@@ -109,8 +124,11 @@ struct GameView: View {
                 showCustomInputSheet = false
             })
         }
-        .fullScreenCover(isPresented: $showCombatView) {
-            if let monster = engine.currentMonster, let character = engine.character {
+        .fullScreenCover(item: Binding(
+            get: { engine.inCombat && engine.currentMonster != nil && engine.character != nil ? engine.currentMonster : nil },
+            set: { _ in }
+        )) { monster in
+            if let character = engine.character {
                 NavigationStack {
                     CombatView(
                         monster: monster,
@@ -121,16 +139,14 @@ struct GameView: View {
                             }
                         },
                         onFlee: {
-                            Task {
-                                await engine.fleeCombat()
-                                showCombatView = false
-                            }
+                            let _ = engine.fleeCombat()
                         }
                     )
+                    .background(Color(UIColor.systemBackground))
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
                             Button("Close") {
-                                showCombatView = false
+                                engine.combatManager.inCombat = false
                             }
                         }
                     }
@@ -138,29 +154,10 @@ struct GameView: View {
             }
         }
         .fullScreenCover(isPresented: $showDeathReport) {
-            if let report = engine.deathReport {
-                NavigationStack {
-                    DeathReportView(
-                        report: report,
-                        onNewGame: {
-                            let deceased = report.toDeceasedCharacter(levelingService: levelingService)
-                            modelContext.insert(deceased)
-                            showDeathReport = false
-                            Task {
-                                let usedNames = getUsedCharacterNames()
-                                await engine.startNewGame(preferredType: engine.currentLocation, usedNames: usedNames)
-                            }
-                        }
-                    )
-                }
-            }
-        }
-        .onChange(of: engine.inCombat) { _, newValue in
-            showCombatView = newValue
+            deathReportView
         }
         .onChange(of: engine.characterDied) { _, newValue in
             if newValue {
-                showCombatView = false
                 showDeathReport = true
             }
         }
@@ -179,7 +176,7 @@ struct GameView: View {
         }
         .sheet(isPresented: $showActionsSheet) {
             actionsSheet
-                .presentationDetents([.height(280)])
+                .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
                 .presentationBackgroundInteraction(.enabled)
         }
@@ -243,34 +240,40 @@ struct GameView: View {
                 .font(.headline)
                 .padding(.top, 8)
 
-            ScrollView {
-                VStack(spacing: 8) {
-                    ForEach(Array(engine.suggestedActions.enumerated()), id: \.offset) { index, action in
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(spacing: 8) {
+                        ForEach(Array(engine.suggestedActions.enumerated()), id: \.offset) { index, action in
+                            Button {
+                                submitAction(action)
+                                showActionsSheet = false
+                            } label: {
+                                Text(action)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 12)
+                            }
+                            .buttonStyle(.bordered)
+                            .id(index == 0 ? "topAction" : nil)
+                        }
+
                         Button {
-                            submitAction(action)
+                            showCustomInputSheet = true
                             showActionsSheet = false
                         } label: {
-                            Text(action)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
+                            HStack {
+                                Text(L10n.actionOr)
+                                    .foregroundStyle(.secondary)
+                                Text(L10n.actionCustom)
+                                    .fontWeight(.medium)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(.borderless)
                     }
-
-                    Button {
-                        showCustomInputSheet = true
-                        showActionsSheet = false
-                    } label: {
-                        HStack {
-                            Text(L10n.actionOr)
-                                .foregroundStyle(.secondary)
-                            Text(L10n.actionCustom)
-                                .fontWeight(.medium)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                    }
-                    .buttonStyle(.borderless)
+                }
+                .onAppear {
+                    proxy.scrollTo("topAction", anchor: .top)
                 }
             }
         }
@@ -280,50 +283,51 @@ struct GameView: View {
 
     private func questSheet(progress: AdventureProgress) -> some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: 20) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Current Quest")
-                        .font(.headline)
-                        .foregroundStyle(.secondary)
-                    Text(progress.questGoal)
-                        .font(.title3)
-                        .fontWeight(.semibold)
-                }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Current Quest")
+                            .font(.headline)
+                            .foregroundStyle(.secondary)
+                        Text(progress.questGoal)
+                            .font(.title3)
+                            .fontWeight(.semibold)
+                    }
 
-                Divider()
+                    Divider()
 
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Location")
-                        .font(.headline)
-                        .foregroundStyle(.secondary)
-                    Text(progress.locationName)
-                        .font(.body)
-                }
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Story")
-                        .font(.headline)
-                        .foregroundStyle(.secondary)
-                    Text(progress.adventureStory)
-                        .font(.body)
-                }
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Progress")
-                        .font(.headline)
-                        .foregroundStyle(.secondary)
-                    HStack {
-                        Text("Encounter \(progress.currentEncounter) of \(progress.totalEncounters)")
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Location")
+                            .font(.headline)
+                            .foregroundStyle(.secondary)
+                        Text(progress.locationName)
                             .font(.body)
-                        Spacer()
-                        ProgressView(value: Double(progress.currentEncounter), total: Double(progress.totalEncounters))
-                            .frame(width: 100)
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Story")
+                            .font(.headline)
+                            .foregroundStyle(.secondary)
+                        Text(progress.adventureStory)
+                            .font(.body)
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Progress")
+                            .font(.headline)
+                            .foregroundStyle(.secondary)
+                        HStack {
+                            Text("Encounter \(progress.currentEncounter) of \(progress.totalEncounters)")
+                                .font(.body)
+                            Spacer()
+                            ProgressView(value: Double(progress.currentEncounter), total: Double(progress.totalEncounters))
+                                .frame(width: 100)
+                        }
                     }
                 }
-
-                Spacer()
+                .padding(20)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(20)
             .navigationTitle("Quest")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -336,10 +340,30 @@ struct GameView: View {
         }
     }
 
+    @ViewBuilder
+    private var deathReportView: some View {
+        if let report = engine.deathReport {
+            NavigationStack {
+                DeathReportView(
+                    report: report,
+                    onNewGame: {
+                        let deceased = report.toDeceasedCharacter(levelingService: levelingService)
+                        modelContext.insert(deceased)
+                        showDeathReport = false
+                        Task {
+                            let usedNames = getUsedCharacterNames()
+                            await engine.startNewGame(preferredType: engine.currentLocation, usedNames: usedNames)
+                        }
+                    }
+                )
+                .background(Color(UIColor.systemBackground))
+            }
+        }
+    }
 
     private var toolbar: some ToolbarContent {
         ToolbarItemGroup(placement: .primaryAction) {
-            if engine.character != nil, let progress = engine.adventureProgress {
+            if engine.character != nil, engine.adventureProgress != nil {
                 Button {
                     showQuestSheet = true
                 } label: {
@@ -382,9 +406,13 @@ struct GameView: View {
         engine.checkAvailabilityAndConfigure()
         engine.loadState()
 
-        if case .available = engine.availability, engine.character == nil {
-            let usedNames = getUsedCharacterNames()
-            await engine.startNewGame(preferredType: engine.currentLocation, usedNames: usedNames)
+        if case .available = engine.availability {
+            if engine.character == nil {
+                let usedNames = getUsedCharacterNames()
+                await engine.startNewGame(preferredType: engine.currentLocation, usedNames: usedNames)
+            } else if engine.character != nil && engine.suggestedActions.isEmpty && !engine.inCombat && !engine.characterDied {
+                await engine.submitPlayer(input: "continue")
+            }
         }
     }
 
@@ -405,15 +433,9 @@ struct GameView: View {
         case .usePrayer(let prayer):
             await engine.performCombatAction("pray: \(prayer)")
         case .flee:
-            let _ = await engine.fleeCombat()
-            showCombatView = false
+            let _ = engine.fleeCombat()
         case .surrender:
-            await engine.surrenderCombat()
-            showCombatView = false
-        }
-
-        if !engine.inCombat {
-            showCombatView = false
+            engine.surrenderCombat()
         }
     }
 }
