@@ -3,6 +3,7 @@ import SwiftUI
 struct CombatView: View {
     let monster: MonsterDefinition
     let character: CharacterProfile
+    let detailedInventory: [ItemDefinition]
     let onAction: (CombatAction) -> Void
     let onFlee: () -> Void
 
@@ -13,6 +14,7 @@ struct CombatView: View {
         case useAbility(String)
         case useSpell(String)
         case usePrayer(String)
+        case useItem(String)
         case flee
         case surrender
     }
@@ -125,6 +127,22 @@ struct CombatView: View {
                     .tint(.primary)
                 }
 
+                if !consumableItems.isEmpty {
+                    DisclosureGroup("🧪 Items (\(consumableItems.count))") {
+                        VStack(spacing: 8) {
+                            ForEach(consumableItems) { item in
+                                Button {
+                                    onAction(.useItem(item.fullName))
+                                } label: {
+                                    ActionButton(title: item.fullName, subtitle: itemEffect(item), color: .green)
+                                }
+                            }
+                        }
+                        .padding(.top, 8)
+                    }
+                    .tint(.primary)
+                }
+
                 Divider()
                     .padding(.vertical, 8)
 
@@ -141,6 +159,32 @@ struct CombatView: View {
                 }
             }
             .padding()
+        }
+    }
+
+    private var consumableItems: [ItemDefinition] {
+        detailedInventory.filter { item in
+            !(item.consumableEffect ?? "").isEmpty
+        }
+    }
+
+    private func itemEffect(_ item: ItemDefinition) -> String {
+        guard let effect = item.consumableEffect else {
+            return "Use item"
+        }
+
+        let min = item.consumableMinValue ?? 0
+        let max = item.consumableMaxValue ?? 0
+
+        switch effect.lowercased() {
+        case "hp":
+            return "Restore \(min)-\(max) HP"
+        case "gold":
+            return "Gain \(min)-\(max) gold"
+        case "xp":
+            return "Gain \(min)-\(max) XP"
+        default:
+            return "Use item"
         }
     }
 }
@@ -217,12 +261,26 @@ struct ActionButton: View {
                 backstory: "A skilled fighter",
                 attributes: .init(strength: 16, dexterity: 14, constitution: 15, intelligence: 12, wisdom: 13, charisma: 14),
                 hp: 25,
+                maxHP: 25,
                 xp: 150,
                 gold: 50,
                 inventory: ["Sword", "Shield"],
                 abilities: ["Power Strike", "Shield Bash"],
                 spells: []
             ),
+            detailedInventory: [
+                ItemDefinition(
+                    baseName: "Healing Potion",
+                    prefix: nil,
+                    suffix: nil,
+                    itemType: "consumable",
+                    description: "Restores health",
+                    rarity: "common",
+                    consumableEffect: "hp",
+                    consumableMinValue: 2,
+                    consumableMaxValue: 5
+                )
+            ],
             onAction: { _ in },
             onFlee: {}
         )

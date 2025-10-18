@@ -6,6 +6,8 @@ struct CharacterView: View {
     let levelingService: LevelingServiceProtocol
     let onUseItem: ((String) -> Bool)?
     @State private var selectedItem: ItemDefinition?
+    @State private var selectedAbility: String?
+    @State private var selectedSpell: String?
 
     init(character: CharacterProfile?, detailedInventory: [ItemDefinition] = [], levelingService: LevelingServiceProtocol = DefaultLevelingService(), onUseItem: ((String) -> Bool)? = nil) {
         self.character = character
@@ -33,6 +35,20 @@ struct CharacterView: View {
             })
             .presentationDetents([.medium, .large])
         }
+        .sheet(item: Binding(
+            get: { selectedAbility.map { AbilityDetail(name: $0, type: .ability) } },
+            set: { selectedAbility = $0?.name }
+        )) { detail in
+            AbilityDetailView(ability: detail)
+                .presentationDetents([.medium])
+        }
+        .sheet(item: Binding(
+            get: { selectedSpell.map { AbilityDetail(name: $0, type: .spell) } },
+            set: { selectedSpell = $0?.name }
+        )) { detail in
+            AbilityDetailView(ability: detail)
+                .presentationDetents([.medium])
+        }
     }
 
     private var emptyState: some View {
@@ -49,6 +65,20 @@ struct CharacterView: View {
 
     private func characterSheet(for character: CharacterProfile) -> some View {
         List {
+            Section {
+                HStack {
+                    Spacer()
+                    PaperDollView(
+                        character: character,
+                        detailedInventory: detailedInventory,
+                        size: 180
+                    )
+                    .padding(.vertical, 8)
+                    Spacer()
+                }
+                .listRowBackground(Color.clear)
+            }
+
             characterInfoSection(for: character)
             statsSection(for: character)
             attributesSection(for: character)
@@ -71,7 +101,7 @@ struct CharacterView: View {
 
     private func statsSection(for character: CharacterProfile) -> some View {
         Section(L10n.characterSectionStats) {
-            LabeledContent(L10n.characterLabelHp, value: "\(character.hp)")
+            LabeledContent(L10n.characterLabelHp, value: "\(character.hp) / \(character.maxHP)")
             LabeledContent(L10n.characterLabelXp, value: "\(character.xp) / \(levelingService.xpNeededForNextLevel(currentXP: character.xp))")
             LabeledContent(L10n.characterLabelGold, value: "\(character.gold)")
         }
@@ -96,7 +126,17 @@ struct CharacterView: View {
                     .italic()
             } else {
                 ForEach(character.abilities, id: \.self) { ability in
-                    Label(ability, systemImage: "star.fill")
+                    Button {
+                        selectedAbility = ability
+                    } label: {
+                        HStack {
+                            Label(ability, systemImage: "star.fill")
+                            Spacer()
+                            Image(systemName: "info.circle")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
             }
         }
@@ -110,7 +150,17 @@ struct CharacterView: View {
                     .italic()
             } else {
                 ForEach(character.spells, id: \.self) { spell in
-                    Label(spell, systemImage: "sparkles")
+                    Button {
+                        selectedSpell = spell
+                    } label: {
+                        HStack {
+                            Label(spell, systemImage: "sparkles")
+                            Spacer()
+                            Image(systemName: "info.circle")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
             }
         }
@@ -222,6 +272,89 @@ struct AttributeRow: View {
     }
 }
 
+struct AbilityDetail: Identifiable, Equatable {
+    let id = UUID()
+    let name: String
+    let type: AbilityType
+
+    enum AbilityType {
+        case ability
+        case spell
+    }
+}
+
+struct AbilityDetailView: View {
+    let ability: AbilityDetail
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(ability.name)
+                        .font(.title2)
+                        .fontWeight(.bold)
+
+                    Text(ability.type == .ability ? "Class Ability" : "Spell/Prayer")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Divider()
+
+                Text(generateDescription(for: ability.name, type: ability.type))
+                    .font(.body)
+
+                Spacer()
+            }
+            .padding(20)
+            .navigationTitle("Details")
+            .navigationBarTitleDisplayMode(.inline)
+        }
+    }
+
+    private func generateDescription(for name: String, type: AbilityDetail.AbilityType) -> String {
+        let lowercased = name.lowercased()
+
+        switch type {
+        case .ability:
+            if lowercased.contains("track") {
+                return "Allows you to follow trails and find hidden paths in the wilderness."
+            } else if lowercased.contains("sneak") || lowercased.contains("stealth") {
+                return "Move silently and avoid detection by enemies."
+            } else if lowercased.contains("strike") || lowercased.contains("attack") {
+                return "A powerful offensive technique that deals extra damage."
+            } else if lowercased.contains("shield") || lowercased.contains("block") {
+                return "Defensive maneuver that reduces incoming damage."
+            } else if lowercased.contains("rage") || lowercased.contains("fury") {
+                return "Channel your anger into devastating combat prowess."
+            } else if lowercased.contains("dodge") || lowercased.contains("evade") {
+                return "Quickly avoid incoming attacks with agility."
+            } else {
+                return "A special combat ability unique to your class."
+            }
+
+        case .spell:
+            if lowercased.contains("fire") || lowercased.contains("flame") {
+                return "Harness the power of flame to burn your enemies."
+            } else if lowercased.contains("heal") || lowercased.contains("cure") {
+                return "Restore health and mend wounds through divine or natural magic."
+            } else if lowercased.contains("light") || lowercased.contains("bolt") {
+                return "Strike your foes with crackling lightning energy."
+            } else if lowercased.contains("ice") || lowercased.contains("frost") {
+                return "Freeze enemies with chilling cold magic."
+            } else if lowercased.contains("bless") || lowercased.contains("divine") {
+                return "Channel divine power to aid yourself or allies."
+            } else if lowercased.contains("summon") || lowercased.contains("animate") {
+                return "Call forth creatures or raise the dead to fight for you."
+            } else if lowercased.contains("shield") || lowercased.contains("protect") {
+                return "Magical barrier that defends against attacks."
+            } else {
+                return "A mystical power granted by your training or divine favor."
+            }
+        }
+    }
+}
+
 #Preview {
     NavigationStack {
         CharacterView(
@@ -239,6 +372,7 @@ struct AttributeRow: View {
                     charisma: 14
                 ),
                 hp: 15,
+                maxHP: 15,
                 xp: 250,
                 gold: 50,
                 inventory: ["Longsword", "Leather Armor", "Backpack", "Rope"],

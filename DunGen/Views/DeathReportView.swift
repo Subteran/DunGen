@@ -157,6 +157,7 @@ struct StatRow: View {
                     backstory: "A skilled fighter",
                     attributes: .init(strength: 18, dexterity: 14, constitution: 16, intelligence: 12, wisdom: 13, charisma: 14),
                     hp: 0,
+                    maxHP: 20,
                     xp: 450,
                     gold: 275,
                     inventory: ["Flaming Sword", "Steel Armor"],

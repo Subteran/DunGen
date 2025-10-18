@@ -75,6 +75,11 @@ final class LLMGameEngine: GameEngineProtocol {
     var adventuresCompleted: Int = 0
     var itemsCollected: Int = 0
 
+    // Adventure tracking
+    private var currentAdventureXP: Int = 0
+    private var currentAdventureGold: Int = 0
+    private var currentAdventureMonsters: Int = 0
+
     // Death state
     var characterDied: Bool = false
     var deathReport: CharacterDeathReport?
@@ -84,6 +89,8 @@ final class LLMGameEngine: GameEngineProtocol {
 
     // Location selection state
     var awaitingLocationSelection: Bool = false
+    var adventureSummary: AdventureSummary?
+    var showingAdventureSummary: Bool = false
 
     // Character name input state
     var awaitingCustomCharacterName: Bool = false
@@ -96,7 +103,10 @@ final class LLMGameEngine: GameEngineProtocol {
 
     // New game flow state
     var awaitingWorldContinue: Bool = false
-    var awaitingLocationsContinue: Bool = false
+
+    // Encounter keyword history for narrative continuity
+    private var encounterKeywords: [String] = []
+    private let maxKeywordHistory = 10
 
     // Model availability
     var availability: AvailabilityState = .unavailable("Checking model…")
@@ -178,31 +188,14 @@ final class LLMGameEngine: GameEngineProtocol {
             guard let worldSession = getSession(for: .world),
                   let characterSession = getSession(for: .character) else { return }
 
-            let worldPrompt = "Create a fantasy world with an engaging story and diverse starting locations."
-            logger.debug("[World LLM - Initial] Prompt length: \(worldPrompt.count) chars")
-            let worldResponse = try await worldSession.respond(to: worldPrompt, generating: WorldState.self)
-            logger.debug("[World LLM - Initial] Generated \(worldResponse.content.locations.count) locations")
+            let races = ["Human", "Elf", "Dwarf", "Halfling", "Half-Elf", "Half-Orc", "Gnome"]
+            let classes = ["Rogue", "Warrior", "Mage", "Healer", "Paladin", "Ranger", "Monk", "Bard", "Druid", "Necromancer", "Barbarian"]
 
-            // Ensure all new locations start as unvisited and uncompleted
-            var world = worldResponse.content
-            world.locations = world.locations.map { location in
-                var loc = location
-                loc.visited = false
-                loc.completed = false
-                return loc
-            }
-            worldState = world
+            let randomRace = races.randomElement() ?? "Human"
+            let randomClass = classes.randomElement() ?? "Warrior"
 
-            if let world = worldState {
-                appendModel("\u{1F30D} \(world.worldStory)")
-                awaitingWorldContinue = true
-                saveState()
-                isGenerating = false
-                return
-            }
-
-            let characterPrompt = "Create a new character for a fantasy text adventure. Choose a random class from the available options to ensure variety."
-            logger.debug("[Character LLM] Prompt length: \(characterPrompt.count) chars")
+            let characterPrompt = "Create a new \(randomRace) \(randomClass) character for a fantasy text adventure. Generate name, personality, backstory, stats, equipment, abilities, and spells appropriate for a \(randomRace) \(randomClass)."
+            logger.debug("[Character LLM] Prompt: \(randomRace) \(randomClass), length: \(characterPrompt.count) chars")
 
             var attempts = 0
             let maxAttempts = 5
@@ -226,6 +219,7 @@ final class LLMGameEngine: GameEngineProtocol {
 
             if let generatedCharacter {
                 var char = generatedCharacter
+                char.hp = char.maxHP
                 // Add starting healing potion to detailed inventory
                 let startingPotion = ItemDefinition(
                     baseName: "Healing Potion",
@@ -263,14 +257,10 @@ final class LLMGameEngine: GameEngineProtocol {
                                character!.attributes.wisdom,
                                character!.attributes.charisma))
 
-            // Prompt player to choose starting location
-            if let world = worldState {
-                appendModel("\nWhere would you like to begin your adventure?")
-                suggestedActions = world.locations.map { $0.name }
-                awaitingLocationSelection = true
-            }
-
+            awaitingWorldContinue = true
             saveState()
+            isGenerating = false
+            return
         } catch {
             logger.error("\(error.localizedDescription, privacy: .public)")
             appendModel(String(format: L10n.errorStartGameFormat, error.localizedDescription))
@@ -285,93 +275,33 @@ final class LLMGameEngine: GameEngineProtocol {
 
         do {
             if awaitingWorldContinue {
-                // Show locations
                 awaitingWorldContinue = false
+
+                guard let worldSession = getSession(for: .world) else {
+                    isGenerating = false
+                    return
+                }
+
+                let worldPrompt = "Create a fantasy world with an engaging story and diverse starting locations."
+                logger.debug("[World LLM - Initial] Prompt length: \(worldPrompt.count) chars")
+                let worldResponse = try await worldSession.respond(to: worldPrompt, generating: WorldState.self)
+                logger.debug("[World LLM - Initial] Generated \(worldResponse.content.locations.count) locations")
+
+                var world = worldResponse.content
+                world.locations = world.locations.map { location in
+                    var loc = location
+                    loc.visited = false
+                    loc.completed = false
+                    return loc
+                }
+                worldState = world
+
                 if let world = worldState {
+                    appendModel("\u{1F30D} \(world.worldStory)")
                     appendModel("\nDiscovered locations:")
                     for location in world.locations {
                         appendModel("• \(location.name) (\(location.locationType.rawValue)): \(location.description)")
                     }
-                    appendModel("")
-                }
-                awaitingLocationsContinue = true
-                saveState()
-                isGenerating = false
-                return
-            }
-
-            if awaitingLocationsContinue {
-                // Continue to character generation
-                awaitingLocationsContinue = false
-                guard let _ = getSession(for: .world),
-                      let characterSession = getSession(for: .character) else {
-                    isGenerating = false
-                    return
-                }
-                let characterPrompt = "Create a new character for a fantasy text adventure. Choose a random class from the available options to ensure variety."
-                logger.debug("[Character LLM] Prompt length: \(characterPrompt.count) chars")
-
-                var attempts = 0
-                let maxAttempts = 5
-                var generatedCharacter: CharacterProfile?
-                var lastCandidate: CharacterProfile?
-
-                while attempts < maxAttempts {
-                    let characterResponse = try await characterSession.respond(to: characterPrompt, generating: CharacterProfile.self)
-                    let candidate = characterResponse.content
-                    lastCandidate = candidate
-
-                    if !usedNames.contains(candidate.name) {
-                        generatedCharacter = candidate
-                        logger.debug("[Character LLM] Generated unique character: \(candidate.name) the \(candidate.className)")
-                        break
-                    } else {
-                        logger.debug("[Character LLM] Name '\(candidate.name)' already used, regenerating... (attempt \(attempts + 1))")
-                        attempts += 1
-                    }
-                }
-
-                if let generatedCharacter {
-                    var char = generatedCharacter
-                    // Add starting healing potion to detailed inventory
-                    let startingPotion = ItemDefinition(
-                        baseName: "Healing Potion",
-                        prefix: nil,
-                        suffix: nil,
-                        itemType: "consumable",
-                        description: "A small vial of red liquid that restores health when consumed.",
-                        rarity: "common",
-                        consumableEffect: "hp",
-                        consumableMinValue: 2,
-                        consumableMaxValue: 5
-                    )
-                    detailedInventory.append(startingPotion)
-                    char.inventory.append(startingPotion.fullName)
-                    character = char
-                } else {
-                    // Failed to generate unique name after max attempts
-                    logger.warning("[Character LLM] Failed to generate unique name after \(maxAttempts) attempts")
-                    partialCharacter = lastCandidate
-                    awaitingCustomCharacterName = true
-                    appendModel("\n⚠️ Unable to generate a unique character name automatically.")
-                    appendModel("Please enter a unique name for your character:")
-                    saveState()
-                    isGenerating = false
-                    return
-                }
-
-                appendModel(L10n.gameWelcome)
-                appendModel(String(format: L10n.gameIntroFormat, character!.name, character!.race, character!.className, character!.backstory))
-                appendModel(String(format: L10n.startingAttributesFormat,
-                                   character!.attributes.strength,
-                                   character!.attributes.dexterity,
-                                   character!.attributes.constitution,
-                                   character!.attributes.intelligence,
-                                   character!.attributes.wisdom,
-                                   character!.attributes.charisma))
-
-                // Prompt player to choose starting location
-                if let world = worldState {
                     appendModel("\nWhere would you like to begin your adventure?")
                     suggestedActions = world.locations.map { $0.name }
                     awaitingLocationSelection = true
@@ -514,6 +444,13 @@ final class LLMGameEngine: GameEngineProtocol {
             if let world = worldState, let selectedLocation = world.locations.first(where: { $0.name.lowercased() == truncatedInput.lowercased() || truncatedInput.lowercased().contains($0.name.lowercased()) }) {
                 currentLocation = selectedLocation.locationType
                 awaitingLocationSelection = false
+                showingAdventureSummary = false
+                adventureSummary = nil
+
+                // Reset adventure tracking for new adventure
+                currentAdventureXP = 0
+                currentAdventureGold = 0
+                currentAdventureMonsters = 0
 
                 // Mark location as visited
                 if var world = worldState {
@@ -557,11 +494,12 @@ final class LLMGameEngine: GameEngineProtocol {
             trackEncounter(encounterType)
         }
 
+        storeEncounterKeywords(turn: turn, encounter: encounter, monster: monster, npc: npc)
+
         if let progress = turn.adventureProgress {
             adventureProgress = progress
             if progress.isFinalEncounter && progress.completed {
                 appendModel("\n✅ Adventure Complete: \(progress.locationName)")
-                appendModel("\(progress.adventureStory)")
                 adventuresCompleted += 1
 
                 // Mark location as completed
@@ -573,8 +511,8 @@ final class LLMGameEngine: GameEngineProtocol {
                     worldState = world
                 }
 
-                // Prompt for next location
-                await promptForNextLocation()
+                // Generate adventure summary
+                await generateAdventureSummary(progress: progress)
             }
         }
 
@@ -619,6 +557,7 @@ final class LLMGameEngine: GameEngineProtocol {
         let shouldApplyRewards = monster == nil
 
         if shouldApplyRewards, let xpGain = rewards?.xpGain {
+            currentAdventureXP += xpGain
             if var c = self.character {
                 let outcome = levelingService.applyXPGain(xpGain, to: &c)
                 self.character = c
@@ -631,18 +570,41 @@ final class LLMGameEngine: GameEngineProtocol {
             }
         }
         if shouldApplyRewards, let hpDelta = rewards?.hpDelta {
-            self.character?.hp += hpDelta
+            if var char = self.character {
+                char.hp += hpDelta
+                char.hp = min(char.hp, char.maxHP)
+                self.character = char
+            }
             if hpDelta < 0 {
                 appendModel("💔 Took \(abs(hpDelta)) damage!")
-                // Check if damage killed the character
                 checkDeath()
             } else if hpDelta > 0 {
                 appendModel("❤️ Healed \(hpDelta) HP!")
             }
         }
         if shouldApplyRewards, let gold = rewards?.goldGain, gold > 0 {
+            currentAdventureGold += gold
             self.character?.gold += gold
             appendModel("💰 Found \(gold) gold!")
+        }
+
+        if let items = turn.itemsAcquired, !items.isEmpty {
+            for item in items {
+                self.character?.inventory.append(item)
+                appendModel("📦 Acquired: \(item)")
+            }
+        }
+
+        if let goldSpent = turn.goldSpent, goldSpent > 0 {
+            if var char = self.character {
+                if char.gold >= goldSpent {
+                    char.gold -= goldSpent
+                    self.character = char
+                    appendModel("💸 Paid \(goldSpent) gold")
+                } else {
+                    appendModel("⚠️ Not enough gold! Need \(goldSpent) but only have \(char.gold)")
+                }
+            }
         }
 
         if shouldApplyRewards, !loot.isEmpty {
@@ -715,11 +677,18 @@ final class LLMGameEngine: GameEngineProtocol {
                 attempts += 1
 
                 // Base prompt without listing all existing abilities/spells
-                var prompt = "Generate a new \(rewardList) for a level \(level) \(className). Return only the new \(rewardList) name."
+                var prompt = "Character: Level \(level) \(className). Generate a single new \(rewardList). Provide only the name of the \(rewardList)."
+
+                if !existingRewards.isEmpty {
+                    let recentRewards = Array(existingRewards.prefix(5)).joined(separator: ", ")
+                    prompt += " Already has: \(recentRewards)."
+                }
+
+                prompt += " Generate a unique \(rewardList) appropriate for this level and class."
 
                 // If we've had duplicates, explicitly mention them
                 if attempts > 1 {
-                    prompt += " IMPORTANT: Do NOT generate any of these already known abilities/spells: \(existingRewards.joined(separator: ", "))."
+                    prompt += " AVOID duplicates."
                 }
 
                 logger.debug("[\(rewardType.rawValue.capitalized) LLM] Attempt \(attempts), Prompt length: \(prompt.count) chars")
@@ -912,20 +881,29 @@ final class LLMGameEngine: GameEngineProtocol {
     func applyMonsterDefeatRewards(monster: MonsterDefinition) {
         guard var char = character else { return }
 
+        currentAdventureMonsters += 1
+
         let charLevel = levelingService.level(forXP: char.xp)
         let baseXP = 10 + (charLevel * 5)
         let xpVariance = Int.random(in: -3...10)
         let xpGain = max(5, baseXP + xpVariance)
 
+        currentAdventureXP += xpGain
         let outcome = levelingService.applyXPGain(xpGain, to: &char)
         character = char
         if outcome.didLevelUp {
             appendModel(outcome.logLine)
+            if outcome.needsNewAbility {
+                Task {
+                    await generateLevelReward(for: char.className, level: outcome.newLevel ?? 1)
+                }
+            }
         } else {
             appendModel("✨ Gained \(xpGain) XP!")
         }
 
         let goldGain = Int.random(in: 5...25)
+        currentAdventureGold += goldGain
         char.gold += goldGain
         character = char
         appendModel("💰 Found \(goldGain) gold!")
@@ -996,15 +974,22 @@ final class LLMGameEngine: GameEngineProtocol {
         switch effect.lowercased() {
         case "hp":
             char.hp += effectValue
+            char.hp = min(char.hp, char.maxHP)
             appendModel("💚 Used \(itemName) and healed \(effectValue) HP!")
         case "gold":
             char.gold += effectValue
             appendModel("💰 Used \(itemName) and gained \(effectValue) gold!")
         case "xp":
             let outcome = levelingService.applyXPGain(effectValue, to: &char)
+            character = char
             if outcome.didLevelUp {
                 appendModel("✨ Used \(itemName) and gained \(effectValue) XP!")
                 appendModel(outcome.logLine)
+                if outcome.needsNewAbility {
+                    Task {
+                        await generateLevelReward(for: char.className, level: outcome.newLevel ?? 1)
+                    }
+                }
             } else {
                 appendModel("✨ Used \(itemName) and gained \(effectValue) XP!")
             }
@@ -1134,7 +1119,7 @@ final class LLMGameEngine: GameEngineProtocol {
         let contextSummary = buildContextSummary()
         let charLevel = levelingService.level(forXP: character?.xp ?? 0)
 
-        var encounterPrompt = "Character level \(charLevel). Location: \(location). Recent encounters: \(recentEncounterTypes.joined(separator: ", ")). Adventure progress: \(adventureProgress?.progress ?? "1/10")."
+        var encounterPrompt = "Character level \(charLevel). Location: \(location). Recent encounters: \(recentEncounterTypes.joined(separator: ", ")). Adventure progress: \(adventureProgress?.progress ?? "0/10")."
         if let adventure = adventureProgress {
             encounterPrompt += " Quest: \(adventure.questGoal)."
         }
@@ -1153,7 +1138,10 @@ final class LLMGameEngine: GameEngineProtocol {
             npc = try await generateOrRetrieveNPC(for: location, encounter: encounter)
         }
 
-        var scenePrompt = String(format: L10n.scenePromptFormat, location, actionLine) + "\nEncounter: \(encounter.encounterType) (\(encounter.difficulty))\n" + contextSummary + buildEncounterContext(monster: monster, npc: npc)
+        let encounterHistory = buildEncounterHistory()
+        let historySection = encounterHistory.isEmpty ? "" : "\n\(encounterHistory)"
+
+        var scenePrompt = String(format: L10n.scenePromptFormat, location, actionLine) + "\nEncounter: \(encounter.encounterType) (\(encounter.difficulty))\n" + contextSummary + buildEncounterContext(monster: monster, npc: npc) + historySection
 
         let maxPromptLength = 1000
         if scenePrompt.count > maxPromptLength {
@@ -1166,7 +1154,7 @@ final class LLMGameEngine: GameEngineProtocol {
         let turn = adventureResponse.content
         logger.debug("[Adventure LLM] Success")
 
-        var progressionPrompt = "Encounter type: \(encounter.encounterType). Difficulty: \(encounter.difficulty). Character level: \(charLevel). Adventure encounter: \(adventureProgress?.progress ?? "1/10")."
+        var progressionPrompt = "Encounter type: \(encounter.encounterType). Difficulty: \(encounter.difficulty). Character level: \(charLevel). Adventure encounter: \(adventureProgress?.progress ?? "0/10")."
         if let adventure = adventureProgress {
             progressionPrompt += " Quest: \(adventure.questGoal)."
         }
@@ -1217,19 +1205,114 @@ final class LLMGameEngine: GameEngineProtocol {
             lines.append("Spells: \(spells)")
         }
 
-        let recentActions = log.suffix(2).filter { !$0.isFromModel }.map { entry in
-            let content = entry.content
-            return content.count > 50 ? String(content.prefix(50)) + "..." : content
-        }
-        if !recentActions.isEmpty {
-            lines.append("Recent: \(recentActions.joined(separator: " | "))")
+        let recentKeywords = extractRecentKeywords()
+        if !recentKeywords.isEmpty {
+            lines.append("Recent: \(recentKeywords)")
         }
 
         return lines.joined(separator: "\n")
     }
 
+    private func extractRecentKeywords() -> String {
+        let recentEntries = log.suffix(4)
+        var keywords: [String] = []
+
+        for entry in recentEntries {
+            let content = entry.content
+            let keywordList = extractKeywords(from: content, isPlayerAction: !entry.isFromModel)
+            if !keywordList.isEmpty {
+                keywords.append(keywordList)
+            }
+        }
+
+        let combined = keywords.joined(separator: ", ")
+        return combined.count > 100 ? String(combined.prefix(100)) + "..." : combined
+    }
+
+    private func extractKeywords(from text: String, isPlayerAction: Bool) -> String {
+        let lowercased = text.lowercased()
+        var keywords: [String] = []
+
+        let actionVerbs = ["attack", "fight", "flee", "run", "talk", "speak", "search", "investigate",
+                          "open", "take", "use", "cast", "drink", "eat", "hide", "sneak", "climb"]
+        let entities = ["monster", "goblin", "rat", "skeleton", "zombie", "orc", "dragon",
+                       "chest", "door", "trap", "room", "corridor", "stairs", "npc"]
+        let outcomes = ["defeated", "killed", "found", "discovered", "took damage", "healed",
+                       "gained", "lost", "escaped", "failed", "succeeded"]
+
+        for verb in actionVerbs {
+            if lowercased.contains(verb) {
+                keywords.append(verb)
+                break
+            }
+        }
+
+        for entity in entities {
+            if lowercased.contains(entity) {
+                keywords.append(entity)
+            }
+        }
+
+        if !isPlayerAction {
+            for outcome in outcomes {
+                if lowercased.contains(outcome) {
+                    keywords.append(outcome)
+                    break
+                }
+            }
+        }
+
+        return keywords.prefix(3).joined(separator: " ")
+    }
+
+    private func storeEncounterKeywords(turn: AdventureTurn, encounter: EncounterDetails?, monster: MonsterDefinition?, npc: NPCDefinition?) {
+        var keywords: [String] = []
+
+        if let encounterType = encounter?.encounterType {
+            keywords.append(encounterType)
+        }
+
+        if let monster = monster {
+            keywords.append("vs")
+            keywords.append(monster.baseName)
+        }
+
+        if let npc = npc {
+            keywords.append("met")
+            keywords.append(npc.name)
+        }
+
+        let narrative = turn.narration
+        if narrative.lowercased().contains("defeat") || narrative.lowercased().contains("kill") {
+            keywords.append("victory")
+        } else if narrative.lowercased().contains("fled") || narrative.lowercased().contains("escape") {
+            keywords.append("fled")
+        } else if narrative.lowercased().contains("found") || narrative.lowercased().contains("discover") {
+            keywords.append("found")
+        } else if narrative.lowercased().contains("damage") {
+            keywords.append("injured")
+        }
+
+        let keywordString = keywords.joined(separator: " ")
+        encounterKeywords.append(keywordString)
+
+        if encounterKeywords.count > maxKeywordHistory {
+            encounterKeywords.removeFirst()
+        }
+    }
+
+    private func buildEncounterHistory() -> String {
+        guard !encounterKeywords.isEmpty else { return "" }
+
+        let numbered = encounterKeywords.enumerated().map { index, keywords in
+            "\(index + 1): \(keywords)"
+        }
+
+        return "Encounter History: " + numbered.joined(separator: " | ")
+    }
+
     // MARK: - Location Management
-    private func promptForNextLocation() async {
+    func promptForNextLocation() async {
         guard var world = worldState else { return }
 
         let uncompletedLocations = world.locations.filter { !$0.completed }
@@ -1317,6 +1400,24 @@ final class LLMGameEngine: GameEngineProtocol {
         logger.debug("[World LLM - New Locations] Final generated: \(locationNames)")
 
         return generatedLocations
+    }
+
+    private func generateAdventureSummary(progress: AdventureProgress) async {
+        let notableItems = detailedInventory.suffix(5).map { $0.fullName }
+
+        let summary = AdventureSummary(
+            locationName: progress.locationName,
+            questGoal: progress.questGoal,
+            completionSummary: progress.adventureStory,
+            encountersCompleted: progress.currentEncounter,
+            totalXPGained: currentAdventureXP,
+            totalGoldEarned: currentAdventureGold,
+            notableItems: Array(notableItems),
+            monstersDefeated: currentAdventureMonsters
+        )
+
+        adventureSummary = summary
+        showingAdventureSummary = true
     }
 
     // MARK: - Logging helpers

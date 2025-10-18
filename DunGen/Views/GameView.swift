@@ -10,6 +10,7 @@ struct GameView: View {
     @State private var showActionsSheet = false
     @State private var showQuestSheet = false
     @State private var showInventoryManagement = false
+    @State private var showAdventureSummarySheet = false
     @FocusState private var inputFocused: Bool
     @Environment(\.modelContext) private var modelContext
 
@@ -36,22 +37,80 @@ struct GameView: View {
                                 .id(entry.id)
                         }
 
-                        if engine.awaitingWorldContinue || engine.awaitingLocationsContinue {
-                            Button {
-                                Task {
-                                    let usedNames = getUsedCharacterNames()
-                                    await engine.continueNewGame(usedNames: usedNames)
-                                }
-                            } label: {
-                                HStack {
-                                    Text("Continue")
-                                    Image(systemName: "arrow.right.circle.fill")
-                                }
-                                .frame(maxWidth: .infinity)
+                        if engine.awaitingWorldContinue, let character = engine.character {
+                            VStack(spacing: 16) {
+                                PaperDollView(
+                                    character: character,
+                                    detailedInventory: engine.detailedInventory,
+                                    size: 200
+                                )
                                 .padding(.vertical, 12)
+
+                                Button {
+                                    Task {
+                                        let usedNames = getUsedCharacterNames()
+                                        await engine.continueNewGame(usedNames: usedNames)
+                                    }
+                                } label: {
+                                    HStack {
+                                        Text("Continue")
+                                        Image(systemName: "arrow.right.circle.fill")
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 12)
+                                }
+                                .buttonStyle(.borderedProminent)
                             }
-                            .buttonStyle(.borderedProminent)
                             .padding(.top, 8)
+                        } else if engine.characterDied {
+                            VStack(spacing: 16) {
+                                Text("💀 Your Character Has Fallen")
+                                    .font(.title2)
+                                    .fontWeight(.bold)
+                                    .foregroundStyle(.red)
+
+                                if let report = engine.deathReport {
+                                    Text(report.causeOfDeath)
+                                        .font(.body)
+                                        .multilineTextAlignment(.center)
+                                        .foregroundStyle(.secondary)
+                                }
+
+                                Button {
+                                    showDeathReport = true
+                                } label: {
+                                    HStack {
+                                        Image(systemName: "doc.text.fill")
+                                        Text("View Death Report")
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 12)
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .tint(.red)
+                            }
+                            .padding(.top, 16)
+                        } else if engine.showingAdventureSummary {
+                            VStack(spacing: 16) {
+                                Text("🎉 Quest Complete!")
+                                    .font(.title2)
+                                    .fontWeight(.bold)
+                                    .foregroundStyle(.green)
+
+                                Button {
+                                    showAdventureSummarySheet = true
+                                } label: {
+                                    HStack {
+                                        Image(systemName: "chart.bar.fill")
+                                        Text("View Adventure Summary")
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 12)
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .tint(.green)
+                            }
+                            .padding(.top, 16)
                         } else if !engine.suggestedActions.isEmpty {
                             Button {
                                 showActionsSheet = true
@@ -133,6 +192,7 @@ struct GameView: View {
                     CombatView(
                         monster: monster,
                         character: character,
+                        detailedInventory: engine.detailedInventory,
                         onAction: { action in
                             Task {
                                 await handleCombatAction(action)
@@ -155,11 +215,6 @@ struct GameView: View {
         }
         .fullScreenCover(isPresented: $showDeathReport) {
             deathReportView
-        }
-        .onChange(of: engine.characterDied) { _, newValue in
-            if newValue {
-                showDeathReport = true
-            }
         }
         .onChange(of: engine.needsInventoryManagement) { _, newValue in
             showInventoryManagement = newValue
@@ -187,6 +242,13 @@ struct GameView: View {
                     .presentationDragIndicator(.visible)
             }
         }
+        .sheet(isPresented: $showAdventureSummarySheet) {
+            if let summary = engine.adventureSummary {
+                adventureSummarySheet(summary: summary)
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
+            }
+        }
     }
 
     // MARK: - Subviews
@@ -209,7 +271,7 @@ struct GameView: View {
             )
             StatusBadge(
                 label: L10n.characterLabelHp,
-                value: "\(character.hp)",
+                value: "\(character.hp)/\(character.maxHP)",
                 icon: "heart.fill"
             )
             StatusBadge(
@@ -340,6 +402,101 @@ struct GameView: View {
         }
     }
 
+    private func adventureSummarySheet(summary: AdventureSummary) -> some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Quest Completed")
+                            .font(.headline)
+                            .foregroundStyle(.secondary)
+                        Text(summary.questGoal)
+                            .font(.title3)
+                            .fontWeight(.semibold)
+                    }
+
+                    Divider()
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Summary")
+                            .font(.headline)
+                            .foregroundStyle(.secondary)
+                        Text(summary.completionSummary)
+                            .font(.body)
+                    }
+
+                    Divider()
+
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("Statistics")
+                            .font(.headline)
+                            .foregroundStyle(.secondary)
+
+                        HStack {
+                            Label("Encounters", systemImage: "map.fill")
+                            Spacer()
+                            Text("\(summary.encountersCompleted)")
+                                .fontWeight(.semibold)
+                        }
+
+                        HStack {
+                            Label("Monsters Defeated", systemImage: "shield.fill")
+                            Spacer()
+                            Text("\(summary.monstersDefeated)")
+                                .fontWeight(.semibold)
+                        }
+
+                        HStack {
+                            Label("XP Gained", systemImage: "sparkles")
+                            Spacer()
+                            Text("\(summary.totalXPGained)")
+                                .fontWeight(.semibold)
+                        }
+
+                        HStack {
+                            Label("Gold Earned", systemImage: "dollarsign.circle.fill")
+                            Spacer()
+                            Text("\(summary.totalGoldEarned)")
+                                .fontWeight(.semibold)
+                        }
+                    }
+
+                    if !summary.notableItems.isEmpty {
+                        Divider()
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Notable Items")
+                                .font(.headline)
+                                .foregroundStyle(.secondary)
+                            ForEach(summary.notableItems, id: \.self) { item in
+                                HStack {
+                                    Image(systemName: "bag.fill")
+                                        .foregroundStyle(.blue)
+                                    Text(item)
+                                        .font(.body)
+                                }
+                            }
+                        }
+                    }
+                }
+                .padding(20)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .navigationTitle("Adventure Summary")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Choose Next Location") {
+                        showAdventureSummarySheet = false
+                        Task {
+                            await engine.promptForNextLocation()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     @ViewBuilder
     private var deathReportView: some View {
         if let report = engine.deathReport {
@@ -363,7 +520,7 @@ struct GameView: View {
 
     private var toolbar: some ToolbarContent {
         ToolbarItemGroup(placement: .primaryAction) {
-            if engine.character != nil, engine.adventureProgress != nil {
+            if engine.character != nil, engine.adventureProgress != nil, !engine.awaitingWorldContinue {
                 Button {
                     showQuestSheet = true
                 } label: {
@@ -407,10 +564,10 @@ struct GameView: View {
         engine.loadState()
 
         if case .available = engine.availability {
-            if engine.character == nil {
+            if engine.character == nil || engine.characterDied {
                 let usedNames = getUsedCharacterNames()
                 await engine.startNewGame(preferredType: engine.currentLocation, usedNames: usedNames)
-            } else if engine.character != nil && engine.suggestedActions.isEmpty && !engine.inCombat && !engine.characterDied {
+            } else if engine.character != nil && engine.suggestedActions.isEmpty && !engine.inCombat && !engine.awaitingWorldContinue {
                 await engine.submitPlayer(input: "continue")
             }
         }
@@ -432,6 +589,11 @@ struct GameView: View {
             await engine.performCombatAction("cast spell: \(spell)")
         case .usePrayer(let prayer):
             await engine.performCombatAction("pray: \(prayer)")
+        case .useItem(let itemName):
+            let success = engine.useItem(itemName: itemName)
+            if success {
+                await engine.performCombatAction("used item")
+            }
         case .flee:
             let _ = engine.fleeCombat()
         case .surrender:

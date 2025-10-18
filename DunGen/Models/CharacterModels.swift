@@ -14,8 +14,11 @@ struct CharacterProfile: Codable, Equatable {
     @Guide(description: "Primary attributes")
     var attributes: Attributes
 
-    @Guide(description: "Starting hit points between 8 and 14", .range(1...30))
+    @Guide(description: "Current hit points", .range(1...30))
     var hp: Int
+
+    @Guide(description: "Maximum hit points between 8 and 14", .range(1...30))
+    var maxHP: Int
 
     @Guide(description: "Starting experience points between 0 and 10", .range(0...1000))
     var xp: Int

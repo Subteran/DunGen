@@ -73,4 +73,30 @@ struct AdventureTurn: Codable, Equatable {
 
     @Guide(description: "Current specific environment/location description (e.g., 'Dark forest clearing', 'Tavern common room', 'Dungeon entrance hall'). Stay within the current adventure location - do not transition to different location types.")
     var currentEnvironment: String?
+
+    @Guide(description: "List of items purchased or received from NPCs in this encounter (e.g., ['Healing Potion', 'Iron Sword']). Empty if no items acquired.")
+    var itemsAcquired: [String]?
+
+    @Guide(description: "Amount of gold spent on purchases or services in this encounter. 0 if nothing was purchased.")
+    var goldSpent: Int?
+}
+
+@Generable(description: "Summary of a completed adventure")
+struct AdventureSummary: Codable, Equatable {
+    @Guide(description: "Name of the location that was completed")
+    var locationName: String
+    @Guide(description: "The quest goal that was accomplished")
+    var questGoal: String
+    @Guide(description: "Brief summary of how the adventure concluded (2-3 sentences)")
+    var completionSummary: String
+    @Guide(description: "Number of encounters the player faced")
+    var encountersCompleted: Int
+    @Guide(description: "Total XP gained during the adventure")
+    var totalXPGained: Int
+    @Guide(description: "Total gold earned during the adventure")
+    var totalGoldEarned: Int
+    @Guide(description: "Notable items acquired during the adventure")
+    var notableItems: [String]
+    @Guide(description: "Total monsters defeated during the adventure")
+    var monstersDefeated: Int
 }

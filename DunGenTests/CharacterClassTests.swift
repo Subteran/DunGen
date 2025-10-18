@@ -12,7 +12,7 @@ struct CharacterClassTests {
             className: "Rogue",
             backstory: "A silent assassin.",
             attributes: .init(strength: 10, dexterity: 18, constitution: 12, intelligence: 14, wisdom: 10, charisma: 12),
-            hp: 10, xp: 0, gold: 20,
+            hp: 10, maxHP: 10, xp: 0, gold: 20,
             inventory: [],
             abilities: ["Sneak Attack"],
             spells: []
@@ -35,7 +35,7 @@ struct CharacterClassTests {
             className: "Warrior",
             backstory: "A mighty barbarian.",
             attributes: .init(strength: 18, dexterity: 14, constitution: 16, intelligence: 10, wisdom: 10, charisma: 12),
-            hp: 16, xp: 0, gold: 15,
+            hp: 16, maxHP: 16, xp: 0, gold: 15,
             inventory: [],
             abilities: ["Battle Rage"],
             spells: []
@@ -57,7 +57,7 @@ struct CharacterClassTests {
             className: "Mage",
             backstory: "A wise wizard.",
             attributes: .init(strength: 8, dexterity: 12, constitution: 10, intelligence: 18, wisdom: 14, charisma: 13),
-            hp: 8, xp: 0, gold: 10,
+            hp: 8, maxHP: 8, xp: 0, gold: 10,
             inventory: [],
             abilities: [],
             spells: ["Fireball", "Magic Missile"]
@@ -80,7 +80,7 @@ struct CharacterClassTests {
             className: "Healer",
             backstory: "A devoted priest.",
             attributes: .init(strength: 12, dexterity: 10, constitution: 14, intelligence: 12, wisdom: 18, charisma: 15),
-            hp: 12, xp: 0, gold: 12,
+            hp: 12, maxHP: 12, xp: 0, gold: 12,
             inventory: [],
             abilities: [],
             spells: ["Heal", "Bless"]
@@ -102,7 +102,7 @@ struct CharacterClassTests {
             className: "Paladin",
             backstory: "A holy knight.",
             attributes: .init(strength: 16, dexterity: 10, constitution: 14, intelligence: 10, wisdom: 14, charisma: 16),
-            hp: 14, xp: 0, gold: 25,
+            hp: 14, maxHP: 14, xp: 0, gold: 25,
             inventory: [],
             abilities: ["Lay on Hands"],
             spells: ["Smite"]
@@ -126,7 +126,7 @@ struct CharacterClassTests {
             className: "Ranger",
             backstory: "A skilled tracker.",
             attributes: .init(strength: 14, dexterity: 16, constitution: 14, intelligence: 12, wisdom: 14, charisma: 12),
-            hp: 12, xp: 0, gold: 18,
+            hp: 12, maxHP: 12, xp: 0, gold: 18,
             inventory: [],
             abilities: ["Track"],
             spells: []

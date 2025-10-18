@@ -20,6 +20,7 @@ struct LevelingTests {
                 charisma: 9
             ),
             hp: hp,
+            maxHP: hp,
             xp: xp,
             gold: 10,
             inventory: ["Shortbow", "Cloak", "Rations"],
@@ -44,7 +45,8 @@ struct LevelingTests {
         // AND the new level is 2
         #expect(outcome.newLevel == 2)
         // AND HP increases by at least 1 due to leveling
-        #expect(character.hp > 11)
+        #expect(character.maxHP > 11)
+        #expect(character.hp == character.maxHP)
         // AND a user-facing log line is provided (content will be localized by the service)
         #expect(!outcome.logLine.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
     }
@@ -114,6 +116,7 @@ struct LevelingTests {
                 charisma: 20
             ),
             hp: 15,
+            maxHP: 15,
             xp: 90,
             gold: 10,
             inventory: [],

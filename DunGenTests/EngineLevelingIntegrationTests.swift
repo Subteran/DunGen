@@ -15,7 +15,7 @@ struct EngineLevelingIntegrationTests {
             className: "Ranger",
             backstory: "A swift scout from the greenwood.",
             attributes: .init(strength: 10, dexterity: 14, constitution: 12, intelligence: 12, wisdom: 13, charisma: 9),
-            hp: 11, xp: 95, gold: 10, inventory: [],
+            hp: 11, maxHP: 11, xp: 95, gold: 10, inventory: [],
             abilities: ["Track"],
             spells: []
         )
@@ -35,7 +35,8 @@ struct EngineLevelingIntegrationTests {
         // THEN the character's XP is updated and a level-up log appears
         let c = try #require(engine.character)
         #expect(c.xp == 105)
-        #expect(c.hp > 11)
+        #expect(c.maxHP > 11)
+        #expect(c.hp == c.maxHP)
         let hasLevelUpLine = engine.log.contains { $0.isFromModel && $0.content.contains("Level ") }
         #expect(hasLevelUpLine)
     }

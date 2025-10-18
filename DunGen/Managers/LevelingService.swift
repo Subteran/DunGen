@@ -43,7 +43,8 @@ final class DefaultLevelingService: LevelingServiceProtocol {
 
         if newLevel > oldLevel {
             let hpGain = rollHPGain(constitution: character.attributes.constitution)
-            character.hp += hpGain
+            character.maxHP += hpGain
+            character.hp = character.maxHP
 
             let statPointsToAward = Int.random(in: 1...3)
             applyStatPoints(statPointsToAward, to: &character)

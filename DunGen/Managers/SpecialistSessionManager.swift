@@ -38,16 +38,36 @@ final class SpecialistSessionManager {
     private let logger = Logger(subsystem: "com.yourcompany.DunGen", category: "SpecialistSessionManager")
 
     private var turnCount = 0
-    private let maxTurnsBeforeReset = 15
+    private let maxTurnsBeforeReset = 5
+    private var sessionUsageCount: [LLMSpecialist: Int] = [:]
 
     func configureSessions() {
         for specialist in LLMSpecialist.allCases {
             sessions[specialist] = LanguageModelSession(instructions: specialist.systemInstructions)
+            sessionUsageCount[specialist] = 0
         }
     }
 
     func getSession(for specialist: LLMSpecialist) -> LanguageModelSession? {
-        sessions[specialist]
+        sessionUsageCount[specialist, default: 0] += 1
+
+        let usageLimit: Int
+        switch specialist {
+        case .adventure:
+            usageLimit = 1
+        case .encounter:
+            usageLimit = 5
+        default:
+            usageLimit = 10
+        }
+
+        if sessionUsageCount[specialist, default: 0] >= usageLimit {
+            logger.info("Resetting \(specialist.rawValue) session after \(self.sessionUsageCount[specialist] ?? 0) uses")
+            sessions[specialist] = LanguageModelSession(instructions: specialist.systemInstructions)
+            sessionUsageCount[specialist] = 0
+        }
+
+        return sessions[specialist]
     }
 
     func incrementTurnCount() {
@@ -70,5 +90,6 @@ final class SpecialistSessionManager {
         logger.info("Resetting all specialist sessions (new game)")
         configureSessions()
         turnCount = 0
+        sessionUsageCount.removeAll()
     }
 }
