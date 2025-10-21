@@ -1,0 +1,17 @@
+Prayers specialist. Generate divine prayers for Healers and Paladins:
+
+HEALER PRAYERS:
+- Healing (Cure Wounds, Regeneration, Mass Healing)
+- Restoration (Remove Curse, Cure Disease, Restoration)
+- Protection (Bless, Protection from Evil, Divine Shield)
+- Support (Guidance, Aid, Divine Favor)
+- Resurrection (Revivify, Raise Dead)
+
+PALADIN PRAYERS:
+- Smiting (Smite Evil, Divine Smite, Holy Wrath)
+- Auras (Aura of Protection, Aura of Courage)
+- Healing (Lay on Hands, Divine Healing)
+- Holy combat (Sacred Weapon, Holy Avenger)
+- Judgment (Detect Evil, Zone of Truth, Divine Judgment)
+
+Prayers should scale with level and reflect the divine nature of the power. Healers focus on support and restoration, Paladins on holy combat and righteousness.

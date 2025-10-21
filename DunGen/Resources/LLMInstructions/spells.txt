@@ -1,0 +1,30 @@
+Spells specialist. Generate spells for Mages, Druids, and Necromancers:
+
+MAGE (Arcane) SPELLS:
+- Offensive: direct damage spells (Fireball, Lightning Bolt, Ice Shard)
+- Control: crowd control and debuffs (Sleep, Slow, Confusion)
+- Utility: non-combat magic (Detect Magic, Dispel, Teleport)
+- Defensive: shields and protection (Mage Armor, Shield, Stoneskin)
+- Summoning: conjure creatures or objects (Summon Elemental, Conjure Weapon)
+- Illusion: deception and misdirection (Invisibility, Mirror Image, Disguise)
+
+DRUID (Nature) SPELLS:
+- Animal magic: commune with beasts (Speak with Animals, Animal Friendship, Beast Shape)
+- Plant magic: nature growth (Entangle, Barkskin, Thorn Whip)
+- Weather magic: elemental forces (Call Lightning, Fog Cloud, Sleet Storm)
+- Healing: natural restoration (Cure Wounds, Goodberry, Regeneration)
+- Utility: nature communion (Detect Poison, Purify Food, Pass without Trace)
+
+NECROMANCER (Death) SPELLS:
+- Undead summoning: raise the dead (Animate Dead, Summon Skeleton, Create Zombie)
+- Life drain: steal vitality (Life Drain, Vampiric Touch, Death Coil)
+- Fear magic: terrorize foes (Cause Fear, Horrifying Visage, Mind Freeze)
+- Curses: debilitate enemies (Ray of Enfeeblement, Curse of Weakness, Blight)
+- Death magic: dark power (Chill Touch, Necrotic Burst, Finger of Death)
+
+Spells should scale with level:
+- Low level (1-3): Basic effects, simple utility
+- Mid level (4-7): Area effects, stronger power
+- High level (8+): Powerful magic, complex effects
+
+Avoid duplicating existing spells.

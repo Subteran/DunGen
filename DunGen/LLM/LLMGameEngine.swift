@@ -528,6 +528,14 @@ final class LLMGameEngine: GameEngineProtocol {
 
         if let progress = turn.adventureProgress {
             adventureProgress = progress
+
+            let summary = generateEncounterSummary(
+                narrative: turn.narration,
+                encounterType: encounter?.encounterType ?? "unknown",
+                monster: monster,
+                npc: npc
+            )
+            adventureProgress?.encounterSummaries.append(summary)
             if progress.isFinalEncounter && progress.completed {
                 appendModel("\n✅ Adventure Complete: \(progress.locationName)")
                 adventuresCompleted += 1
@@ -1225,7 +1233,10 @@ final class LLMGameEngine: GameEngineProtocol {
         let encounterHistory = buildEncounterHistory()
         let historySection = encounterHistory.isEmpty ? "" : "\n\(encounterHistory)"
 
-        var scenePrompt = String(format: L10n.scenePromptFormat, location, actionLine) + "\nEncounter: \(encounter.encounterType) (\(encounter.difficulty))\n" + contextSummary + buildEncounterContext(monster: monster, npc: npc) + historySection
+        let adventureHistory = buildAdventureHistory()
+        let adventureHistorySection = adventureHistory.isEmpty ? "" : "\nAdventure so far: \(adventureHistory)"
+
+        var scenePrompt = String(format: L10n.scenePromptFormat, location, actionLine) + "\nEncounter: \(encounter.encounterType) (\(encounter.difficulty))\n" + contextSummary + buildEncounterContext(monster: monster, npc: npc) + adventureHistorySection + historySection
 
         let maxPromptLength = 1000
         if scenePrompt.count > maxPromptLength {
@@ -1254,6 +1265,42 @@ final class LLMGameEngine: GameEngineProtocol {
         }
 
         await self.apply(turn: turn, encounter: encounter, rewards: rewards, loot: items, monster: monster, npc: npc)
+    }
+
+    private func generateEncounterSummary(narrative: String, encounterType: String, monster: MonsterDefinition?, npc: NPCDefinition?) -> String {
+        let maxLength = 100
+        let cleaned = narrative
+            .replacingOccurrences(of: "\n", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if cleaned.count <= maxLength {
+            return cleaned
+        }
+
+        var summary = String(cleaned.prefix(maxLength))
+        if let lastSpace = summary.lastIndex(of: " ") {
+            summary = String(summary[..<lastSpace])
+        }
+
+        if let monster = monster {
+            summary = "Encountered \(monster.fullName)"
+        } else if let npc = npc {
+            summary = "Met \(npc.name) the \(npc.occupation)"
+        } else if encounterType == "trap" {
+            summary = "Triggered trap"
+        } else if encounterType == "puzzle" {
+            summary = "Solved puzzle"
+        }
+
+        return summary
+    }
+
+    private func buildAdventureHistory() -> String {
+        guard let progress = adventureProgress, !progress.encounterSummaries.isEmpty else {
+            return ""
+        }
+
+        return progress.encounterSummaries.joined(separator: " → ")
     }
 
     private func buildContextSummary() -> String {

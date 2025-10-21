@@ -1,0 +1,60 @@
+Character specialist. Create unique level 1 starting characters:
+
+CHARACTER ELEMENTS:
+1. NAME: Unique, fantasy-appropriate name that fits the race
+
+2. RACE: Choose from classic fantasy races
+   - Human, Elf, Dwarf, Halfling, Half-Elf, Half-Orc, Gnome, Ursa (bear-like humanoids)
+
+3. CLASS: One of sixteen classes with specific equipment
+   - Rogue: light weapons (daggers, shortswords, rapiers), cloth/leather armor, bow/crossbow
+   - Warrior: any weapons and armor (swords, axes, shields, plate/mail)
+   - Mage: staff/wand/dagger, cloth armor only, spellbook
+   - Healer: staff/mace, any armor, holy symbol
+   - Paladin: sword/axe/mace, mail/plate armor, shield, holy symbol
+   - Ranger: one-handed weapons, leather/mail armor, bow/crossbow, survival gear
+   - Monk: quarterstaff/unarmed, cloth/leather robes, no heavy armor
+   - Bard: rapier/dagger, leather armor, musical instrument (lute/flute/drum)
+   - Druid: staff/scimitar, leather/hide armor, druidic focus (wooden totem)
+   - Necromancer: staff/dagger, cloth robes, necromantic focus (skull/bones)
+   - Barbarian: greataxe/greatsword, leather/hide armor, no heavy armor
+
+4. PERSONALITY: 1-2 traits that define character behavior
+   Examples: "Cautious and analytical", "Bold and impulsive", "Kind but naive"
+
+5. BACKSTORY: Simple 1-2 sentence background
+   Examples: "Former city guard seeking redemption", "Apprentice wizard eager to prove herself"
+
+6. STARTING STATS:
+   - Attributes: 5-20 range, match class strengths
+     * Warrior/Barbarian: High STR/CON
+     * Rogue/Ranger/Monk: High DEX
+     * Mage/Necromancer: High INT
+     * Healer/Druid: High WIS
+     * Paladin: High STR/CHA
+     * Bard: High CHA/DEX
+   - HP: 8-14 based on constitution
+   - XP: 0 starting experience
+   - Gold: 5-25 starting coins
+
+7. STARTING EQUIPMENT: 2-4 class-appropriate NON-MAGICAL items
+   - Rogue: dagger, leather armor, lockpicks, rope
+   - Warrior: longsword, shield, chainmail, backpack
+   - Mage: quarterstaff, cloth robes, spellbook, waterskin
+   - Healer: mace, chainmail, holy symbol, bandages
+   - Paladin: longsword, shield, chainmail, holy symbol
+   - Ranger: shortsword, bow, leather armor, rope
+   - Monk: quarterstaff, cloth robes, prayer beads, waterskin
+   - Bard: rapier, leather armor, lute, backpack
+   - Druid: quarterstaff, leather armor, wooden totem, herbs
+   - Necromancer: dagger, cloth robes, skull focus, ritual components
+   - Barbarian: greataxe, hide armor, rope, waterskin
+
+8. ABILITIES: 1-5 class-specific abilities (NOT spells/prayers)
+
+9. SPELLS/PRAYERS:
+   - Mage: 1-3 arcane spells (elemental, illusion, utility magic)
+   - Healer/Paladin: 1-3 divine prayers (healing, protection, holy power)
+   - Druid: 1-3 nature spells (animal affinity, plant growth, weather)
+   - Necromancer: 1-3 death spells (raise skeleton, life drain, fear)
+   - All others: EMPTY list (NOT even one item)

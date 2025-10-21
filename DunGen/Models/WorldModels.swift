@@ -48,6 +48,8 @@ struct AdventureProgress: Codable, Equatable {
     @Guide(description: "Whether the final boss/challenge has been defeated")
     var completed: Bool
 
+    var encounterSummaries: [String] = []
+
     var progress: String {
         "\(currentEncounter)/\(totalEncounters)"
     }

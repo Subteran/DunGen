@@ -2,6 +2,14 @@ import Foundation
 
 public enum L10n {
     // MARK: - Helpers
+    private static let resourceBundle: Bundle = {
+        #if SWIFT_PACKAGE
+        return .module
+        #else
+        return .main
+        #endif
+    }()
+
     public static func tr(_ key: String, _ args: CVarArg...) -> String {
         let format = NSLocalizedString(key, comment: "")
         return String(format: format, locale: Locale.current, arguments: args)
@@ -9,6 +17,38 @@ public enum L10n {
 
     private static func trKey(_ key: String) -> String {
         return NSLocalizedString(key, comment: "")
+    }
+
+    private static func loadInstructionFile(_ filename: String) -> String {
+        let bundle = resourceBundle
+        let subdirectory = "LLMInstructions"
+
+        // Try subdirectory first, then fall back to bundle root
+        let urlInSubdir = bundle.url(forResource: filename, withExtension: "txt", subdirectory: subdirectory)
+        let url = urlInSubdir ?? bundle.url(forResource: filename, withExtension: "txt")
+
+        guard let url, let content = try? String(contentsOf: url, encoding: .utf8) else {
+            #if DEBUG
+            var diagnostics = "Searched bundle: \(bundle.bundlePath)\n"
+            diagnostics += "Tried: \(subdirectory)/\(filename).txt and \(filename).txt\n"
+
+            if let subdirURLs = bundle.urls(forResourcesWithExtension: "txt", subdirectory: subdirectory) {
+                diagnostics += "Found in \(subdirectory): " + subdirURLs.map { $0.lastPathComponent }.joined(separator: ", ") + "\n"
+            } else {
+                diagnostics += "No \(subdirectory) subdirectory found in bundle.\n"
+            }
+
+            if let rootURLs = bundle.urls(forResourcesWithExtension: "txt", subdirectory: nil) {
+                diagnostics += "Found in bundle root: " + rootURLs.map { $0.lastPathComponent }.joined(separator: ", ") + "\n"
+            }
+
+            fatalError("Failed to load LLM instruction file: \(filename).txt\n" + diagnostics)
+            #else
+            fatalError("Failed to load LLM instruction file: \(filename).txt")
+            #endif
+        }
+
+        return content
     }
 
     // MARK: - Game
@@ -24,18 +64,18 @@ public enum L10n {
     // MARK: - System Instructions for LLM
     public static let systemInstructions = trKey("llm.system.instructions")
 
-    // MARK: - Specialist LLM Instructions
-    public static let llmWorldInstructions = trKey("llm.world.instructions")
-    public static let llmEncounterInstructions = trKey("llm.encounter.instructions")
-    public static let llmAdventureInstructions = trKey("llm.adventure.instructions")
-    public static let llmCharacterInstructions = trKey("llm.character.instructions")
-    public static let llmEquipmentInstructions = trKey("llm.equipment.instructions")
-    public static let llmProgressionInstructions = trKey("llm.progression.instructions")
-    public static let llmAbilitiesInstructions = trKey("llm.abilities.instructions")
-    public static let llmSpellsInstructions = trKey("llm.spells.instructions")
-    public static let llmPrayersInstructions = trKey("llm.prayers.instructions")
-    public static let llmMonstersInstructions = trKey("llm.monsters.instructions")
-    public static let llmNpcInstructions = trKey("llm.npc.instructions")
+    // MARK: - Specialist LLM Instructions (loaded from files)
+    public static let llmWorldInstructions = loadInstructionFile("world")
+    public static let llmEncounterInstructions = loadInstructionFile("encounter")
+    public static let llmAdventureInstructions = loadInstructionFile("adventure")
+    public static let llmCharacterInstructions = loadInstructionFile("character")
+    public static let llmEquipmentInstructions = loadInstructionFile("equipment")
+    public static let llmProgressionInstructions = loadInstructionFile("progression")
+    public static let llmAbilitiesInstructions = loadInstructionFile("abilities")
+    public static let llmSpellsInstructions = loadInstructionFile("spells")
+    public static let llmPrayersInstructions = loadInstructionFile("prayers")
+    public static let llmMonstersInstructions = loadInstructionFile("monsters")
+    public static let llmNpcInstructions = loadInstructionFile("npc")
 
     // MARK: - UI
     public static let tabGameTitle = trKey("ui.tab.game.title")
