@@ -29,23 +29,51 @@ struct GameView: View {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 8) {
                         ForEach(engine.log) { entry in
-                            Text(entry.content)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(8)
-                                .background(entry.isFromModel ? Color.secondary.opacity(0.1) : Color.accentColor.opacity(0.12))
+                            if entry.showCharacterSprite, let character = entry.characterForSprite {
+                                VStack(spacing: 12) {
+                                    Text(entry.content)
+                                        .font(.headline)
+                                        .frame(maxWidth: .infinity, alignment: .center)
+
+                                    PaperDollView(
+                                        character: character,
+                                        detailedInventory: [],
+                                        size: 200
+                                    )
+                                    .frame(maxWidth: .infinity, alignment: .center)
+                                }
+                                .padding(12)
+                                .background(Color.secondary.opacity(0.1))
                                 .clipShape(RoundedRectangle(cornerRadius: 6))
                                 .id(entry.id)
+                            } else if entry.showMonsterSprite, let monster = entry.monsterForSprite {
+                                VStack(spacing: 12) {
+                                    MonsterSprite.spriteView(
+                                        monsterName: monster.baseName,
+                                        size: 200
+                                    )
+                                    .frame(maxWidth: .infinity, alignment: .center)
+
+                                    Text(entry.content)
+                                        .font(.headline)
+                                        .frame(maxWidth: .infinity, alignment: .center)
+                                }
+                                .padding(12)
+                                .background(Color.red.opacity(0.1))
+                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                                .id(entry.id)
+                            } else {
+                                Text(entry.content)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(8)
+                                    .background(entry.isFromModel ? Color.secondary.opacity(0.1) : Color.accentColor.opacity(0.12))
+                                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                                    .id(entry.id)
+                            }
                         }
 
-                        if engine.awaitingWorldContinue, let character = engine.character {
+                        if engine.awaitingWorldContinue, engine.character != nil {
                             VStack(spacing: 16) {
-                                PaperDollView(
-                                    character: character,
-                                    detailedInventory: engine.detailedInventory,
-                                    size: 200
-                                )
-                                .padding(.vertical, 12)
-
                                 Button {
                                     Task {
                                         let usedNames = getUsedCharacterNames()
@@ -488,6 +516,7 @@ struct GameView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Choose Next Location") {
                         showAdventureSummarySheet = false
+                        engine.showingAdventureSummary = false
                         Task {
                             await engine.promptForNextLocation()
                         }

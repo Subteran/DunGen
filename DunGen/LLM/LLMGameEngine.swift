@@ -33,17 +33,29 @@ final class LLMGameEngine: GameEngineProtocol {
         let id: UUID
         let content: String
         let isFromModel: Bool
+        let showCharacterSprite: Bool
+        let characterForSprite: CharacterProfile?
+        let showMonsterSprite: Bool
+        let monsterForSprite: MonsterDefinition?
 
-        init(content: String, isFromModel: Bool) {
+        init(content: String, isFromModel: Bool, showCharacterSprite: Bool = false, characterForSprite: CharacterProfile? = nil, showMonsterSprite: Bool = false, monsterForSprite: MonsterDefinition? = nil) {
             self.id = UUID()
             self.content = content
             self.isFromModel = isFromModel
+            self.showCharacterSprite = showCharacterSprite
+            self.characterForSprite = characterForSprite
+            self.showMonsterSprite = showMonsterSprite
+            self.monsterForSprite = monsterForSprite
         }
 
-        init(id: UUID, content: String, isFromModel: Bool) {
+        init(id: UUID, content: String, isFromModel: Bool, showCharacterSprite: Bool = false, characterForSprite: CharacterProfile? = nil, showMonsterSprite: Bool = false, monsterForSprite: MonsterDefinition? = nil) {
             self.id = id
             self.content = content
             self.isFromModel = isFromModel
+            self.showCharacterSprite = showCharacterSprite
+            self.characterForSprite = characterForSprite
+            self.showMonsterSprite = showMonsterSprite
+            self.monsterForSprite = monsterForSprite
         }
     }
 
@@ -103,6 +115,10 @@ final class LLMGameEngine: GameEngineProtocol {
 
     // New game flow state
     var awaitingWorldContinue: Bool = false
+
+    // Active NPC conversation tracking
+    var activeNPC: NPCDefinition?
+    var activeNPCTurns: Int = 0
 
     // Encounter keyword history for narrative continuity
     private var encounterKeywords: [String] = []
@@ -173,6 +189,8 @@ final class LLMGameEngine: GameEngineProtocol {
         currentEnvironment = ""
         suggestedActions.removeAll()
         awaitingLocationSelection = false
+        activeNPC = nil
+        activeNPCTurns = 0
         combatManager.reset()
         affixRegistry.reset()
         npcRegistry.reset()
@@ -185,11 +203,11 @@ final class LLMGameEngine: GameEngineProtocol {
         if let preferred = preferredType { currentLocation = preferred }
 
         do {
-            guard let worldSession = getSession(for: .world),
+            guard let _ = getSession(for: .world),
                   let characterSession = getSession(for: .character) else { return }
 
-            let races = ["Human", "Elf", "Dwarf", "Halfling", "Half-Elf", "Half-Orc", "Gnome"]
-            let classes = ["Rogue", "Warrior", "Mage", "Healer", "Paladin", "Ranger", "Monk", "Bard", "Druid", "Necromancer", "Barbarian"]
+            let races = ["Human", "Elf", "Dwarf", "Halfling", "Half-Elf", "Half-Orc", "Gnome", "Ursa"]
+            let classes = ["Rogue", "Warrior", "Mage", "Healer", "Paladin", "Ranger", "Monk", "Bard", "Druid", "Necromancer", "Barbarian", "Warlock", "Sorcerer", "Cleric", "Assassin", "Berserker"]
 
             let randomRace = races.randomElement() ?? "Human"
             let randomClass = classes.randomElement() ?? "Warrior"
@@ -219,6 +237,11 @@ final class LLMGameEngine: GameEngineProtocol {
 
             if let generatedCharacter {
                 var char = generatedCharacter
+
+                // Apply racial stat modifiers
+                let modifiers = RaceModifiers.modifiers(for: char.race)
+                char.attributes = modifiers.apply(to: char.attributes)
+
                 char.hp = char.maxHP
                 // Add starting healing potion to detailed inventory
                 let startingPotion = ItemDefinition(
@@ -248,6 +271,7 @@ final class LLMGameEngine: GameEngineProtocol {
             }
 
             appendModel(L10n.gameWelcome)
+            appendCharacterSprite()
             appendModel(String(format: L10n.gameIntroFormat, character!.name, character!.race, character!.className, character!.backstory))
             appendModel(String(format: L10n.startingAttributesFormat,
                                character!.attributes.strength,
@@ -341,11 +365,17 @@ final class LLMGameEngine: GameEngineProtocol {
                 return
             }
             partial.name = trimmedName
+
+            // Apply racial stat modifiers
+            let modifiers = RaceModifiers.modifiers(for: partial.race)
+            partial.attributes = modifiers.apply(to: partial.attributes)
+
             character = partial
             partialCharacter = nil
             awaitingCustomCharacterName = false
 
             appendModel(L10n.gameWelcome)
+            appendCharacterSprite()
             appendModel(String(format: L10n.gameIntroFormat, character!.name, character!.race, character!.className, character!.backstory))
             appendModel(String(format: L10n.startingAttributesFormat,
                                character!.attributes.strength,
@@ -520,7 +550,7 @@ final class LLMGameEngine: GameEngineProtocol {
             // Store monster as pending - don't enter combat automatically
             // Player must choose to attack via their action
             combatManager.pendingMonster = monster
-            appendModel("\n⚔️ Monster: \(monster.fullName)")
+            appendMonsterSprite(monster)
             appendModel("HP: \(monster.hp) | Defense: \(monster.defense)")
             if !monster.abilities.isEmpty {
                 appendModel("Abilities: \(monster.abilities.prefix(3).joined(separator: ", "))")
@@ -580,6 +610,14 @@ final class LLMGameEngine: GameEngineProtocol {
                 checkDeath()
             } else if hpDelta > 0 {
                 appendModel("❤️ Healed \(hpDelta) HP!")
+            }
+        } else if shouldApplyRewards {
+            // Natural HP regeneration: +1 HP per encounter if no damage taken and below max HP
+            if var char = self.character, char.hp < char.maxHP, rewards?.hpDelta == nil || rewards?.hpDelta == 0 {
+                char.hp += 1
+                char.hp = min(char.hp, char.maxHP)
+                self.character = char
+                appendModel("❤️‍🩹 Regenerated 1 HP")
             }
         }
         if shouldApplyRewards, let gold = rewards?.goldGain, gold > 0 {
@@ -894,8 +932,10 @@ final class LLMGameEngine: GameEngineProtocol {
         if outcome.didLevelUp {
             appendModel(outcome.logLine)
             if outcome.needsNewAbility {
+                let className = char.className
+                let newLevel = outcome.newLevel ?? 1
                 Task {
-                    await generateLevelReward(for: char.className, level: outcome.newLevel ?? 1)
+                    await generateLevelReward(for: className, level: newLevel)
                 }
             }
         } else {
@@ -910,9 +950,10 @@ final class LLMGameEngine: GameEngineProtocol {
 
         let shouldDropLoot = Int.random(in: 1...100) <= 30
         if shouldDropLoot {
+            let classNameForLoot = char.className
             Task {
                 do {
-                    let loot = try await generateLoot(count: 1, difficulty: "medium", characterLevel: charLevel, characterClass: char.className)
+                    let loot = try await generateLoot(count: 1, difficulty: "medium", characterLevel: charLevel, characterClass: classNameForLoot)
                     if !loot.isEmpty {
                         let currentInventoryCount = detailedInventory.count
                         if currentInventoryCount + loot.count > maxInventorySlots {
@@ -986,8 +1027,10 @@ final class LLMGameEngine: GameEngineProtocol {
                 appendModel("✨ Used \(itemName) and gained \(effectValue) XP!")
                 appendModel(outcome.logLine)
                 if outcome.needsNewAbility {
+                    let className = char.className
+                    let newLevel = outcome.newLevel ?? 1
                     Task {
-                        await generateLevelReward(for: char.className, level: outcome.newLevel ?? 1)
+                        await generateLevelReward(for: className, level: newLevel)
                     }
                 }
             } else {
@@ -1119,23 +1162,64 @@ final class LLMGameEngine: GameEngineProtocol {
         let contextSummary = buildContextSummary()
         let charLevel = levelingService.level(forXP: character?.xp ?? 0)
 
-        var encounterPrompt = "Character level \(charLevel). Location: \(location). Recent encounters: \(recentEncounterTypes.joined(separator: ", ")). Adventure progress: \(adventureProgress?.progress ?? "0/10")."
-        if let adventure = adventureProgress {
-            encounterPrompt += " Quest: \(adventure.questGoal)."
-        }
-        encounterPrompt += " Determine encounter type and difficulty."
-        logger.debug("[Encounter LLM] Prompt length: \(encounterPrompt.count) chars")
-        let encounterResponse = try await encounterSession.respond(to: encounterPrompt, generating: EncounterDetails.self)
-        let encounter = encounterResponse.content
-        logger.debug("[Encounter LLM] Success")
-
+        var encounter: EncounterDetails
         var monster: MonsterDefinition?
         var npc: NPCDefinition?
 
-        if encounter.encounterType == "combat" {
-            monster = try await generateMonster(for: encounter, characterLevel: charLevel, location: location)
-        } else if encounter.encounterType == "social" {
-            npc = try await generateOrRetrieveNPC(for: location, encounter: encounter)
+        // Check if continuing an active NPC conversation
+        let playerActionLower = (playerAction ?? "").lowercased()
+
+        // Check if player specifically references the NPC by name or with keywords
+        let isReferencingNPC = activeNPC != nil && (
+            playerActionLower.contains(activeNPC!.name.lowercased()) ||
+            playerActionLower.contains("speak") ||
+            playerActionLower.contains("talk") ||
+            playerActionLower.contains("ask") ||
+            playerActionLower.contains("tell")
+        )
+
+        // Continue conversation only if: NPC active, referenced by player, and under turn limit
+        let isContinuingConversation = activeNPC != nil && isReferencingNPC && activeNPCTurns < 2
+
+        if isContinuingConversation {
+            // Continue existing social encounter with same NPC
+            encounter = EncounterDetails(encounterType: "social", difficulty: "normal")
+            npc = activeNPC
+            activeNPCTurns += 1
+            logger.debug("[Encounter] Continuing conversation with \(npc?.name ?? "NPC") (turn \(self.activeNPCTurns))")
+        } else {
+            // Clear active NPC if turn limit reached or not referenced
+            if activeNPC != nil && (!isReferencingNPC || activeNPCTurns >= 2) {
+                logger.debug("[Encounter] Ending conversation with \(self.activeNPC?.name ?? "NPC")")
+                activeNPC = nil
+                activeNPCTurns = 0
+            }
+
+            var encounterPrompt = "Character level \(charLevel). Location: \(location). Recent encounters: \(recentEncounterTypes.joined(separator: ", ")). Adventure progress: \(adventureProgress?.progress ?? "0/10")."
+            if let adventure = adventureProgress {
+                encounterPrompt += " Quest: \(adventure.questGoal)."
+                if adventure.isFinalEncounter {
+                    encounterPrompt += " This is the FINAL encounter - use 'final' type to satisfy the quest goal."
+                }
+            }
+            encounterPrompt += " Determine encounter type and difficulty. For trap encounters, scale danger with player level."
+            logger.debug("[Encounter LLM] Prompt length: \(encounterPrompt.count) chars")
+            let encounterResponse = try await encounterSession.respond(to: encounterPrompt, generating: EncounterDetails.self)
+            encounter = encounterResponse.content
+            logger.debug("[Encounter LLM] Success")
+
+            if encounter.encounterType == "combat" || encounter.encounterType == "final" {
+                activeNPC = nil
+                activeNPCTurns = 0
+                monster = try await generateMonster(for: encounter, characterLevel: charLevel, location: location)
+            } else if encounter.encounterType == "social" {
+                npc = try await generateOrRetrieveNPC(for: location, encounter: encounter)
+                activeNPC = npc
+                activeNPCTurns = 1
+            } else {
+                activeNPC = nil
+                activeNPCTurns = 0
+            }
         }
 
         let encounterHistory = buildEncounterHistory()
@@ -1427,5 +1511,14 @@ final class LLMGameEngine: GameEngineProtocol {
 
     func appendModel(_ text: String) {
         log.append(LogEntry(content: text, isFromModel: true))
+    }
+
+    private func appendCharacterSprite() {
+        guard let character = character else { return }
+        log.append(LogEntry(content: "📜 NEW CHARACTER CREATED 📜", isFromModel: true, showCharacterSprite: true, characterForSprite: character))
+    }
+
+    private func appendMonsterSprite(_ monster: MonsterDefinition) {
+        log.append(LogEntry(content: "⚔️ Monster: \(monster.fullName)", isFromModel: true, showMonsterSprite: true, monsterForSprite: monster))
     }
 }

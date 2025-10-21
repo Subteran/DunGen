@@ -59,11 +59,11 @@ struct MonsterDatabase {
         BaseMonster(name: "Lich", category: "undead", baseHP: 135, baseDamage: "3d6", baseDefense: 17, description: "Undead sorcerer"),
         BaseMonster(name: "Mummy", category: "undead", baseHP: 58, baseDamage: "2d6+3", baseDefense: 11, description: "Preserved corpse"),
 
-        BaseMonster(name: "Beholder", category: "aberration", baseHP: 180, baseDamage: "4d10", baseDefense: 18, description: "Eye tyrant"),
-        BaseMonster(name: "Mind Flayer", category: "aberration", baseHP: 71, baseDamage: "2d10+4", baseDefense: 15, description: "Brain-eating horror"),
+        BaseMonster(name: "Eye Tyrant", category: "aberration", baseHP: 180, baseDamage: "4d10", baseDefense: 18, description: "Floating sphere with many eyes"),
+        BaseMonster(name: "Brain Eater", category: "aberration", baseHP: 71, baseDamage: "2d10+4", baseDefense: 15, description: "Tentacled psychic horror"),
         BaseMonster(name: "Aboleth", category: "aberration", baseHP: 135, baseDamage: "3d6+5", baseDefense: 17, description: "Ancient aquatic terror"),
-        BaseMonster(name: "Gelatinous Cube", category: "aberration", baseHP: 84, baseDamage: "3d6", baseDefense: 6, description: "Transparent ooze"),
-        BaseMonster(name: "Rust Monster", category: "aberration", baseHP: 27, baseDamage: "1d8", baseDefense: 14, description: "Metal-eating creature"),
+        BaseMonster(name: "Transparent Ooze", category: "aberration", baseHP: 84, baseDamage: "3d6", baseDefense: 6, description: "Clear gelatinous mass"),
+        BaseMonster(name: "Corrosion Crawler", category: "aberration", baseHP: 27, baseDamage: "1d8", baseDefense: 14, description: "Metal-eating insectoid"),
 
         BaseMonster(name: "Harpy", category: "monstrosity", baseHP: 38, baseDamage: "2d4+1", baseDefense: 11, description: "Singing bird-woman"),
         BaseMonster(name: "Manticore", category: "monstrosity", baseHP: 68, baseDamage: "1d8+3", baseDefense: 14, description: "Lion-scorpion hybrid"),
@@ -101,14 +101,14 @@ struct MonsterDatabase {
         BaseMonster(name: "Ghoul", category: "undead", baseHP: 22, baseDamage: "2d6+2", baseDefense: 12, description: "Flesh-eating corpse"),
         BaseMonster(name: "Revenant", category: "undead", baseHP: 136, baseDamage: "2d8+4", baseDefense: 13, description: "Vengeful corpse"),
 
-        BaseMonster(name: "Displacer Beast", category: "monstrosity", baseHP: 85, baseDamage: "1d6+3", baseDefense: 13, description: "Illusory panther"),
-        BaseMonster(name: "Owlbear", category: "monstrosity", baseHP: 59, baseDamage: "1d8+4", baseDefense: 13, description: "Owl-bear hybrid"),
-        BaseMonster(name: "Bulette", category: "monstrosity", baseHP: 94, baseDamage: "4d12+4", baseDefense: 17, description: "Land shark"),
+        BaseMonster(name: "Phase Panther", category: "monstrosity", baseHP: 85, baseDamage: "1d6+3", baseDefense: 13, description: "Shifting feline predator"),
+        BaseMonster(name: "Feathered Bear", category: "monstrosity", baseHP: 59, baseDamage: "1d8+4", baseDefense: 13, description: "Avian ursine hybrid"),
+        BaseMonster(name: "Burrowing Maw", category: "monstrosity", baseHP: 94, baseDamage: "4d12+4", baseDefense: 17, description: "Armored land predator"),
         BaseMonster(name: "Ankheg", category: "monstrosity", baseHP: 39, baseDamage: "2d6+3", baseDefense: 14, description: "Burrowing insect"),
         BaseMonster(name: "Phase Spider", category: "monstrosity", baseHP: 32, baseDamage: "1d10+3", baseDefense: 13, description: "Ethereal arachnid"),
 
         BaseMonster(name: "Roper", category: "monstrosity", baseHP: 93, baseDamage: "1d6", baseDefense: 20, description: "Tentacled stalactite"),
-        BaseMonster(name: "Umber Hulk", category: "monstrosity", baseHP: 93, baseDamage: "3d8+5", baseDefense: 18, description: "Confusing tunneler"),
+        BaseMonster(name: "Tunnel Horror", category: "monstrosity", baseHP: 93, baseDamage: "3d8+5", baseDefense: 18, description: "Confusion-inducing burrower"),
         BaseMonster(name: "Grick", category: "monstrosity", baseHP: 27, baseDamage: "2d6+3", baseDefense: 14, description: "Tentacled worm"),
         BaseMonster(name: "Cloaker", category: "aberration", baseHP: 78, baseDamage: "2d6+3", baseDefense: 14, description: "Living cloak"),
         BaseMonster(name: "Otyugh", category: "aberration", baseHP: 114, baseDamage: "1d8+5", baseDefense: 14, description: "Waste-dwelling beast"),
@@ -120,7 +120,7 @@ struct MonsterDatabase {
         BaseMonster(name: "Salamander", category: "elemental", baseHP: 90, baseDamage: "2d6+3", baseDefense: 15, description: "Fire serpent"),
 
         BaseMonster(name: "Naga", category: "monstrosity", baseHP: 127, baseDamage: "1d8+4", baseDefense: 18, description: "Serpent spellcaster"),
-        BaseMonster(name: "Yuan-ti", category: "monstrosity", baseHP: 127, baseDamage: "1d6+3", baseDefense: 14, description: "Snake person"),
+        BaseMonster(name: "Serpent Folk", category: "monstrosity", baseHP: 127, baseDamage: "1d6+3", baseDefense: 14, description: "Humanoid snake creature"),
         BaseMonster(name: "Couatl", category: "celestial", baseHP: 97, baseDamage: "1d6+2", baseDefense: 19, description: "Feathered serpent"),
         BaseMonster(name: "Pegasus", category: "celestial", baseHP: 59, baseDamage: "2d6+4", baseDefense: 12, description: "Winged horse"),
         BaseMonster(name: "Unicorn", category: "celestial", baseHP: 67, baseDamage: "1d8+4", baseDefense: 12, description: "Sacred horned horse"),
@@ -129,6 +129,19 @@ struct MonsterDatabase {
         BaseMonster(name: "Treant", category: "plant", baseHP: 138, baseDamage: "3d6+6", baseDefense: 16, description: "Ancient tree guardian"),
         BaseMonster(name: "Myconid", category: "plant", baseHP: 22, baseDamage: "1d4+1", baseDefense: 10, description: "Mushroom person"),
         BaseMonster(name: "Vine Blight", category: "plant", baseHP: 26, baseDamage: "2d6+2", baseDefense: 12, description: "Corrupted plant"),
-        BaseMonster(name: "Awakened Shrub", category: "plant", baseHP: 10, baseDamage: "1d4", baseDefense: 9, description: "Sentient bush")
+        BaseMonster(name: "Awakened Shrub", category: "plant", baseHP: 10, baseDamage: "1d4", baseDefense: 9, description: "Sentient bush"),
+
+        BaseMonster(name: "Stirge", category: "beast", baseHP: 2, baseDamage: "1d4", baseDefense: 14, description: "Blood-draining pest"),
+        BaseMonster(name: "Bat Swarm", category: "beast", baseHP: 22, baseDamage: "2d4", baseDefense: 12, description: "Cloud of bats"),
+        BaseMonster(name: "Scorpion", category: "beast", baseHP: 11, baseDamage: "1d6", baseDefense: 11, description: "Venomous arachnid"),
+        BaseMonster(name: "Crocodile", category: "beast", baseHP: 19, baseDamage: "1d8+2", baseDefense: 12, description: "Aquatic predator"),
+        BaseMonster(name: "Boar", category: "beast", baseHP: 11, baseDamage: "1d6+1", baseDefense: 11, description: "Tusked wild pig"),
+        BaseMonster(name: "Panther", category: "beast", baseHP: 13, baseDamage: "1d6+1", baseDefense: 12, description: "Stealthy feline hunter"),
+        BaseMonster(name: "Shadow", category: "undead", baseHP: 16, baseDamage: "2d6+2", baseDefense: 12, description: "Strength-draining shade"),
+        BaseMonster(name: "Wight", category: "undead", baseHP: 45, baseDamage: "1d8+3", baseDefense: 14, description: "Life-stealing warrior"),
+        BaseMonster(name: "Specter", category: "undead", baseHP: 22, baseDamage: "3d6", baseDefense: 12, description: "Incorporeal spirit"),
+        BaseMonster(name: "Elemental Mephit", category: "elemental", baseHP: 21, baseDamage: "1d4+2", baseDefense: 12, description: "Minor elemental creature"),
+        BaseMonster(name: "Living Statue", category: "construct", baseHP: 57, baseDamage: "2d8+3", baseDefense: 17, description: "Enchanted monument"),
+        BaseMonster(name: "Plague Rat", category: "beast", baseHP: 4, baseDamage: "1d4", baseDefense: 10, description: "Disease-ridden rodent")
     ]
 }

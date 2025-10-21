@@ -51,3 +51,46 @@ struct LevelReward: Codable {
     @Guide(description: "Name of the new ability, spell, or prayer")
     var name: String
 }
+
+struct RaceModifiers {
+    let strength: Int
+    let dexterity: Int
+    let constitution: Int
+    let intelligence: Int
+    let wisdom: Int
+    let charisma: Int
+
+    static func modifiers(for race: String) -> RaceModifiers {
+        switch race.lowercased() {
+        case "human":
+            return RaceModifiers(strength: 0, dexterity: 0, constitution: 0, intelligence: 0, wisdom: 0, charisma: 0)
+        case "elf":
+            return RaceModifiers(strength: -1, dexterity: 2, constitution: -1, intelligence: 1, wisdom: 1, charisma: 1)
+        case "dwarf":
+            return RaceModifiers(strength: 1, dexterity: -1, constitution: 2, intelligence: 0, wisdom: 1, charisma: -1)
+        case "halfling":
+            return RaceModifiers(strength: -2, dexterity: 2, constitution: 0, intelligence: 0, wisdom: 1, charisma: 1)
+        case "half-elf":
+            return RaceModifiers(strength: 0, dexterity: 1, constitution: 0, intelligence: 0, wisdom: 0, charisma: 2)
+        case "half-orc":
+            return RaceModifiers(strength: 2, dexterity: 0, constitution: 1, intelligence: -1, wisdom: 0, charisma: -1)
+        case "gnome":
+            return RaceModifiers(strength: -1, dexterity: 1, constitution: 1, intelligence: 2, wisdom: 0, charisma: 0)
+        case "ursa":
+            return RaceModifiers(strength: 2, dexterity: -1, constitution: 2, intelligence: -1, wisdom: 1, charisma: 0)
+        default:
+            return RaceModifiers(strength: 0, dexterity: 0, constitution: 0, intelligence: 0, wisdom: 0, charisma: 0)
+        }
+    }
+
+    func apply(to attributes: CharacterProfile.Attributes) -> CharacterProfile.Attributes {
+        return CharacterProfile.Attributes(
+            strength: max(5, min(20, attributes.strength + strength)),
+            dexterity: max(5, min(20, attributes.dexterity + dexterity)),
+            constitution: max(5, min(20, attributes.constitution + constitution)),
+            intelligence: max(5, min(20, attributes.intelligence + intelligence)),
+            wisdom: max(5, min(20, attributes.wisdom + wisdom)),
+            charisma: max(5, min(20, attributes.charisma + charisma))
+        )
+    }
+}

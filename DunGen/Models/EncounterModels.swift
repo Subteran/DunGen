@@ -3,9 +3,9 @@ import FoundationModels
 
 @Generable(description: "Encounter classification and setup")
 struct EncounterDetails: Codable {
-    @Guide(description: "Type of encounter: combat, social, exploration, puzzle, trap, stealth, or chase")
+    @Guide(description: "Type of encounter: combat, social, exploration, puzzle, trap, stealth, chase, or final")
     var encounterType: String
-    @Guide(description: "Encounter difficulty: easy, normal, hard, boss")
+    @Guide(description: "Encounter difficulty: easy, normal, hard, boss. For trap encounters, scale danger with player level.")
     var difficulty: String
 }
 

@@ -59,7 +59,7 @@ struct AdventureProgress: Codable, Equatable {
 
 @Generable(description: "One turn of the adventure including narration and updates")
 struct AdventureTurn: Codable, Equatable {
-    @Guide(description: "Narrative text for this turn (2-4 short paragraphs)")
+    @Guide(description: "Narrative text for this turn (2-4 sentences)")
     var narration: String
 
     @Guide(description: "Updated adventure progress")

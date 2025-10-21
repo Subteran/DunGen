@@ -71,7 +71,7 @@ struct CharacterView: View {
                     PaperDollView(
                         character: character,
                         detailedInventory: detailedInventory,
-                        size: 180
+                        size: 270
                     )
                     .padding(.vertical, 8)
                     Spacer()
