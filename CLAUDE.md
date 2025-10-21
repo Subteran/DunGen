@@ -9,13 +9,19 @@ DunGen is an iOS 26 fantasy RPG text adventure game that uses Apple's on-device 
 - **Permadeath rogue-like gameplay** with character history tracking
 - **11 specialist LLMs** working together for coherent game experiences
 - **16 character classes** across 8 races with racial stat modifiers
-- **Sprite-based character visualization** using 4×4 grid sprite sheets
+- **Sprite-based visualization** using 4×4 grid sprite sheets (256×384 per sprite, 1024×1536 total)
+  - Character sprites: 8 race sheets showing all 16 classes
+  - Monster sprites: 7 sheets (monsters_one through monsters_seven) for 112 base monsters
 - **Dynamic combat system** with player-initiated combat and dedicated UI
 - **Quest-based adventures** with clear objectives and progression tracking
-- **112 base monsters** (7 groups of 16) with procedural affix modifications
-- **Persistent NPCs** that remember player interactions
+- **112 base monsters** (7 groups of 16) with procedural affix modifications and sprite visualization
+- **Smart NPC system** with limited turn interactions (2 turns max unless explicitly referenced)
 - **Equipment system** with prefix/suffix affixes and 20-slot inventory limit
-- **Character progression** with level-based rewards and unique name verification
+- **Character progression** with level-based rewards, unique name verification, and mechanical ability effects
+- **HP regeneration** (+1 HP per non-damaging encounter when below max)
+- **Encounter variety enforcement** (no consecutive combat, 3+ encounters between traps)
+- **Social encounter rewards** (2-5 XP for meaningful conversations)
+- **Level-scaled trap damage** (1-3 HP at level 1-2, scaling to 6-15 HP at level 10+)
 - **Loading overlay** during LLM generation
 - **Context window protection** through prompt size management and post-generation verification
 
@@ -62,20 +68,22 @@ DunGen/
 │   ├── CharacterClass.swift      # 16 class definitions with grid positions
 │   └── Item.swift                # SwiftData model
 ├── Views/
-│   ├── GameView.swift            # Main narrative with loading overlay and adventure summary
-│   ├── CharacterView.swift       # Character stats display
+│   ├── GameView.swift            # Main narrative with loading overlay, sprite display, and adventure summary
+│   ├── CharacterView.swift       # Character stats display with sprite (270pt)
 │   ├── CombatView.swift          # Dedicated combat interface
 │   ├── DeathReportView.swift     # Final statistics on death
 │   ├── CharacterHistoryView.swift # Fallen heroes list
 │   ├── ItemDetailView.swift      # Equipment details
 │   ├── InventoryManagementView.swift # 20-slot inventory manager
 │   ├── WorldView.swift           # Location browser
-│   ├── SpriteSheet.swift         # Sprite extraction system
+│   ├── SpriteSheet.swift         # Sprite extraction system (SpriteView, RaceClassSprite, MonsterSprite)
 │   ├── PaperDollView.swift       # Character sprite display
 │   └── ContentView.swift         # Tab navigation
 └── Resources/
     ├── L10n.swift                # Localization constants
-    ├── art/                      # Sprite sheet source images (8 races)
+    ├── art/                      # Sprite sheet source images
+    │   ├── {race}_sheet.png      # 8 race sheets (1024×1536, 4×4 grid of 256×384 sprites)
+    │   └── monsters_{one-seven}.png # 7 monster sheets (1024×1536, 4×4 grid of 256×384 sprites)
     └── en.lproj/
         └── Localizable.strings   # All strings including LLM instructions (11 specialists)
 ```
@@ -87,23 +95,25 @@ DunGen/
 The game uses **11 specialized LLMs** instead of one monolithic LLM. Each specialist has a focused responsibility:
 
 1. **World LLM** - Generates fantasy worlds with 2-5 diverse starting locations
-2. **Encounter LLM** - Determines encounter type (combat/social/exploration/puzzle/trap/stealth/chase/final) and difficulty
+2. **Encounter LLM** - Determines encounter type (combat/social/exploration/puzzle/trap/stealth/chase/final) and difficulty, enforces variety (no consecutive combat, 3+ encounters between traps)
 3. **Adventure LLM** - Creates narrative text (2-4 sentences) with quest progression
 4. **Character LLM** - Generates unique level 1 characters with 16 classes and 8 races
 5. **Equipment LLM** - Creates items using consistent prefix/suffix affix system
-6. **Progression LLM** - Calculates XP, HP, gold rewards (strict reward philosophy)
-7. **Abilities LLM** - Generates physical abilities for non-caster classes
+6. **Progression LLM** - Calculates XP, HP, gold rewards (strict reward philosophy), awards 2-5 XP for social encounters, scales trap damage by level (1-3 HP at level 1-2, 6-15 HP at level 10+)
+7. **Abilities LLM** - Generates physical abilities with clear mechanical effects (offensive: damage bonuses, defensive: damage reduction, utility: buffs/control)
 8. **Spells LLM** - Creates arcane/nature/death/eldritch spells for caster classes
 9. **Prayers LLM** - Generates divine prayers for divine classes
 10. **Monsters LLM** - Modifies base monsters (from 112-monster database) with affixes
-11. **NPC LLM** - Creates and manages persistent NPCs with dialogue
+11. **NPC LLM** - Creates and manages persistent NPCs with dialogue, limited to 2 turns per interaction unless explicitly referenced
 
 **Key Design Principles:**
 - Specialists work in sequence during `advanceScene()`
 - Each specialist has detailed instructions in `Localizable.strings`
 - Session resets every 15 turns via `SpecialistSessionManager`
 - Consistent affix system across Equipment and Monster LLMs
-- NPC persistence tracked in `NPCRegistry`
+- NPC persistence tracked in `NPCRegistry` with smart conversation tracking
+- **Encounter variety enforcement** - no consecutive combat, 3+ non-trap encounters between traps
+- **HP regeneration** - +1 HP per non-damaging encounter when below max HP
 - **Post-generation verification** for duplicate detection (locations, NPCs, abilities/spells)
 - **Prompt size protection** - no unbounded lists sent to LLMs
 
@@ -126,11 +136,16 @@ The game uses **11 specialized LLMs** instead of one monolithic LLM. Each specia
 - **Ursa**: +2 STR, +2 CON, +1 WIS, -1 DEX, -1 INT
 
 **Sprite System:**
-- Each race has a 4×4 sprite sheet (2048×2048, 512×512 per sprite)
+- Each race has a 4×4 sprite sheet (1024×1536, 256×384 per sprite)
+- Each monster group has a 4×4 sprite sheet (1024×1536, 256×384 per sprite)
 - `RaceClassSprite` extracts correct sprite based on race + class
-- Sprite sheets named: `{race}_sheet.png` (e.g., `dwarf_sheet.png`)
+- `MonsterSprite` extracts correct sprite based on monster's database position
+- Character sprite sheets named: `{race}_sheet.png` (e.g., `dwarf_sheet.png`)
+- Monster sprite sheets named: `monsters_one.png` through `monsters_seven.png`
 - `CharacterClass.gridPosition` maps each class to grid coordinates
-- `PaperDollView` displays single sprite (no composition)
+- Sprites displayed in GameView narrative log (character creation, monster encounters)
+- `PaperDollView` displays character sprite at 270pt in Character tab
+- Monster sprites shown with red-tinted background before monster name
 
 ### Context Window Protection
 
@@ -160,6 +175,9 @@ The game uses **11 specialized LLMs** instead of one monolithic LLM. Each specia
 - **Inventory management** triggers when 20-slot limit exceeded
 - **Character name deduplication** with post-generation verification
 - **Adventure summary system** tracks XP/gold/monsters per adventure
+- **HP regeneration system** - +1 HP per non-damaging encounter when below max
+- **NPC conversation tracking** - `activeNPC` and `activeNPCTurns` for smart conversation limits
+- **LogEntry system** - supports character sprites, monster sprites, and text content
 
 **CombatManager** (`Managers/CombatManager.swift`)
 - Manages combat state: `inCombat`, `currentMonster`, `currentMonsterHP`, `pendingMonster`
