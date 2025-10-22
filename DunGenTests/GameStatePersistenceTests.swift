@@ -25,14 +25,20 @@ struct GameStatePersistenceTests {
         )
 
         let logEntries = [
-            GameState.SavedLogEntry(id: UUID(), content: "Welcome!", isFromModel: true),
-            GameState.SavedLogEntry(id: UUID(), content: "You enter the dungeon.", isFromModel: true)
+            GameState.SavedLogEntry(id: UUID(), content: "Welcome!", isFromModel: true, showCharacterSprite: false, characterForSprite: nil, showMonsterSprite: false, monsterForSprite: nil),
+            GameState.SavedLogEntry(id: UUID(), content: "You enter the dungeon.", isFromModel: true, showCharacterSprite: false, characterForSprite: nil, showMonsterSprite: false, monsterForSprite: nil)
         ]
 
         let state = GameState(
             character: character,
             currentLocation: .dungeon,
-            log: logEntries
+            currentEnvironment: "Dungeon Entrance",
+            log: logEntries,
+            suggestedActions: [],
+            adventureProgress: nil,
+            detailedInventory: [],
+            worldState: nil,
+            awaitingLocationSelection: false
         )
 
         try persistence.save(state)
@@ -62,7 +68,13 @@ struct GameStatePersistenceTests {
         let state = GameState(
             character: nil,
             currentLocation: .outdoor,
-            log: []
+            currentEnvironment: "Forest",
+            log: [],
+            suggestedActions: [],
+            adventureProgress: nil,
+            detailedInventory: [],
+            worldState: nil,
+            awaitingLocationSelection: false
         )
 
         try persistence.save(state)
@@ -98,7 +110,13 @@ struct GameStatePersistenceTests {
         let state = GameState(
             character: character,
             currentLocation: .city,
-            log: []
+            currentEnvironment: "City Square",
+            log: [],
+            suggestedActions: [],
+            adventureProgress: nil,
+            detailedInventory: [],
+            worldState: nil,
+            awaitingLocationSelection: false
         )
 
         try persistence.save(state)

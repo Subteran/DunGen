@@ -151,6 +151,15 @@ Each specialist has a focused responsibility to maintain coherent gameplay:
 - `CharacterClass.gridPosition` maps each class to grid coordinates
 - All 8 race sheets + 7 monster sheets implemented ✓
 
+### Equipment System
+
+**Item Rarity and Affixes:**
+- **Common/Uncommon/Rare**: Can be plain items (e.g., "Staff", "Sword") or have affixes
+- **Epic/Legendary**: MUST have prefix and/or suffix affixes (validated at generation)
+- **Affix Variety**: Tracks last 10 item affixes to avoid repetition
+- **Generation Retry**: Max 3 attempts per item, graceful fallback on failure
+- **Duplicate Prevention**: Checks existing inventory for duplicate item names
+
 ### Context Window Protection
 
 **Critical safeguards to prevent prompt overflow:**
@@ -162,6 +171,7 @@ Each specialist has a focused responsibility to maintain coherent gameplay:
 5. **Post-Generation Verification** - Locations, NPCs, abilities/spells generated without full lists, then verified
 6. **Session Resets** - Every 15 turns to clear conversation history
 7. **Affix Tracking** - Only last 10 affixes sent to LLMs (not full history)
+8. **Equipment Generation** - Max 3 retry attempts with error catching to prevent infinite loops
 
 ### Core Components
 

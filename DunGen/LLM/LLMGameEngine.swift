@@ -65,6 +65,9 @@ final class LLMGameEngine: GameEngineProtocol {
     // Generation state
     var isGenerating: Bool = false
 
+    // Debug info for testing
+    var lastPrompt: String = ""
+
     // World state
     var worldState: WorldState?
 
@@ -539,6 +542,42 @@ final class LLMGameEngine: GameEngineProtocol {
             }
         }
 
+        // Handle active combat actions
+        if combatManager.inCombat {
+            let inputLower = truncatedInput.lowercased()
+
+            // Capture combat state for logging
+            if let monster = combatManager.currentMonster, let char = character {
+                lastPrompt = "Combat State: \(char.name) (HP: \(char.hp)/\(char.maxHP)) vs \(monster.fullName) (HP: \(combatManager.currentMonsterHP)/\(monster.hp))\nPlayer action: \(truncatedInput)"
+            }
+
+            if inputLower.contains("flee") || inputLower.contains("run") || inputLower.contains("escape") {
+                let success = combatManager.fleeCombat()
+                if success {
+                    do {
+                        try await advanceScene(kind: currentLocation, playerAction: "fled from combat")
+                        saveState()
+                    } catch {
+                        logger.error("\(error.localizedDescription, privacy: .public)")
+                        appendModel(String(format: L10n.errorGenericFormat, error.localizedDescription))
+                    }
+                }
+                saveState()
+                isGenerating = false
+                return
+            } else if inputLower.contains("surrender") || inputLower.contains("give up") {
+                combatManager.surrenderCombat()
+                saveState()
+                isGenerating = false
+                return
+            } else {
+                combatManager.performCombatAction(truncatedInput)
+                saveState()
+                isGenerating = false
+                return
+            }
+        }
+
         // Handle location selection
         if awaitingLocationSelection {
             if let world = worldState, let selectedLocation = world.locations.first(where: { $0.name.lowercased() == truncatedInput.lowercased() || truncatedInput.lowercased().contains($0.name.lowercased()) }) {
@@ -759,6 +798,10 @@ final class LLMGameEngine: GameEngineProtocol {
             if hpDelta < 0 {
                 appendModel("💔 Took \(abs(hpDelta)) damage!")
                 checkDeath()
+                // Stop processing if character died
+                if characterDied {
+                    return
+                }
             } else if hpDelta > 0 {
                 appendModel("❤️ Healed \(hpDelta) HP!")
             }
@@ -1016,24 +1059,84 @@ final class LLMGameEngine: GameEngineProtocol {
         var items: [ItemDefinition] = []
         let knownAffixList = Array(knownItemAffixes.suffix(10)).joined(separator: ", ")
 
+        var existingItemNames = Set<String>()
+        for item in detailedInventory {
+            existingItemNames.insert(item.fullName)
+        }
+
         for i in 0..<count {
-            let prompt = "Character level: \(characterLevel). Class: \(characterClass). Difficulty: \(difficulty). Known affixes: \(knownAffixList.isEmpty ? "none yet" : knownAffixList). Avoid repeating known affixes if possible. Generate one magical item appropriate for this class and level."
-            logger.debug("[Equipment LLM] Item \(i+1)/\(count) Prompt length: \(prompt.count) chars")
+            var maxAttempts = 3
+            var item: ItemDefinition?
 
-            let response = try await equipmentSession.respond(to: prompt, generating: ItemDefinition.self)
-            logger.debug("[Equipment LLM] Item \(i+1)/\(count) Generated: \(response.content.fullName)")
-            let item = response.content
+            while maxAttempts > 0 {
+                let prompt = "Character level: \(characterLevel). Class: \(characterClass). Difficulty: \(difficulty). Known affixes: \(knownAffixList.isEmpty ? "none yet" : knownAffixList). Avoid repeating known affixes if possible. Generate one magical item appropriate for this class and level."
+                logger.debug("[Equipment LLM] Item \(i+1)/\(count) Prompt length: \(prompt.count) chars")
 
-            if let prefix = item.prefix {
-                affixRegistry.registerItemAffix(prefix)
-                knownItemAffixes.insert(prefix.name)
+                do {
+                    let response = try await equipmentSession.respond(to: prompt, generating: ItemDefinition.self)
+                    let candidate = response.content
+                    logger.debug("[Equipment LLM] Item \(i+1)/\(count) Generated: \(candidate.fullName)")
+
+                    // Check for duplicate item name
+                    if existingItemNames.contains(candidate.fullName) {
+                        logger.warning("[Equipment LLM] Duplicate item detected: \(candidate.fullName), regenerating...")
+                        maxAttempts -= 1
+                        continue
+                    }
+
+                    // Check for missing affixes on epic/legendary items only
+                    // Common, uncommon, and rare can be plain items
+                    let rarityLower = candidate.rarity.lowercased()
+                    if (rarityLower == "epic" || rarityLower == "legendary") && candidate.prefix == nil && candidate.suffix == nil {
+                        // Check if baseName contains common affix words (e.g., "Shadow Dagger", "Necrostaff")
+                        let baseNameLower = candidate.baseName.lowercased()
+                        let hasEmbeddedAffix = baseNameLower.contains("shadow") ||
+                                               baseNameLower.contains("spectral") ||
+                                               baseNameLower.contains("dark") ||
+                                               baseNameLower.contains("light") ||
+                                               baseNameLower.contains("necro") ||
+                                               baseNameLower.contains("holy") ||
+                                               baseNameLower.contains("fire") ||
+                                               baseNameLower.contains("ice") ||
+                                               baseNameLower.split(separator: " ").count > 1
+
+                        if !hasEmbeddedAffix {
+                            logger.warning("[Equipment LLM] Epic/Legendary item missing affixes: \(candidate.fullName), regenerating...")
+                            maxAttempts -= 1
+                            continue
+                        } else {
+                            logger.info("[Equipment LLM] Item has embedded affix in baseName: \(candidate.baseName)")
+                        }
+                    }
+
+                    item = candidate
+                    break
+                } catch {
+                    logger.error("[Equipment LLM] Generation failed: \(error.localizedDescription)")
+                    maxAttempts -= 1
+                    if maxAttempts <= 0 {
+                        logger.error("[Equipment LLM] Max attempts reached, skipping item")
+                    }
+                }
             }
-            if let suffix = item.suffix {
-                affixRegistry.registerItemAffix(suffix)
-                knownItemAffixes.insert(suffix.name)
-            }
 
-            items.append(item)
+            // Use the item even if it has issues after max attempts
+            if let finalItem = item {
+                existingItemNames.insert(finalItem.fullName)
+
+                if let prefix = finalItem.prefix {
+                    affixRegistry.registerItemAffix(prefix)
+                    knownItemAffixes.insert(prefix.name)
+                }
+                if let suffix = finalItem.suffix {
+                    affixRegistry.registerItemAffix(suffix)
+                    knownItemAffixes.insert(suffix.name)
+                }
+
+                items.append(finalItem)
+            } else {
+                logger.warning("[Equipment LLM] Failed to generate item \(i+1)/\(count) after \(3) attempts")
+            }
         }
 
         return items
@@ -1066,6 +1169,12 @@ final class LLMGameEngine: GameEngineProtocol {
         let wasInCombat = combatManager.inCombat
         combatManager.performCombatAction(action)
 
+        // Check if character died during combat
+        if characterDied {
+            saveState()
+            return
+        }
+
         if wasInCombat && !combatManager.inCombat {
             saveState()
             if let char = character, char.hp > 0, !characterDied {
@@ -1078,6 +1187,7 @@ final class LLMGameEngine: GameEngineProtocol {
 
     func applyMonsterDefeatRewards(monster: MonsterDefinition) {
         guard var char = character else { return }
+        guard !characterDied else { return }
 
         currentAdventureMonsters += 1
 
@@ -1470,6 +1580,7 @@ final class LLMGameEngine: GameEngineProtocol {
         }
 
         logger.debug("[Adventure LLM] Prompt length: \(scenePrompt.count) chars")
+        lastPrompt = scenePrompt
         let adventureResponse = try await adventureSession.respond(to: scenePrompt, generating: AdventureTurn.self)
         let turn = adventureResponse.content
         logger.debug("[Adventure LLM] Success")

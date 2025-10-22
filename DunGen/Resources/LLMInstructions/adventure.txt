@@ -51,8 +51,10 @@ NARRATIVE GUIDELINES:
    - ONLY describe the monster appearing and the combat setup
    - DO NOT describe attacks, damage, victories, or defeats
    - Combat resolution happens in the separate combat system
+   - CRITICAL: Use the EXACT monster name provided in the Monster context (e.g., if given "Frenzied Vine Blight of Blood", use that EXACT name, not "goblin" or any other creature)
    - Example CORRECT: "A goblin leaps from the shadows, brandishing a rusty dagger!"
    - Example WRONG: "You swing your sword and strike the goblin, defeating it!"
+   - Example WRONG: Describing a "goblin" when the Monster context says "Vine Blight"
    - The narrative ENDS when combat begins - all fighting happens in combat system
 
 4. WORLD BUILDING:

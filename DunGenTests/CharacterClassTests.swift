@@ -24,7 +24,7 @@ struct CharacterClassTests {
         #expect(character.canUseWeapon(.bow))
         #expect(character.canUseWeapon(.crossbow))
         #expect(character.canUseWeapon(.greatsword) == false)
-        #expect(character.canUseWeapon(.plate) == false)
+        #expect(character.canUseWeapon(.warhammer) == false)
     }
 
     @Test("Warrior can use any equipment")

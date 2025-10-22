@@ -1,4 +1,5 @@
 import Testing
+import Foundation
 @testable import DunGen
 
 @Suite("Leveling Tests")
@@ -31,15 +32,15 @@ struct LevelingTests {
 
     @Test("Crossing threshold levels up and increases HP")
     func crossingThresholdLevelsUpAndIncreasesHP() async throws {
-        // GIVEN a character near the threshold for level 2
-        var character = makeCharacter(xp: 90, hp: 11, con: 12)
+        // GIVEN a character near the threshold for level 2 (150 XP)
+        var character = makeCharacter(xp: 140, hp: 11, con: 12)
         let service: LevelingServiceProtocol = DefaultLevelingService()
 
         // WHEN they gain enough XP to cross the threshold
         let outcome = service.applyXPGain(15, to: &character)
 
         // THEN XP increases
-        #expect(character.xp == 105)
+        #expect(character.xp == 155)
         // AND a level up occurs
         #expect(outcome.didLevelUp == true)
         // AND the new level is 2
@@ -67,19 +68,23 @@ struct LevelingTests {
     @Test("Level computation from XP follows thresholds")
     func levelComputation() async throws {
         let service: LevelingServiceProtocol = DefaultLevelingService()
-        // Expected mapping (subject to implementation):
-        // Level 1: 0-99, Level 2: 100-299, Level 3: 300-599, etc.
+        // Formula: level = floor(log(xp/100) / log(1.5)) + 1
+        // Level 1: 0-149
+        // Level 2: 150-224 (threshold at 150 = 100 * 1.5^1)
+        // Level 3: 225+ (threshold at 225 = 100 * 1.5^2)
         #expect(service.level(forXP: 0) == 1)
         #expect(service.level(forXP: 99) == 1)
-        #expect(service.level(forXP: 100) == 2)
-        #expect(service.level(forXP: 250) == 2)
-        #expect(service.level(forXP: 300) == 3)
+        #expect(service.level(forXP: 100) == 1)
+        #expect(service.level(forXP: 149) == 1)
+        #expect(service.level(forXP: 150) == 2)
+        #expect(service.level(forXP: 224) == 2)
+        #expect(service.level(forXP: 225) == 3)
     }
 
     @Test("Leveling up awards stat points between 1 and 3")
     func levelUpAwardsStatPoints() async throws {
         // GIVEN a character at level 1
-        var character = makeCharacter(xp: 90, hp: 11, con: 12)
+        var character = makeCharacter(xp: 140, hp: 11, con: 12)
         let service: LevelingServiceProtocol = DefaultLevelingService()
         let initialStatTotal = character.attributes.strength + character.attributes.dexterity +
                                character.attributes.constitution + character.attributes.intelligence +
@@ -117,7 +122,7 @@ struct LevelingTests {
             ),
             hp: 15,
             maxHP: 15,
-            xp: 90,
+            xp: 140,
             gold: 10,
             inventory: [],
             abilities: ["Second Wind", "Action Surge"],

@@ -5,7 +5,15 @@
       "Read(//Users/giant/Downloads/**)",
       "Bash(uuidgen)",
       "Bash(git checkout:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Read(//private/tmp/**)",
+      "Bash(cat:*)",
+      "Bash(swift:*)",
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(echo $TMPDIR)",
+      "Read(//private/var/folders/j0/1f6h987x6_10zm_f4yt17rd80000gn/T/**)",
+      "Bash(tee:*)"
     ],
     "deny": [],
     "ask": []

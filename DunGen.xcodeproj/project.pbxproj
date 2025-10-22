@@ -6,12 +6,28 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXContainerItemProxy section */
+		B075B2AA2EA953C200C3C284 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B0E7E5682E9DA147007473FF /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B0E7E56F2E9DA147007473FF;
+			remoteInfo = DunGen;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		B00921342E9EE57B00234C14 /* CLAUDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CLAUDE.md; sourceTree = "<group>"; };
+		B075B2A62EA953C200C3C284 /* DunGenTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DunGenTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B0E7E5702E9DA147007473FF /* DunGen.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DunGen.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		B075B2A72EA953C200C3C284 /* DunGenTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = DunGenTests;
+			sourceTree = "<group>";
+		};
 		B0E7E5722E9DA147007473FF /* DunGen */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = DunGen;
@@ -20,6 +36,13 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		B075B2A32EA953C200C3C284 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		B0E7E56D2E9DA147007473FF /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -35,6 +58,7 @@
 			children = (
 				B00921342E9EE57B00234C14 /* CLAUDE.md */,
 				B0E7E5722E9DA147007473FF /* DunGen */,
+				B075B2A72EA953C200C3C284 /* DunGenTests */,
 				B0E7E5712E9DA147007473FF /* Products */,
 			);
 			sourceTree = "<group>";
@@ -43,6 +67,7 @@
 			isa = PBXGroup;
 			children = (
 				B0E7E5702E9DA147007473FF /* DunGen.app */,
+				B075B2A62EA953C200C3C284 /* DunGenTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -50,6 +75,29 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		B075B2A52EA953C200C3C284 /* DunGenTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B075B2AC2EA953C200C3C284 /* Build configuration list for PBXNativeTarget "DunGenTests" */;
+			buildPhases = (
+				B075B2A22EA953C200C3C284 /* Sources */,
+				B075B2A32EA953C200C3C284 /* Frameworks */,
+				B075B2A42EA953C200C3C284 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				B075B2AB2EA953C200C3C284 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				B075B2A72EA953C200C3C284 /* DunGenTests */,
+			);
+			name = DunGenTests;
+			packageProductDependencies = (
+			);
+			productName = DunGenTests;
+			productReference = B075B2A62EA953C200C3C284 /* DunGenTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		B0E7E56F2E9DA147007473FF /* DunGen */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = B0E7E57D2E9DA148007473FF /* Build configuration list for PBXNativeTarget "DunGen" */;
@@ -82,6 +130,10 @@
 				LastSwiftUpdateCheck = 2600;
 				LastUpgradeCheck = 2600;
 				TargetAttributes = {
+					B075B2A52EA953C200C3C284 = {
+						CreatedOnToolsVersion = 26.0.1;
+						TestTargetID = B0E7E56F2E9DA147007473FF;
+					};
 					B0E7E56F2E9DA147007473FF = {
 						CreatedOnToolsVersion = 26.0.1;
 					};
@@ -102,11 +154,19 @@
 			projectRoot = "";
 			targets = (
 				B0E7E56F2E9DA147007473FF /* DunGen */,
+				B075B2A52EA953C200C3C284 /* DunGenTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		B075B2A42EA953C200C3C284 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		B0E7E56E2E9DA147007473FF /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -117,6 +177,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		B075B2A22EA953C200C3C284 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		B0E7E56C2E9DA147007473FF /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -126,7 +193,57 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		B075B2AB2EA953C200C3C284 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B0E7E56F2E9DA147007473FF /* DunGen */;
+			targetProxy = B075B2AA2EA953C200C3C284 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		B075B2AD2EA953C200C3C284 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = LXH782HGPA;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.subteranmedia.DunGenTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/DunGen.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/DunGen";
+			};
+			name = Debug;
+		};
+		B075B2AE2EA953C200C3C284 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = LXH782HGPA;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.subteranmedia.DunGenTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/DunGen.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/DunGen";
+			};
+			name = Release;
+		};
 		B0E7E57B2E9DA148007473FF /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -319,6 +436,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		B075B2AC2EA953C200C3C284 /* Build configuration list for PBXNativeTarget "DunGenTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B075B2AD2EA953C200C3C284 /* Debug */,
+				B075B2AE2EA953C200C3C284 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		B0E7E56B2E9DA147007473FF /* Build configuration list for PBXProject "DunGen" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
