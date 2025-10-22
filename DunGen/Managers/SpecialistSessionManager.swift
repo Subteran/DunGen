@@ -38,7 +38,7 @@ final class SpecialistSessionManager {
     private let logger = Logger(subsystem: "com.yourcompany.DunGen", category: "SpecialistSessionManager")
 
     private var turnCount = 0
-    private let maxTurnsBeforeReset = 5
+    private let maxTurnsBeforeReset = 2
     private var sessionUsageCount: [LLMSpecialist: Int] = [:]
 
     func configureSessions() {

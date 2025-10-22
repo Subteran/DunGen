@@ -49,7 +49,8 @@ For consumable items, you MUST provide:
 - consumableMaxValue: Maximum effect value (e.g., 5 for healing 2-5 HP)
 
 Consumable examples:
-- Healing Potion: hp, 2-5 (common)
+- Bandage: hp, 2-2 (common, single-use healing wrap)
+- Healing Potion: hp, 5-10 (common)
 - Greater Healing Potion: hp, 10-20 (uncommon)
 - Superior Healing Potion: hp, 30-50 (rare)
 - Elixir of Fortune: gold, 10-25 (uncommon)

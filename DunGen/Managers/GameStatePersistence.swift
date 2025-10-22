@@ -9,11 +9,16 @@ struct GameState: Codable, Equatable {
     var adventureProgress: AdventureProgress?
     var detailedInventory: [ItemDefinition]
     var worldState: WorldState?
+    var awaitingLocationSelection: Bool
 
     struct SavedLogEntry: Codable, Equatable, Identifiable {
         let id: UUID
         let content: String
         let isFromModel: Bool
+        let showCharacterSprite: Bool
+        let characterForSprite: CharacterProfile?
+        let showMonsterSprite: Bool
+        let monsterForSprite: MonsterDefinition?
     }
 }
 
@@ -62,7 +67,11 @@ extension LLMGameEngine {
             GameState.SavedLogEntry(
                 id: entry.id,
                 content: entry.content,
-                isFromModel: entry.isFromModel
+                isFromModel: entry.isFromModel,
+                showCharacterSprite: entry.showCharacterSprite,
+                characterForSprite: entry.characterForSprite,
+                showMonsterSprite: entry.showMonsterSprite,
+                monsterForSprite: entry.monsterForSprite
             )
         }
 
@@ -74,7 +83,8 @@ extension LLMGameEngine {
             suggestedActions: suggestedActions,
             adventureProgress: adventureProgress,
             detailedInventory: detailedInventory,
-            worldState: worldState
+            worldState: worldState,
+            awaitingLocationSelection: awaitingLocationSelection
         )
 
         do {
@@ -96,13 +106,18 @@ extension LLMGameEngine {
                     LLMGameEngine.LogEntry(
                         id: savedEntry.id,
                         content: savedEntry.content,
-                        isFromModel: savedEntry.isFromModel
+                        isFromModel: savedEntry.isFromModel,
+                        showCharacterSprite: savedEntry.showCharacterSprite,
+                        characterForSprite: savedEntry.characterForSprite,
+                        showMonsterSprite: savedEntry.showMonsterSprite,
+                        monsterForSprite: savedEntry.monsterForSprite
                     )
                 }
                 self.suggestedActions = state.suggestedActions
                 self.adventureProgress = state.adventureProgress
                 self.detailedInventory = state.detailedInventory
                 self.worldState = state.worldState
+                self.awaitingLocationSelection = state.awaitingLocationSelection
             }
         } catch {
             print("Failed to load game state: \(error)")

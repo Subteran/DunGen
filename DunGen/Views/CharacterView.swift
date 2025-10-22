@@ -220,7 +220,7 @@ struct CharacterView: View {
         case "weapon": return "sword.fill"
         case "armor": return "shield.fill"
         case "accessory": return "sparkles"
-        case "consumable": return "potion.fill"
+        case "consumable": return "flask.fill"
         default: return "bag.fill"
         }
     }
@@ -243,7 +243,7 @@ struct CharacterView: View {
 
     private func itemIconForSimple(_ itemName: String) -> String {
         if isConsumable(itemName) {
-            return "potion.fill"
+            return "flask.fill"
         }
         return "bag.fill"
     }

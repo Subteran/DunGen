@@ -91,7 +91,7 @@ struct MonsterSprite {
     }
 }
 
-#Preview("Dwarf Class Sprites") {
+#Preview("Race Class Sprites (4×4)") {
     VStack(spacing: 10) {
         Text("Dwarf Class Sprite Sheet (4×4 Grid)")
             .font(.headline)
@@ -99,7 +99,7 @@ struct MonsterSprite {
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 100))], spacing: 10) {
             ForEach(CharacterClass.allCases, id: \.rawValue) { charClass in
                 VStack {
-                    RaceClassSprite.spriteView(race: "Half-orc", className: charClass.rawValue, size: 100)
+                    RaceClassSprite.spriteView(race: "Dwarf", className: charClass.rawValue, size: 100)
                         .background(Color.gray.opacity(0.2))
                         .cornerRadius(8)
 
@@ -111,6 +111,29 @@ struct MonsterSprite {
                     Text("[\(pos.row), \(pos.column)]")
                         .font(.caption2)
                         .foregroundColor(.secondary)
+                }
+            }
+        }
+        .padding()
+    }
+}
+
+#Preview("Monster Sprites (First 16)") {
+    VStack(spacing: 10) {
+        Text("Monster Sprite Sheet (Group 1: 4×4)")
+            .font(.headline)
+
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 8) {
+            ForEach(0..<16, id: \.self) { index in
+                let monster = MonsterDatabase.allMonsters[index]
+                VStack(spacing: 4) {
+                    MonsterSprite.spriteView(monsterName: monster.name, size: 80)
+                        .background(Color.red.opacity(0.08))
+                        .cornerRadius(6)
+                    Text(monster.name)
+                        .font(.caption2)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
                 }
             }
         }

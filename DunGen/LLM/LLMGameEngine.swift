@@ -82,6 +82,10 @@ final class LLMGameEngine: GameEngineProtocol {
     private var recentEncounterTypes: [String] = []
     private let maxEncounterHistory = 5
 
+    // Known affix tracking for prompt context
+    private var knownItemAffixes: Set<String> = []
+    private var knownMonsterAffixes: Set<String> = []
+
     // Statistics tracking
     var gameStartTime: Date?
     var adventuresCompleted: Int = 0
@@ -112,6 +116,14 @@ final class LLMGameEngine: GameEngineProtocol {
     var needsInventoryManagement: Bool = false
     var pendingLoot: [ItemDefinition] = []
     private let maxInventorySlots = 20
+
+    // Trading/transaction state
+    struct PendingTransaction {
+        let items: [String]
+        let cost: Int
+        let npc: NPCDefinition?
+    }
+    var pendingTransaction: PendingTransaction?
 
     // New game flow state
     var awaitingWorldContinue: Bool = false
@@ -186,6 +198,8 @@ final class LLMGameEngine: GameEngineProtocol {
         adventureProgress = nil
         detailedInventory.removeAll()
         recentEncounterTypes.removeAll()
+        knownItemAffixes.removeAll()
+        knownMonsterAffixes.removeAll()
         currentEnvironment = ""
         suggestedActions.removeAll()
         awaitingLocationSelection = false
@@ -434,6 +448,61 @@ final class LLMGameEngine: GameEngineProtocol {
             return
         }
 
+        // Handle pending transaction
+        if let transaction = pendingTransaction {
+            let inputLower = truncatedInput.lowercased()
+            if inputLower.contains("buy") || inputLower.contains("purchase") || inputLower.contains("yes") || inputLower.contains("accept") {
+                // Player wants to buy
+                if var char = character {
+                    if char.gold >= transaction.cost {
+                        char.gold -= transaction.cost
+                        for item in transaction.items {
+                            char.inventory.append(item)
+                        }
+                        self.character = char
+                        appendModel("💸 Paid \(transaction.cost) gold")
+                        for item in transaction.items {
+                            appendModel("📦 Acquired: \(item)")
+                        }
+                        pendingTransaction = nil
+                        saveState()
+                        isGenerating = false
+                        return
+                    } else {
+                        appendModel("⚠️ Not enough gold! Need \(transaction.cost) but only have \(char.gold)")
+                        appendModel("You move on...")
+                        pendingTransaction = nil
+                        // Continue to next encounter instead of stopping
+                        do {
+                            try await advanceScene(kind: currentLocation, playerAction: "continue exploring")
+                            saveState()
+                        } catch {
+                            logger.error("\(error.localizedDescription, privacy: .public)")
+                            appendModel(String(format: L10n.errorGenericFormat, error.localizedDescription))
+                        }
+                        isGenerating = false
+                        return
+                    }
+                }
+            } else if inputLower.contains("decline") || inputLower.contains("no") || inputLower.contains("refuse") || inputLower.contains("pass") {
+                // Player declines
+                appendModel("You decline the offer.")
+                pendingTransaction = nil
+                // Continue to next encounter
+                do {
+                    try await advanceScene(kind: currentLocation, playerAction: "continue exploring")
+                    saveState()
+                } catch {
+                    logger.error("\(error.localizedDescription, privacy: .public)")
+                    appendModel(String(format: L10n.errorGenericFormat, error.localizedDescription))
+                }
+                isGenerating = false
+                return
+            }
+            // If action doesn't match buy/decline keywords, clear transaction and continue with the action
+            pendingTransaction = nil
+        }
+
         // Check if player is initiating combat with a pending monster
         if let pendingMonster = combatManager.pendingMonster,
            !combatManager.inCombat,
@@ -527,7 +596,23 @@ final class LLMGameEngine: GameEngineProtocol {
         storeEncounterKeywords(turn: turn, encounter: encounter, monster: monster, npc: npc)
 
         if let progress = turn.adventureProgress {
-            adventureProgress = progress
+            // Don't trust LLM's encounter counter - increment it ourselves
+            if var currentProgress = adventureProgress {
+                // Keep our counter, but update narrative fields from LLM
+                currentProgress.currentEncounter += 1
+                currentProgress.questGoal = progress.questGoal
+                currentProgress.adventureStory = progress.adventureStory
+                currentProgress.completed = progress.completed
+                adventureProgress = currentProgress
+            } else {
+                // First encounter - accept LLM's progress and display quest
+                adventureProgress = progress
+
+                // Display quest goal before first encounter
+                appendModel("\n🎯 Quest: \(progress.questGoal)")
+                appendModel("📍 Location: \(progress.locationName)")
+                appendModel("")
+            }
 
             let summary = generateEncounterSummary(
                 narrative: turn.narration,
@@ -536,21 +621,56 @@ final class LLMGameEngine: GameEngineProtocol {
                 npc: npc
             )
             adventureProgress?.encounterSummaries.append(summary)
-            if progress.isFinalEncounter && progress.completed {
-                appendModel("\n✅ Adventure Complete: \(progress.locationName)")
-                adventuresCompleted += 1
 
-                // Mark location as completed
-                if var world = worldState {
-                    if let index = world.locations.firstIndex(where: { $0.name == progress.locationName }) {
-                        world.locations[index].completed = true
-                        world.locations[index].visited = true
+            // Check if player action completes the quest in final encounter
+            // Allow up to 3 extra encounters after reaching totalEncounters
+            if let finalProgress = adventureProgress, finalProgress.isFinalEncounter {
+                let encountersOverLimit = finalProgress.currentEncounter - finalProgress.totalEncounters
+
+                if finalProgress.completed {
+                    // LLM marked quest as completed - success!
+                    appendModel("\n✅ Adventure Complete: \(finalProgress.locationName)")
+                    adventuresCompleted += 1
+
+                    // Mark location as completed
+                    if var world = worldState {
+                        if let index = world.locations.firstIndex(where: { $0.name == finalProgress.locationName }) {
+                            world.locations[index].completed = true
+                            world.locations[index].visited = true
+                        }
+                        worldState = world
                     }
-                    worldState = world
-                }
 
-                // Generate adventure summary
-                await generateAdventureSummary(progress: progress)
+                    // Generate adventure summary
+                    await generateAdventureSummary(progress: finalProgress)
+                } else if encountersOverLimit >= 3 {
+                    // Failed to complete quest within 3 extra encounters - failure
+                    appendModel("\n❌ Quest Failed: You were unable to complete '\(finalProgress.questGoal)' in time.")
+                    appendModel("The opportunity has passed...")
+
+                    // Mark location as visited but not completed
+                    if var world = worldState {
+                        if let index = world.locations.firstIndex(where: { $0.name == finalProgress.locationName }) {
+                            world.locations[index].visited = true
+                            world.locations[index].completed = false
+                        }
+                        worldState = world
+                    }
+
+                    // Show adventure summary with failure note
+                    let failedSummary = AdventureSummary(
+                        locationName: finalProgress.locationName,
+                        questGoal: finalProgress.questGoal,
+                        completionSummary: "Quest failed - objective not completed in time",
+                        encountersCompleted: finalProgress.currentEncounter,
+                        totalXPGained: currentAdventureXP,
+                        totalGoldEarned: currentAdventureGold,
+                        notableItems: Array(detailedInventory.suffix(5).map { $0.fullName }),
+                        monstersDefeated: currentAdventureMonsters
+                    )
+                    adventureSummary = failedSummary
+                    showingAdventureSummary = true
+                }
             }
         }
 
@@ -593,21 +713,41 @@ final class LLMGameEngine: GameEngineProtocol {
         // Don't apply rewards if a monster is pending - rewards only apply after player chooses action
         // This prevents damage from being applied when monster first appears
         let shouldApplyRewards = monster == nil
+        let encounterType = encounter?.encounterType.lowercased() ?? ""
+        let isSocialEncounter = encounterType == "social"
 
-        if shouldApplyRewards, let xpGain = rewards?.xpGain {
-            currentAdventureXP += xpGain
-            if var c = self.character {
-                let outcome = levelingService.applyXPGain(xpGain, to: &c)
-                self.character = c
-                if outcome.didLevelUp {
-                    appendModel(outcome.logLine)
-                    if outcome.needsNewAbility {
-                        await generateLevelReward(for: c.className, level: outcome.newLevel ?? 1)
+        if shouldApplyRewards {
+            if isSocialEncounter {
+                let clampedXP = min(5, max(2, rewards?.xpGain ?? 0))
+                if clampedXP > 0, var c = self.character {
+                    currentAdventureXP += clampedXP
+                    let outcome = levelingService.applyXPGain(clampedXP, to: &c)
+                    self.character = c
+                    if outcome.didLevelUp {
+                        appendModel(outcome.logLine)
+                        if outcome.needsNewAbility {
+                            await generateLevelReward(for: c.className, level: outcome.newLevel ?? 1)
+                        }
+                    } else {
+                        appendModel("✨ Gained \(clampedXP) XP!")
+                    }
+                }
+            } else if let xpGain = rewards?.xpGain {
+                currentAdventureXP += xpGain
+                if var c = self.character {
+                    let outcome = levelingService.applyXPGain(xpGain, to: &c)
+                    self.character = c
+                    if outcome.didLevelUp {
+                        appendModel(outcome.logLine)
+                        if outcome.needsNewAbility {
+                            await generateLevelReward(for: c.className, level: outcome.newLevel ?? 1)
+                        }
                     }
                 }
             }
         }
-        if shouldApplyRewards, let hpDelta = rewards?.hpDelta {
+
+        if shouldApplyRewards, !isSocialEncounter, let hpDelta = rewards?.hpDelta {
             if var char = self.character {
                 char.hp += hpDelta
                 char.hp = min(char.hp, char.maxHP)
@@ -628,27 +768,32 @@ final class LLMGameEngine: GameEngineProtocol {
                 appendModel("❤️‍🩹 Regenerated 1 HP")
             }
         }
-        if shouldApplyRewards, let gold = rewards?.goldGain, gold > 0 {
+
+        if shouldApplyRewards, !isSocialEncounter, let gold = rewards?.goldGain, gold > 0 {
             currentAdventureGold += gold
             self.character?.gold += gold
             appendModel("💰 Found \(gold) gold!")
         }
 
-        if let items = turn.itemsAcquired, !items.isEmpty {
-            for item in items {
-                self.character?.inventory.append(item)
-                appendModel("📦 Acquired: \(item)")
-            }
-        }
+        // Check if NPC is offering items for purchase - make it pending instead of auto-applying
+        if let items = turn.itemsAcquired, !items.isEmpty, let goldCost = turn.goldSpent, goldCost > 0 {
+            // This is a purchase offer - make it pending
+            pendingTransaction = PendingTransaction(items: items, cost: goldCost, npc: npc)
+            appendModel("\n💰 Offer: \(items.joined(separator: ", ")) for \(goldCost) gold")
 
-        if let goldSpent = turn.goldSpent, goldSpent > 0 {
-            if var char = self.character {
-                if char.gold >= goldSpent {
-                    char.gold -= goldSpent
-                    self.character = char
-                    appendModel("💸 Paid \(goldSpent) gold")
-                } else {
-                    appendModel("⚠️ Not enough gold! Need \(goldSpent) but only have \(char.gold)")
+            // Override suggested actions to give player choice
+            var transactionActions = ["Buy the items", "Decline the offer"]
+            // Keep one other action if available
+            if let firstOther = turn.suggestedActions.first {
+                transactionActions.insert(firstOther, at: 1)
+            }
+            self.suggestedActions = transactionActions
+        } else {
+            // Free items (gifts, found items) - apply immediately
+            if let items = turn.itemsAcquired, !items.isEmpty {
+                for item in items {
+                    self.character?.inventory.append(item)
+                    appendModel("📦 Acquired: \(item)")
                 }
             }
         }
@@ -787,9 +932,9 @@ final class LLMGameEngine: GameEngineProtocol {
         }
 
         let randomBase = baseMonsters.randomElement() ?? MonsterDatabase.allMonsters[0]
-        let knownAffixList = ""
+        let knownAffixList = Array(knownMonsterAffixes.suffix(10)).joined(separator: ", ")
 
-        let prompt = "Base monster: \(randomBase.name) (\(randomBase.description)). Character level: \(characterLevel). Difficulty: \(encounter.difficulty). Location: \(location). Known affixes: \(knownAffixList.isEmpty ? "none yet" : knownAffixList). Generate modified monster with appropriate scaling and optional affixes."
+        let prompt = "Base monster: \(randomBase.name) (\(randomBase.description)). Character level: \(characterLevel). Difficulty: \(encounter.difficulty). Location: \(location). Known affixes: \(knownAffixList.isEmpty ? "none yet" : knownAffixList). Avoid repeating known affixes if possible. Generate a modified monster with appropriate scaling and optional affixes."
         logger.debug("[Monster LLM] Prompt length: \(prompt.count) chars")
 
         let response = try await monsterSession.respond(to: prompt, generating: MonsterDefinition.self)
@@ -798,9 +943,11 @@ final class LLMGameEngine: GameEngineProtocol {
 
         if let prefix = monster.prefix {
             affixRegistry.registerMonsterAffix(prefix)
+            knownMonsterAffixes.insert(prefix.name)
         }
         if let suffix = monster.suffix {
             affixRegistry.registerMonsterAffix(suffix)
+            knownMonsterAffixes.insert(suffix.name)
         }
 
         return monster
@@ -864,10 +1011,10 @@ final class LLMGameEngine: GameEngineProtocol {
         guard let equipmentSession = getSession(for: .equipment) else { return [] }
 
         var items: [ItemDefinition] = []
-        let knownAffixList = ""
+        let knownAffixList = Array(knownItemAffixes.suffix(10)).joined(separator: ", ")
 
         for i in 0..<count {
-            let prompt = "Character level: \(characterLevel). Class: \(characterClass). Difficulty: \(difficulty). Known affixes: \(knownAffixList.isEmpty ? "none yet" : knownAffixList). Generate one magical item appropriate for this class and level."
+            let prompt = "Character level: \(characterLevel). Class: \(characterClass). Difficulty: \(difficulty). Known affixes: \(knownAffixList.isEmpty ? "none yet" : knownAffixList). Avoid repeating known affixes if possible. Generate one magical item appropriate for this class and level."
             logger.debug("[Equipment LLM] Item \(i+1)/\(count) Prompt length: \(prompt.count) chars")
 
             let response = try await equipmentSession.respond(to: prompt, generating: ItemDefinition.self)
@@ -876,9 +1023,11 @@ final class LLMGameEngine: GameEngineProtocol {
 
             if let prefix = item.prefix {
                 affixRegistry.registerItemAffix(prefix)
+                knownItemAffixes.insert(prefix.name)
             }
             if let suffix = item.suffix {
                 affixRegistry.registerItemAffix(suffix)
+                knownItemAffixes.insert(suffix.name)
             }
 
             items.append(item)
@@ -1156,6 +1305,51 @@ final class LLMGameEngine: GameEngineProtocol {
             return true
         }
     }
+    
+    // MARK: - Encounter variety helpers
+    
+    private func lastEncounterType() -> String? {
+        return recentEncounterTypes.last
+    }
+
+    private func countSinceLastTrap() -> Int? {
+        if let idx = recentEncounterTypes.lastIndex(of: "trap") {
+            return recentEncounterTypes.count - 1 - idx
+        }
+        return nil
+    }
+
+    private func enforceEncounterVariety(on encounter: inout EncounterDetails) {
+        // Prevent consecutive combat unless it's a final encounter
+        if encounter.encounterType == "combat", lastEncounterType() == "combat" {
+            // Coerce to exploration to break up combat streaks
+            encounter = EncounterDetails(encounterType: "exploration", difficulty: encounter.difficulty)
+        }
+        // Prevent consecutive social encounters (too many NPCs)
+        if encounter.encounterType == "social", lastEncounterType() == "social" {
+            // Coerce to exploration to break up NPC streaks
+            encounter = EncounterDetails(encounterType: "exploration", difficulty: encounter.difficulty)
+        }
+        // Enforce 3+ non-trap encounters between traps
+        if encounter.encounterType == "trap" {
+            let sinceTrap = countSinceLastTrap() ?? Int.max
+            if sinceTrap < 3 {
+                encounter = EncounterDetails(encounterType: "exploration", difficulty: encounter.difficulty)
+            }
+        }
+    }
+
+    private func sanitizeNarration(_ text: String, for encounterType: String?) -> String {
+        // Do not allow combat resolution in narrative. Replace problematic verbs with neutral phrasing.
+        let forbidden = ["defeat", "defeated", "kill", "killed", "slay", "slain", "strike", "struck", "smite", "smitten", "crush", "crushed", "stab", "stabbed", "shoot", "shot", "damage", "wound", "wounded"]
+        var sanitized = text
+        if let type = encounterType, type == "combat" || type == "final" {
+            for word in forbidden {
+                sanitized = sanitized.replacingOccurrences(of: word, with: "confront", options: [.caseInsensitive, .regularExpression])
+            }
+        }
+        return sanitized
+    }
 
     private func advanceScene(kind: AdventureType, playerAction: String?) async throws {
         guard let adventureSession = getSession(for: .adventure),
@@ -1177,13 +1371,14 @@ final class LLMGameEngine: GameEngineProtocol {
         // Check if continuing an active NPC conversation
         let playerActionLower = (playerAction ?? "").lowercased()
 
-        // Check if player specifically references the NPC by name or with keywords
+        // Check if player specifically references the NPC by name
+        // Only continue conversation if explicitly mentioning NPC name or using direct speech verbs
         let isReferencingNPC = activeNPC != nil && (
             playerActionLower.contains(activeNPC!.name.lowercased()) ||
-            playerActionLower.contains("speak") ||
-            playerActionLower.contains("talk") ||
-            playerActionLower.contains("ask") ||
-            playerActionLower.contains("tell")
+            (playerActionLower.contains("speak to") ||
+             playerActionLower.contains("talk to") ||
+             playerActionLower.contains("ask the") ||
+             playerActionLower.contains("tell the"))
         )
 
         // Continue conversation only if: NPC active, referenced by player, and under turn limit
@@ -1214,6 +1409,9 @@ final class LLMGameEngine: GameEngineProtocol {
             logger.debug("[Encounter LLM] Prompt length: \(encounterPrompt.count) chars")
             let encounterResponse = try await encounterSession.respond(to: encounterPrompt, generating: EncounterDetails.self)
             encounter = encounterResponse.content
+            
+            enforceEncounterVariety(on: &encounter)
+            
             logger.debug("[Encounter LLM] Success")
 
             if encounter.encounterType == "combat" || encounter.encounterType == "final" {
@@ -1238,6 +1436,26 @@ final class LLMGameEngine: GameEngineProtocol {
 
         var scenePrompt = String(format: L10n.scenePromptFormat, location, actionLine) + "\nEncounter: \(encounter.encounterType) (\(encounter.difficulty))\n" + contextSummary + buildEncounterContext(monster: monster, npc: npc) + adventureHistorySection + historySection
 
+        // Signal if we're at or past the planned final encounter
+        if let adventure = adventureProgress {
+            let nextEncounter = adventure.currentEncounter + 1
+            if nextEncounter >= adventure.totalEncounters {
+                let encountersOver = nextEncounter - adventure.totalEncounters
+                if encountersOver == 0 {
+                    // This is the planned final encounter
+                    scenePrompt += "\nCRITICAL - FINAL ENCOUNTER: This is encounter \(nextEncounter)/\(adventure.totalEncounters) - the planned final encounter. Present the quest objective: '\(adventure.questGoal)'. The player will have this turn plus up to 3 more turns to complete the quest. DO NOT set completed=true unless the player's action actually completes the objective."
+                } else if encountersOver < 3 {
+                    // Grace period - 1-2 encounters past planned end
+                    scenePrompt += "\nCRITICAL - EXTENDED FINALE: This is encounter \(nextEncounter)/\(adventure.totalEncounters) (extra turn \(encountersOver)/3). The quest objective '\(adventure.questGoal)' must still be completed. If the player's action completes the objective, set completed=true. Otherwise, continue allowing attempts. After 3 extra encounters, the quest will fail."
+                } else {
+                    // Last chance - 3rd extra encounter
+                    scenePrompt += "\nCRITICAL - FINAL CHANCE: This is encounter \(nextEncounter)/\(adventure.totalEncounters) (final extra turn 3/3). This is the LAST opportunity to complete '\(adventure.questGoal)'. If the player's action completes the objective, set completed=true. If not, the quest fails after this turn."
+                }
+            }
+        }
+
+        scenePrompt += "\nCRITICAL: If the encounter is combat or final, DO NOT resolve any fighting in the narration. Only describe the monster appearing and the setup. Keep the narration to EXACTLY 2-4 sentences."
+
         let maxPromptLength = 1000
         if scenePrompt.count > maxPromptLength {
             logger.warning("[Adventure LLM] Prompt too long (\(scenePrompt.count) chars), truncating to \(maxPromptLength)")
@@ -1248,12 +1466,17 @@ final class LLMGameEngine: GameEngineProtocol {
         let adventureResponse = try await adventureSession.respond(to: scenePrompt, generating: AdventureTurn.self)
         let turn = adventureResponse.content
         logger.debug("[Adventure LLM] Success")
+        
+        var sanitizedTurn = turn
+        sanitizedTurn.narration = sanitizeNarration(turn.narration, for: encounter.encounterType)
 
         var progressionPrompt = "Encounter type: \(encounter.encounterType). Difficulty: \(encounter.difficulty). Character level: \(charLevel). Adventure encounter: \(adventureProgress?.progress ?? "0/10")."
         if let adventure = adventureProgress {
             progressionPrompt += " Quest: \(adventure.questGoal)."
         }
-        progressionPrompt += " Calculate appropriate rewards."
+        if encounter.encounterType.lowercased() == "social" {
+            progressionPrompt += " Social encounters may grant XP (2–5) for meaningful conversations but should not grant gold."
+        }
         logger.debug("[Progression LLM] Prompt length: \(progressionPrompt.count) chars")
         let progressionResponse = try await progressionSession.respond(to: progressionPrompt, generating: ProgressionRewards.self)
         let rewards = progressionResponse.content
@@ -1264,7 +1487,7 @@ final class LLMGameEngine: GameEngineProtocol {
             items = try await generateLoot(count: rewards.itemDropCount, difficulty: encounter.difficulty, characterLevel: charLevel, characterClass: character?.className ?? "Warrior")
         }
 
-        await self.apply(turn: turn, encounter: encounter, rewards: rewards, loot: items, monster: monster, npc: npc)
+        await self.apply(turn: sanitizedTurn, encounter: encounter, rewards: rewards, loot: items, monster: monster, npc: npc)
     }
 
     private func generateEncounterSummary(narrative: String, encounterType: String, monster: MonsterDefinition?, npc: NPCDefinition?) -> String {
@@ -1300,7 +1523,8 @@ final class LLMGameEngine: GameEngineProtocol {
             return ""
         }
 
-        return progress.encounterSummaries.joined(separator: " → ")
+        // Only include last 3 encounter summaries to prevent context overflow
+        return progress.encounterSummaries.suffix(3).joined(separator: " → ")
     }
 
     private func buildContextSummary() -> String {
@@ -1569,3 +1793,4 @@ final class LLMGameEngine: GameEngineProtocol {
         log.append(LogEntry(content: "⚔️ Monster: \(monster.fullName)", isFromModel: true, showMonsterSprite: true, monsterForSprite: monster))
     }
 }
+

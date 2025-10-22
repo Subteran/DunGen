@@ -39,7 +39,7 @@ struct AdventureProgress: Codable, Equatable {
     var locationName: String
     @Guide(description: "Story theme for this adventure (1-2 sentences)")
     var adventureStory: String
-    @Guide(description: "Clear quest goal describing what needs to be accomplished (1 sentence)")
+    @Guide(description: "Specific objective for this adventure (1 sentence, e.g. 'Clear the bandits from the old mill', 'Retrieve the stolen artifact')")
     var questGoal: String
     @Guide(description: "Current encounter number (1-based)")
     var currentEncounter: Int

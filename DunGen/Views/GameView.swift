@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import MessageUI
 
 struct GameView: View {
     @State private var engine: LLMGameEngine
@@ -11,6 +12,7 @@ struct GameView: View {
     @State private var showQuestSheet = false
     @State private var showInventoryManagement = false
     @State private var showAdventureSummarySheet = false
+    @State private var showMailComposer = false
     @FocusState private var inputFocused: Bool
     @Environment(\.modelContext) private var modelContext
 
@@ -20,6 +22,9 @@ struct GameView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            stateToolbar
+            Divider()
+
             if engine.character != nil {
                 header
                 Divider()
@@ -63,12 +68,37 @@ struct GameView: View {
                                 .clipShape(RoundedRectangle(cornerRadius: 6))
                                 .id(entry.id)
                             } else {
-                                Text(entry.content)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding(8)
-                                    .background(entry.isFromModel ? Color.secondary.opacity(0.1) : Color.accentColor.opacity(0.12))
-                                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                                // Check if this is a location entry (starts with "• ")
+                                let isLocationEntry = entry.content.hasPrefix("• ")
+                                let isTappable = isLocationEntry && engine.awaitingLocationSelection
+
+                                if isTappable {
+                                    // Extract location name from "• Name (Type): Description"
+                                    let locationName = extractLocationName(from: entry.content)
+
+                                    Button {
+                                        if let name = locationName {
+                                            Task {
+                                                await engine.submitPlayer(input: name)
+                                            }
+                                        }
+                                    } label: {
+                                        Text(entry.content)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                            .padding(8)
+                                            .background(Color.blue.opacity(0.15))
+                                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                                    }
+                                    .buttonStyle(.plain)
                                     .id(entry.id)
+                                } else {
+                                    Text(entry.content)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .padding(8)
+                                        .background(entry.isFromModel ? Color.secondary.opacity(0.1) : Color.accentColor.opacity(0.12))
+                                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                                        .id(entry.id)
+                                }
                             }
                         }
 
@@ -572,6 +602,99 @@ struct GameView: View {
         }
     }
 
+    // MARK: - State Sharing
+    @ViewBuilder
+    private var stateToolbar: some View {
+        HStack {
+            Button {
+                #if DEBUG
+                dumpAdventureState()
+                #else
+                showMailComposer = true
+                #endif
+            } label: {
+                HStack {
+                    #if DEBUG
+                    Image(systemName: "doc.text.magnifyingglass")
+                    Text("Dump State")
+                    #else
+                    Image(systemName: "envelope")
+                    Text("Email State")
+                    #endif
+                }
+                .font(.caption)
+            }
+            .buttonStyle(.bordered)
+            .tint(.orange)
+            .sheet(isPresented: $showMailComposer) {
+                MailComposeView(
+                    subject: "DunGen Adventure State",
+                    messageBody: buildAdventureStateText(),
+                    isPresented: $showMailComposer
+                )
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 4)
+        .background(Color.orange.opacity(0.1))
+    }
+
+    private func buildAdventureStateText() -> String {
+        var text = "========== ADVENTURE STATE DUMP ==========\n\n"
+
+        if let char = engine.character {
+            let level = levelingService.level(forXP: char.xp)
+            text += "📜 CHARACTER:\n"
+            text += "Name: \(char.name)\n"
+            text += "Race: \(char.race) | Class: \(char.className)\n"
+            text += "Level: \(level) | XP: \(char.xp)\n"
+            text += "HP: \(char.hp)/\(char.maxHP)\n"
+            text += "Gold: \(char.gold)\n"
+        }
+
+        if let progress = engine.adventureProgress {
+            text += "\n🎯 ADVENTURE PROGRESS:\n"
+            text += "Location: \(progress.locationName)\n"
+            text += "Quest: \(progress.questGoal)\n"
+            text += "Story: \(progress.adventureStory)\n"
+            text += "Progress: \(progress.currentEncounter)/\(progress.totalEncounters)\n"
+            text += "Completed: \(progress.completed)\n"
+
+            text += "\n📖 ENCOUNTER SUMMARIES:\n"
+            for (index, summary) in progress.encounterSummaries.enumerated() {
+                text += "\(index + 1). \(summary)\n"
+            }
+        }
+
+        text += "\n📝 NARRATIVE LOG (last 10 entries):\n"
+        for entry in engine.log.suffix(10) {
+            let prefix = entry.isFromModel ? "[MODEL]" : "[PLAYER]"
+            text += "\(prefix) \(entry.content)\n"
+        }
+
+        if let monster = engine.currentMonster {
+            text += "\n⚔️ CURRENT MONSTER:\n"
+            text += "Name: \(monster.fullName)\n"
+            text += "HP: \(engine.currentMonsterHP)/\(monster.hp)\n"
+            text += "In Combat: \(engine.inCombat)\n"
+        }
+
+        if let transaction = engine.pendingTransaction {
+            text += "\n💰 PENDING TRANSACTION:\n"
+            text += "Items: \(transaction.items.joined(separator: ", "))\n"
+            text += "Cost: \(transaction.cost) gold\n"
+        }
+
+        text += "\n========== END DUMP ==========\n"
+        return text
+    }
+
+    private func dumpAdventureState() {
+        print("\n" + buildAdventureStateText())
+    }
+
     // MARK: - Actions
     private func submitAction(_ action: String) {
         Task {
@@ -606,6 +729,16 @@ struct GameView: View {
         let descriptor = FetchDescriptor<DeceasedCharacter>()
         let deceasedCharacters = (try? modelContext.fetch(descriptor)) ?? []
         return deceasedCharacters.map { $0.name }
+    }
+
+    private func extractLocationName(from text: String) -> String? {
+        // Extract location name from "• Name (Type): Description"
+        guard text.hasPrefix("• ") else { return nil }
+        let withoutBullet = text.dropFirst(2)
+        if let parenIndex = withoutBullet.firstIndex(of: "(") {
+            return String(withoutBullet[..<parenIndex]).trimmingCharacters(in: .whitespaces)
+        }
+        return nil
     }
 
     private func handleCombatAction(_ action: CombatView.CombatAction) async {

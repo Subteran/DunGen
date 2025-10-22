@@ -4,7 +4,8 @@
       "Bash(xcodebuild:*)",
       "Read(//Users/giant/Downloads/**)",
       "Bash(uuidgen)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "ask": []

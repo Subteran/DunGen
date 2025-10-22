@@ -37,11 +37,16 @@ CHARACTER ELEMENTS:
    - XP: 0 starting experience
    - Gold: 5-25 starting coins
 
-7. STARTING EQUIPMENT: 2-4 class-appropriate NON-MAGICAL items
+7. STARTING EQUIPMENT: Class-appropriate items PLUS mandatory healing items
+   CRITICAL: ALL characters MUST start with these healing items:
+   - 3 Healing Potions (heals 5-10 HP each)
+   - 3 Bandages (heals 2 HP each)
+
+   Class-specific equipment (2-4 items):
    - Rogue: dagger, leather armor, lockpicks, rope
    - Warrior: longsword, shield, chainmail, backpack
    - Mage: quarterstaff, cloth robes, spellbook, waterskin
-   - Healer: mace, chainmail, holy symbol, bandages
+   - Healer: mace, chainmail, holy symbol
    - Paladin: longsword, shield, chainmail, holy symbol
    - Ranger: shortsword, bow, leather armor, rope
    - Monk: quarterstaff, cloth robes, prayer beads, waterskin

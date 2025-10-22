@@ -17,7 +17,6 @@ struct PaperDollView: View {
             className: character.className,
             size: size
         )
-        .frame(width: size, height: size)
     }
 }
 
@@ -44,7 +43,7 @@ struct PaperDollView: View {
         spells: []
     )
 
-    let dwarfMage = CharacterProfile(
+    let elfMage = CharacterProfile(
         name: "Gandrin",
         race: "Elf",
         className: "Mage",
@@ -89,14 +88,14 @@ struct PaperDollView: View {
 
             VStack {
                 PaperDollView(
-                    character: dwarfMage,
+                    character: elfMage,
                     detailedInventory: detailedInventory,
                     size: 150
                 )
                 .background(Color.gray.opacity(0.2))
                 .cornerRadius(10)
 
-                Text("\(dwarfMage.name) the \(dwarfMage.className)")
+                Text("\(elfMage.name) the \(elfMage.className)")
                     .font(.caption)
                     .fontWeight(.bold)
             }
