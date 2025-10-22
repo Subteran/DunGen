@@ -357,6 +357,7 @@ final class LLMGameEngine: GameEngineProtocol {
 
     func submitPlayer(input: String) async {
         guard case .available = availability else { return }
+        guard !characterDied else { return }
         guard let adventureSession = getSession(for: .adventure), !adventureSession.isResponding else { return }
 
         // Truncate input to prevent prompt bloat
@@ -605,8 +606,10 @@ final class LLMGameEngine: GameEngineProtocol {
                 currentProgress.completed = progress.completed
                 adventureProgress = currentProgress
             } else {
-                // First encounter - accept LLM's progress and display quest
-                adventureProgress = progress
+                // First encounter - accept LLM's progress but clear its summaries (we'll generate our own)
+                var initialProgress = progress
+                initialProgress.encounterSummaries = []
+                adventureProgress = initialProgress
 
                 // Display quest goal before first encounter
                 appendModel("\n🎯 Quest: \(progress.questGoal)")
@@ -1197,9 +1200,13 @@ final class LLMGameEngine: GameEngineProtocol {
             return false
         }
 
-        // Remove from inventory
-        char.inventory.removeAll { $0 == itemName }
-        detailedInventory.removeAll { $0.fullName == itemName || $0.baseName == itemName }
+        // Remove from inventory (only one instance)
+        if let index = char.inventory.firstIndex(of: itemName) {
+            char.inventory.remove(at: index)
+        }
+        if let index = detailedInventory.firstIndex(where: { $0.fullName == itemName || $0.baseName == itemName }) {
+            detailedInventory.remove(at: index)
+        }
 
         character = char
         saveState()
@@ -1491,6 +1498,18 @@ final class LLMGameEngine: GameEngineProtocol {
     }
 
     private func generateEncounterSummary(narrative: String, encounterType: String, monster: MonsterDefinition?, npc: NPCDefinition?) -> String {
+        // Create short summaries for specific encounter types
+        if let monster = monster {
+            return "Encountered \(monster.fullName)"
+        } else if let npc = npc {
+            return "Met \(npc.name) the \(npc.occupation)"
+        } else if encounterType == "trap" {
+            return "Triggered trap"
+        } else if encounterType == "puzzle" {
+            return "Solved puzzle"
+        }
+
+        // For other encounters, truncate narrative to max 100 chars
         let maxLength = 100
         let cleaned = narrative
             .replacingOccurrences(of: "\n", with: " ")
@@ -1503,16 +1522,6 @@ final class LLMGameEngine: GameEngineProtocol {
         var summary = String(cleaned.prefix(maxLength))
         if let lastSpace = summary.lastIndex(of: " ") {
             summary = String(summary[..<lastSpace])
-        }
-
-        if let monster = monster {
-            summary = "Encountered \(monster.fullName)"
-        } else if let npc = npc {
-            summary = "Met \(npc.name) the \(npc.occupation)"
-        } else if encounterType == "trap" {
-            summary = "Triggered trap"
-        } else if encounterType == "puzzle" {
-            summary = "Solved puzzle"
         }
 
         return summary

@@ -118,6 +118,11 @@ extension LLMGameEngine {
                 self.detailedInventory = state.detailedInventory
                 self.worldState = state.worldState
                 self.awaitingLocationSelection = state.awaitingLocationSelection
+
+                // Check if character died before save
+                if let char = state.character, char.hp <= 0 {
+                    checkDeath()
+                }
             }
         } catch {
             print("Failed to load game state: \(error)")

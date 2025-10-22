@@ -440,7 +440,7 @@ struct GameView: View {
                             Text("Encounter \(progress.currentEncounter) of \(progress.totalEncounters)")
                                 .font(.body)
                             Spacer()
-                            ProgressView(value: Double(progress.currentEncounter), total: Double(progress.totalEncounters))
+                            ProgressView(value: Double(min(progress.currentEncounter, progress.totalEncounters)), total: Double(progress.totalEncounters))
                                 .frame(width: 100)
                         }
                     }

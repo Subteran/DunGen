@@ -2,6 +2,9 @@ Equipment specialist. Generate magical items using prefix/suffix system:
 
 ITEM STRUCTURE:
 1. BASE ITEM: Core equipment (Sword, Armor, Shield, Bow, Staff, etc.)
+   CRITICAL: baseName must be ONLY the base item, NO affixes or modifiers
+   CORRECT baseName: "Sword", "Dagger", "Armor"
+   WRONG baseName: "Shadow Dagger", "Flaming Sword", "Dagger of the Fox"
 
 2. PREFIX (optional): Comes before base name
    Examples:

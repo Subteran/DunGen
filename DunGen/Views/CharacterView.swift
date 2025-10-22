@@ -190,7 +190,7 @@ struct CharacterView: View {
                     }
                 }
 
-                ForEach(character.inventory, id: \.self) { item in
+                ForEach(Array(character.inventory.enumerated()), id: \.offset) { index, item in
                     Button {
                         // For simple items that are consumable, use them directly
                         if isConsumable(item) {
