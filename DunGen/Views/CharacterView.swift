@@ -64,29 +64,31 @@ struct CharacterView: View {
     }
 
     private func characterSheet(for character: CharacterProfile) -> some View {
-        List {
-            Section {
-                HStack {
-                    Spacer()
-                    PaperDollView(
-                        character: character,
-                        detailedInventory: detailedInventory,
-                        size: 270
-                    )
-                    .padding(.vertical, 8)
-                    Spacer()
+        GeometryReader { geometry in
+            List {
+                Section {
+                    HStack {
+                        Spacer()
+                        PaperDollView(
+                            character: character,
+                            detailedInventory: detailedInventory,
+                            size: geometry.size.width * 0.75
+                        )
+                        .padding(.vertical, 8)
+                        Spacer()
+                    }
+                    .listRowBackground(Color.clear)
                 }
-                .listRowBackground(Color.clear)
-            }
 
             characterInfoSection(for: character)
             statsSection(for: character)
             attributesSection(for: character)
-            abilitiesSection(for: character)
-            if !character.spells.isEmpty {
-                spellsSection(for: character)
+                abilitiesSection(for: character)
+                if !character.spells.isEmpty {
+                    spellsSection(for: character)
+                }
+                inventorySection(for: character)
             }
-            inventorySection(for: character)
         }
     }
 

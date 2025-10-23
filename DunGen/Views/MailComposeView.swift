@@ -9,6 +9,7 @@ struct MailComposeView: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> MFMailComposeViewController {
         let composer = MFMailComposeViewController()
         composer.mailComposeDelegate = context.coordinator
+        composer.setToRecipients(["subteran@me.com"])
         composer.setSubject(subject)
         composer.setMessageBody(messageBody, isHTML: false)
         return composer

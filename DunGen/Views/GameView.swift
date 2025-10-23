@@ -21,31 +21,32 @@ struct GameView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            stateToolbar
-            Divider()
-
-            if engine.character != nil {
-                header
+        GeometryReader { geometry in
+            VStack(spacing: 0) {
+                stateToolbar
                 Divider()
-            }
 
-            ScrollViewReader { proxy in
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 8) {
-                        ForEach(engine.log) { entry in
-                            if entry.showCharacterSprite, let character = entry.characterForSprite {
-                                VStack(spacing: 12) {
-                                    Text(entry.content)
-                                        .font(.headline)
+                if engine.character != nil {
+                    header
+                    Divider()
+                }
+
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 8) {
+                            ForEach(engine.log) { entry in
+                                if entry.showCharacterSprite, let character = entry.characterForSprite {
+                                    VStack(spacing: 12) {
+                                        Text(entry.content)
+                                            .font(.headline)
+                                            .frame(maxWidth: .infinity, alignment: .center)
+
+                                        PaperDollView(
+                                            character: character,
+                                            detailedInventory: [],
+                                            size: geometry.size.width * 0.75
+                                        )
                                         .frame(maxWidth: .infinity, alignment: .center)
-
-                                    PaperDollView(
-                                        character: character,
-                                        detailedInventory: [],
-                                        size: 200
-                                    )
-                                    .frame(maxWidth: .infinity, alignment: .center)
                                 }
                                 .padding(12)
                                 .background(Color.secondary.opacity(0.1))
@@ -55,7 +56,7 @@ struct GameView: View {
                                 VStack(spacing: 12) {
                                     MonsterSprite.spriteView(
                                         monsterName: monster.baseName,
-                                        size: 200
+                                        size: geometry.size.width * 0.75
                                     )
                                     .frame(maxWidth: .infinity, alignment: .center)
 
@@ -307,6 +308,7 @@ struct GameView: View {
                     .presentationDetents([.medium, .large])
                     .presentationDragIndicator(.visible)
             }
+        }
         }
     }
 
@@ -571,7 +573,8 @@ struct GameView: View {
                             let usedNames = getUsedCharacterNames()
                             await engine.startNewGame(preferredType: engine.currentLocation, usedNames: usedNames)
                         }
-                    }
+                    },
+                    engine: engine
                 )
                 .background(Color(UIColor.systemBackground))
             }

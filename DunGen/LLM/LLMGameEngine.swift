@@ -82,7 +82,7 @@ final class LLMGameEngine: GameEngineProtocol {
     var currentEnvironment: String = ""
 
     // Encounter tracking
-    private var recentEncounterTypes: [String] = []
+    var recentEncounterTypes: [String] = []
     private let maxEncounterHistory = 5
 
     // Known affix tracking for prompt context
@@ -95,9 +95,9 @@ final class LLMGameEngine: GameEngineProtocol {
     var itemsCollected: Int = 0
 
     // Adventure tracking
-    private var currentAdventureXP: Int = 0
-    private var currentAdventureGold: Int = 0
-    private var currentAdventureMonsters: Int = 0
+    var currentAdventureXP: Int = 0
+    var currentAdventureGold: Int = 0
+    var currentAdventureMonsters: Int = 0
 
     // Death state
     var characterDied: Bool = false
@@ -121,12 +121,19 @@ final class LLMGameEngine: GameEngineProtocol {
     private let maxInventorySlots = 20
 
     // Trading/transaction state
-    struct PendingTransaction {
+    struct PendingTransaction: Codable, Equatable {
         let items: [String]
         let cost: Int
         let npc: NPCDefinition?
     }
     var pendingTransaction: PendingTransaction?
+
+    // Pending trap state
+    struct PendingTrap: Codable, Equatable {
+        let damage: Int
+        let narrative: String
+    }
+    var pendingTrap: PendingTrap?
 
     // New game flow state
     var awaitingWorldContinue: Bool = false
@@ -560,6 +567,66 @@ final class LLMGameEngine: GameEngineProtocol {
             }
         }
 
+        // Handle pending trap response
+        if let trap = pendingTrap {
+            let inputLower = truncatedInput.lowercased()
+
+            // Determine if player successfully avoids/disarms the trap
+            let avoidanceKeywords = ["disarm", "avoid", "careful", "dodge", "jump", "step", "roll", "evade"]
+            let attemptedAvoidance = avoidanceKeywords.contains { inputLower.contains($0) }
+
+            if attemptedAvoidance {
+                // 50% chance to avoid trap damage
+                let avoided = Bool.random()
+                if avoided {
+                    appendModel("✅ You successfully avoided the trap!")
+                    pendingTrap = nil
+                } else {
+                    // Take reduced damage
+                    let reducedDamage = max(1, trap.damage / 2)
+                    if var character = self.character {
+                        character.hp -= reducedDamage
+                        self.character = character
+                        appendModel("💔 You partially avoided the trap, taking \(reducedDamage) damage!")
+                        checkDeath()
+                        pendingTrap = nil
+
+                        if characterDied {
+                            saveState()
+                            isGenerating = false
+                            return
+                        }
+                    }
+                }
+            } else {
+                // Didn't attempt avoidance - take full damage
+                if var character = self.character {
+                    character.hp -= trap.damage
+                    self.character = character
+                    appendModel("💔 Took \(trap.damage) damage from the trap!")
+                    checkDeath()
+                    pendingTrap = nil
+
+                    if characterDied {
+                        saveState()
+                        isGenerating = false
+                        return
+                    }
+                }
+            }
+
+            // Continue to next encounter after handling trap
+            do {
+                try await advanceScene(kind: currentLocation, playerAction: truncatedInput)
+                saveState()
+            } catch {
+                logger.error("\(error.localizedDescription, privacy: .public)")
+                appendModel(String(format: L10n.errorGenericFormat, error.localizedDescription))
+            }
+            isGenerating = false
+            return
+        }
+
         // Handle active combat actions
         if combatManager.inCombat {
             let inputLower = truncatedInput.lowercased()
@@ -704,12 +771,9 @@ final class LLMGameEngine: GameEngineProtocol {
                     appendModel("\n✅ Adventure Complete: \(finalProgress.locationName)")
                     adventuresCompleted += 1
 
-                    // Mark location as completed
+                    // Remove completed location from world
                     if var world = worldState {
-                        if let index = world.locations.firstIndex(where: { $0.name == finalProgress.locationName }) {
-                            world.locations[index].completed = true
-                            world.locations[index].visited = true
-                        }
+                        world.locations.removeAll(where: { $0.name == finalProgress.locationName })
                         worldState = world
                     }
 
@@ -760,12 +824,30 @@ final class LLMGameEngine: GameEngineProtocol {
             }
         }
 
-        // Don't apply rewards if a monster is pending - rewards only apply after player chooses action
-        // This prevents damage from being applied when monster first appears
-        let shouldApplyRewards = monster == nil
+        // Determine encounter type for trap/reward handling
         let encounterType = encounter?.encounterType.lowercased() ?? ""
+        let isTrapEncounter = encounterType == "trap"
         let isSocialEncounter = encounterType == "social"
 
+        // Handle trap encounters - store as pending
+        if isTrapEncounter, let hpDelta = rewards?.hpDelta, hpDelta < 0 {
+            // Store trap damage as pending
+            pendingTrap = PendingTrap(damage: abs(hpDelta), narrative: turn.narration)
+
+            // Override suggested actions to give player trap avoidance choices
+            var trapActions = ["Attempt to disarm", "Carefully proceed", "Try to avoid"]
+            // Keep one original action if available
+            if let firstAction = turn.suggestedActions.first {
+                trapActions.append(firstAction)
+            }
+            self.suggestedActions = trapActions
+        }
+
+        // Don't apply rewards if a monster or trap is pending - rewards only apply after player chooses action
+        // This prevents damage from being applied when monster/trap first appears
+        let shouldApplyRewards = monster == nil && !isTrapEncounter
+
+        var justLeveledUp = false
         if shouldApplyRewards {
             if isSocialEncounter {
                 let clampedXP = min(5, max(2, rewards?.xpGain ?? 0))
@@ -774,6 +856,7 @@ final class LLMGameEngine: GameEngineProtocol {
                     let outcome = levelingService.applyXPGain(clampedXP, to: &c)
                     self.character = c
                     if outcome.didLevelUp {
+                        justLeveledUp = true
                         appendModel(outcome.logLine)
                         if outcome.needsNewAbility {
                             await generateLevelReward(for: c.className, level: outcome.newLevel ?? 1)
@@ -788,6 +871,7 @@ final class LLMGameEngine: GameEngineProtocol {
                     let outcome = levelingService.applyXPGain(xpGain, to: &c)
                     self.character = c
                     if outcome.didLevelUp {
+                        justLeveledUp = true
                         appendModel(outcome.logLine)
                         if outcome.needsNewAbility {
                             await generateLevelReward(for: c.className, level: outcome.newLevel ?? 1)
@@ -797,7 +881,8 @@ final class LLMGameEngine: GameEngineProtocol {
             }
         }
 
-        if shouldApplyRewards, !isSocialEncounter, let hpDelta = rewards?.hpDelta {
+        // Don't apply HP delta if character just leveled up (they're already at full HP)
+        if shouldApplyRewards, !isSocialEncounter, !justLeveledUp, let hpDelta = rewards?.hpDelta {
             if var char = self.character {
                 char.hp += hpDelta
                 char.hp = min(char.hp, char.maxHP)
@@ -1664,7 +1749,6 @@ final class LLMGameEngine: GameEngineProtocol {
                 if var world = worldState {
                     if let index = world.locations.firstIndex(where: { $0.name == progress.locationName }) {
                         world.locations[index].visited = true
-                        world.locations[index].completed = false
                     }
                     worldState = world
                 }
@@ -2066,10 +2150,8 @@ final class LLMGameEngine: GameEngineProtocol {
     func promptForNextLocation() async {
         guard var world = worldState else { return }
 
-        let uncompletedLocations = world.locations.filter { !$0.completed }
-
-        // Generate new locations if needed
-        if uncompletedLocations.count < 2 {
+        // Generate new locations if needed (completed locations are now removed, so check total count)
+        if world.locations.count < 2 {
             // Check if we've hit the location cap
             if world.locations.count >= 50 {
                 logger.warning("Location limit of 50 reached, not generating new locations")
@@ -2096,8 +2178,8 @@ final class LLMGameEngine: GameEngineProtocol {
             }
         }
 
-        // Prompt for next location
-        let availableLocations = worldState?.locations.filter { !$0.completed } ?? []
+        // Prompt for next location (all locations in list are now available)
+        let availableLocations = worldState?.locations ?? []
         if !availableLocations.isEmpty {
             appendModel("\nWhere would you like to venture next?")
             suggestedActions = availableLocations.map { $0.name }

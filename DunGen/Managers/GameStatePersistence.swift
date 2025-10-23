@@ -11,6 +11,48 @@ struct GameState: Codable, Equatable {
     var worldState: WorldState?
     var awaitingLocationSelection: Bool
 
+    // Combat state
+    var inCombat: Bool
+    var currentMonster: MonsterDefinition?
+    var currentMonsterHP: Int
+    var pendingMonster: MonsterDefinition?
+
+    // Pending trap state
+    var pendingTrap: LLMGameEngine.PendingTrap?
+
+    // Statistics tracking
+    var gameStartTime: Date?
+    var adventuresCompleted: Int
+    var itemsCollected: Int
+
+    // Current adventure tracking
+    var currentAdventureXP: Int
+    var currentAdventureGold: Int
+    var currentAdventureMonsters: Int
+
+    // Adventure summary state
+    var adventureSummary: AdventureSummary?
+    var showingAdventureSummary: Bool
+
+    // Inventory management state
+    var needsInventoryManagement: Bool
+    var pendingLoot: [ItemDefinition]
+
+    // Trading state
+    var pendingTransaction: LLMGameEngine.PendingTransaction?
+
+    // NPC conversation tracking
+    var activeNPC: NPCDefinition?
+    var activeNPCTurns: Int
+
+    // Character creation flow
+    var awaitingCustomCharacterName: Bool
+    var partialCharacter: CharacterProfile?
+    var awaitingWorldContinue: Bool
+
+    // Encounter tracking for variety enforcement
+    var recentEncounterTypes: [String]
+
     struct SavedLogEntry: Codable, Equatable, Identifiable {
         let id: UUID
         let content: String
@@ -84,7 +126,29 @@ extension LLMGameEngine {
             adventureProgress: adventureProgress,
             detailedInventory: detailedInventory,
             worldState: worldState,
-            awaitingLocationSelection: awaitingLocationSelection
+            awaitingLocationSelection: awaitingLocationSelection,
+            inCombat: combatManager.inCombat,
+            currentMonster: combatManager.currentMonster,
+            currentMonsterHP: combatManager.currentMonsterHP,
+            pendingMonster: combatManager.pendingMonster,
+            pendingTrap: pendingTrap,
+            gameStartTime: gameStartTime,
+            adventuresCompleted: adventuresCompleted,
+            itemsCollected: itemsCollected,
+            currentAdventureXP: currentAdventureXP,
+            currentAdventureGold: currentAdventureGold,
+            currentAdventureMonsters: currentAdventureMonsters,
+            adventureSummary: adventureSummary,
+            showingAdventureSummary: showingAdventureSummary,
+            needsInventoryManagement: needsInventoryManagement,
+            pendingLoot: pendingLoot,
+            pendingTransaction: pendingTransaction,
+            activeNPC: activeNPC,
+            activeNPCTurns: activeNPCTurns,
+            awaitingCustomCharacterName: awaitingCustomCharacterName,
+            partialCharacter: partialCharacter,
+            awaitingWorldContinue: awaitingWorldContinue,
+            recentEncounterTypes: recentEncounterTypes
         )
 
         do {
@@ -118,6 +182,48 @@ extension LLMGameEngine {
                 self.detailedInventory = state.detailedInventory
                 self.worldState = state.worldState
                 self.awaitingLocationSelection = state.awaitingLocationSelection
+
+                // Restore combat state
+                self.combatManager.inCombat = state.inCombat
+                self.combatManager.currentMonster = state.currentMonster
+                self.combatManager.currentMonsterHP = state.currentMonsterHP
+                self.combatManager.pendingMonster = state.pendingMonster
+
+                // Restore pending trap
+                self.pendingTrap = state.pendingTrap
+
+                // Restore statistics
+                self.gameStartTime = state.gameStartTime
+                self.adventuresCompleted = state.adventuresCompleted
+                self.itemsCollected = state.itemsCollected
+
+                // Restore current adventure tracking
+                self.currentAdventureXP = state.currentAdventureXP
+                self.currentAdventureGold = state.currentAdventureGold
+                self.currentAdventureMonsters = state.currentAdventureMonsters
+
+                // Restore adventure summary state
+                self.adventureSummary = state.adventureSummary
+                self.showingAdventureSummary = state.showingAdventureSummary
+
+                // Restore inventory management state
+                self.needsInventoryManagement = state.needsInventoryManagement
+                self.pendingLoot = state.pendingLoot
+
+                // Restore trading state
+                self.pendingTransaction = state.pendingTransaction
+
+                // Restore NPC conversation tracking
+                self.activeNPC = state.activeNPC
+                self.activeNPCTurns = state.activeNPCTurns
+
+                // Restore character creation flow
+                self.awaitingCustomCharacterName = state.awaitingCustomCharacterName
+                self.partialCharacter = state.partialCharacter
+                self.awaitingWorldContinue = state.awaitingWorldContinue
+
+                // Restore encounter tracking
+                self.recentEncounterTypes = state.recentEncounterTypes
 
                 // Check if character died before save
                 if let char = state.character, char.hp <= 0 {

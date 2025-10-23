@@ -1,16 +1,30 @@
 import SwiftUI
+import MessageUI
 
 struct DeathReportView: View {
     let report: CharacterDeathReport
     let onNewGame: () -> Void
+    let engine: LLMGameEngine?
+    @State private var showMailComposer = false
+
+    init(report: CharacterDeathReport, onNewGame: @escaping () -> Void, engine: LLMGameEngine? = nil) {
+        self.report = report
+        self.onNewGame = onNewGame
+        self.engine = engine
+    }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 24) {
-                VStack(spacing: 8) {
-                    Image(systemName: "figure.fall")
-                        .font(.system(size: 60))
-                        .foregroundStyle(.red)
+        GeometryReader { geometry in
+            ScrollView {
+                VStack(spacing: 24) {
+                    VStack(spacing: 8) {
+                        PaperDollView(
+                            character: report.character,
+                            detailedInventory: [],
+                            size: geometry.size.width * 0.75
+                        )
+                        .opacity(0.6)
+                        .grayscale(0.8)
 
                     Text("Character Fallen")
                         .font(.title)
@@ -105,12 +119,122 @@ struct DeathReportView: View {
                         .cornerRadius(10)
                 }
                 .padding(.top, 16)
+
+                if let engine = engine {
+                    Button {
+                        #if DEBUG
+                        dumpAdventureState(engine: engine)
+                        #else
+                        showMailComposer = true
+                        #endif
+                    } label: {
+                        HStack {
+                            #if DEBUG
+                            Image(systemName: "ant.circle")
+                            Text("Dump State to Console")
+                            #else
+                            Image(systemName: "envelope")
+                            Text("Email Death Report")
+                            #endif
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.gray.opacity(0.2))
+                        .cornerRadius(8)
+                    }
+                    .padding(.top, 8)
+                }
             }
             .padding()
+            }
+            .navigationTitle("Final Report")
+            .navigationBarTitleDisplayMode(.inline)
+            .sheet(isPresented: $showMailComposer) {
+                if MFMailComposeViewController.canSendMail() {
+                    MailComposeView(
+                        subject: "DunGen Death Report",
+                        messageBody: buildDeathReportText(),
+                        isPresented: $showMailComposer
+                    )
+                }
+            }
         }
-        .navigationTitle("Final Report")
-        .navigationBarTitleDisplayMode(.inline)
     }
+
+    private func buildDeathReportText() -> String {
+        var text = "========== DEATH REPORT ==========\n\n"
+
+        let level = DefaultLevelingService().level(forXP: report.character.xp)
+        text += "📜 DECEASED CHARACTER:\n"
+        text += "Name: \(report.character.name)\n"
+        text += "Race: \(report.character.race) | Class: \(report.character.className)\n"
+        text += "Final Level: \(level)\n"
+        text += "XP: \(report.character.xp)\n"
+        text += "Gold: \(report.character.gold)\n"
+        text += "Cause of Death: \(report.causeOfDeath)\n\n"
+
+        text += "📊 FINAL STATISTICS:\n"
+        text += "Adventures Completed: \(report.adventuresCompleted)\n"
+        text += "Monsters Defeated: \(report.monstersDefeated)\n"
+        text += "Items Collected: \(report.itemsCollected)\n"
+        text += "Time Played: \(report.formattedPlayTime)\n\n"
+
+        if let engine = engine {
+            if let progress = engine.adventureProgress {
+                text += "🎯 ADVENTURE PROGRESS AT DEATH:\n"
+                text += "Location: \(progress.locationName)\n"
+                text += "Quest: \(progress.questGoal)\n"
+                text += "Progress: \(progress.currentEncounter)/\(progress.totalEncounters)\n"
+                text += "Completed: \(progress.completed)\n\n"
+            }
+
+            text += "📝 NARRATIVE LOG (last 10 entries):\n"
+            for entry in engine.log.suffix(10) {
+                let prefix = entry.isFromModel ? "[MODEL]" : "[PLAYER]"
+                text += "\(prefix) \(entry.content)\n"
+            }
+        }
+
+        text += "\n========== END REPORT ==========\n"
+        return text
+    }
+
+    #if DEBUG
+    private func dumpAdventureState(engine: LLMGameEngine) {
+        var text = "========== DEATH STATE DUMP ==========\n\n"
+
+        let level = DefaultLevelingService().level(forXP: report.character.xp)
+        text += "📜 DECEASED CHARACTER:\n"
+        text += "Name: \(report.character.name)\n"
+        text += "Race: \(report.character.race) | Class: \(report.character.className)\n"
+        text += "Final Level: \(level)\n"
+        text += "XP: \(report.character.xp)\n"
+        text += "Gold: \(report.character.gold)\n"
+        text += "Cause of Death: \(report.causeOfDeath)\n"
+        text += "Adventures Completed: \(report.adventuresCompleted)\n"
+        text += "Monsters Defeated: \(report.monstersDefeated)\n"
+        text += "Items Collected: \(report.itemsCollected)\n"
+
+        if let progress = engine.adventureProgress {
+            text += "\n🎯 ADVENTURE PROGRESS AT DEATH:\n"
+            text += "Location: \(progress.locationName)\n"
+            text += "Quest: \(progress.questGoal)\n"
+            text += "Progress: \(progress.currentEncounter)/\(progress.totalEncounters)\n"
+            text += "Completed: \(progress.completed)\n"
+        }
+
+        text += "\n📝 NARRATIVE LOG (last 10 entries):\n"
+        for entry in engine.log.suffix(10) {
+            let prefix = entry.isFromModel ? "[MODEL]" : "[PLAYER]"
+            text += "\(prefix) \(entry.content)\n"
+        }
+
+        text += "\n========== END DUMP ==========\n"
+        print("\n" + text)
+    }
+    #endif
 }
 
 struct CharacterSummaryRow: View {

@@ -121,7 +121,7 @@ Each specialist has a focused responsibility to maintain coherent gameplay:
 
 **Key Design Principles:**
 - Specialists work in sequence during `advanceScene()`
-- Session resets: Every 15 turns via `SpecialistSessionManager` (Equipment: 3 turns, Encounter: 5 turns)
+- Session resets: Every 15 turns via `SpecialistSessionManager` (Adventure: 10 uses, Equipment: 3 uses, Encounter: 5 uses)
 - **Encounter variety enforcement** - no consecutive combat, 3+ between traps (code-enforced)
 - **Combat narration sanitization** - removes combat resolution verbs (fighting only in combat system)
 - **Narrative consistency** - Adventure LLM receives full adventure history as compressed summaries (~1200 chars max)
@@ -199,6 +199,7 @@ Each specialist has a focused responsibility to maintain coherent gameplay:
   - Combat narration sanitization
   - Social encounter reward handling (2-5 XP only)
   - NPC conversation tracking (`activeNPC`, `activeNPCTurns`)
+  - Trap handling (`pendingTrap` with avoidance mechanics)
   - LogEntry system (supports character/monster sprites)
 
 **CombatManager** (`Managers/CombatManager.swift`)
@@ -211,10 +212,12 @@ Each specialist has a focused responsibility to maintain coherent gameplay:
 
 **SpecialistSessionManager** (`Managers/SpecialistSessionManager.swift`)
 - Manages 11 separate `LanguageModelSession` instances
-- Session usage limits to prevent context overflow:
-  - Equipment specialist: 3 turns
-  - Encounter specialist: 5 turns
-  - Other specialists: 10 turns
+- Global reset: Every 15 turns to clear all session history
+- Per-specialist usage limits (auto-reset when reached):
+  - Adventure specialist: 10 uses (maintains narrative coherence)
+  - Equipment specialist: 3 uses (prevents affix repetition)
+  - Encounter specialist: 5 uses (variety enforcement)
+  - Other specialists: 10 uses
 
 ## Game Flow
 
@@ -277,6 +280,16 @@ Quest type is inferred from keywords in the `questGoal` text. Each type has spec
 3. `GameView` shows `CombatView`
 4. Combat actions → damage calculated, death checked
 5. Victory/defeat handled
+
+### Trap Flow
+1. Trap encounter → `pendingTrap` set with damage amount
+2. Player presented with avoidance choices: "Attempt to disarm", "Carefully proceed", "Try to avoid"
+3. Player responds:
+   - **Attempted avoidance** (keywords: disarm, avoid, careful, dodge, jump, step, roll, evade):
+     - 50% chance to avoid completely (no damage)
+     - 50% chance to take half damage (minimum 1 HP)
+   - **No avoidance attempt**: Take full trap damage
+4. Death checked, next encounter triggered
 
 ### Reward System
 **XP/gold for:**
@@ -343,25 +356,72 @@ Used for locations, NPCs, abilities/spells:
 
 ## State Management
 
+All game state is persisted to JSON file (`gameState.json`) for save/load continuity.
+
+### Persisted State Categories
+
 **Character State:**
 - `CharacterProfile` with racial modifiers applied
 - HP, XP, gold, inventory (ItemDefinition with UUID for unique identification)
 - Starting inventory: 3 Healing Potions + 3 Bandages
 - Abilities (physical), spells (arcane/nature/death/eldritch), prayers (divine)
 - Name uniqueness enforced
+- Character creation flow: `awaitingCustomCharacterName`, `partialCharacter`, `awaitingWorldContinue`
 
 **World State:**
 - `WorldState` - world story + locations (max 50)
 - `AdventureProgress` - includes `questGoal` and `encounterSummaries`
+- `currentLocation` - current adventure type
 - `currentEnvironment` - specific location description
 
 **Combat State:**
-- `CombatManager.inCombat`, `pendingMonster`, `currentMonster`, `currentMonsterHP`
+- `inCombat` - whether combat is active
+- `currentMonster` - monster being fought
+- `currentMonsterHP` - current HP of monster in combat
+- `pendingMonster` - monster awaiting player attack decision
+
+**Trap State:**
+- `pendingTrap` - stores damage and narrative until player responds
 
 **Inventory State:**
-- `detailedInventory` - max 20 items
+- `detailedInventory` - current items (max 20)
 - `needsInventoryManagement` - triggers overflow UI
-- `pendingLoot` - items awaiting selection
+- `pendingLoot` - items awaiting inventory selection
+
+**Trading State:**
+- `pendingTransaction` - NPC purchase offers (items, cost, NPC)
+
+**NPC State:**
+- `activeNPC` - current NPC in conversation
+- `activeNPCTurns` - conversation turn counter (max 2)
+
+**Adventure Tracking:**
+- `currentAdventureXP` - XP earned in current adventure
+- `currentAdventureGold` - gold earned in current adventure
+- `currentAdventureMonsters` - monsters defeated in current adventure
+- `adventureSummary` - summary of completed adventure
+- `showingAdventureSummary` - UI state for summary display
+
+**Statistics:**
+- `gameStartTime` - when character was created
+- `adventuresCompleted` - total adventures completed
+- `itemsCollected` - total items collected
+
+**Encounter Tracking:**
+- `recentEncounterTypes` - last 5 encounter types for variety enforcement
+
+**UI State:**
+- `log` - full narrative log with sprites
+- `suggestedActions` - current action choices
+- `awaitingLocationSelection` - location selection UI state
+
+### Not Persisted (Transient/Runtime)
+- `isGenerating` - loading state
+- `lastPrompt` - debug info
+- `availability` - LLM availability check
+- `sessionManager` - rebuilt on load
+- `knownItemAffixes` / `knownMonsterAffixes` - tracked in AffixRegistry
+- `characterDied` / `deathReport` - death flow handled separately
 
 ## Testing
 

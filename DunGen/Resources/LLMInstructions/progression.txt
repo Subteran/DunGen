@@ -74,7 +74,39 @@ ENCOUNTER TYPE REWARDS:
 - trap: 0 XP, 0 gold, HP loss if triggered
 - stealth: 0 XP, 0 gold (success = avoiding detection)
 - chase: 0 XP, 0 gold (success = escape)
+- final: QUEST COMPLETION - award based on quest type (see below), NO HP LOSS
+
+QUEST COMPLETION REWARDS (final encounter type):
+These are FINAL encounters for quest completion. Analyze the quest goal to determine appropriate rewards:
+
+1. RETRIEVAL QUESTS (find, retrieve, locate, discover):
+   - XP: 50-100 (quest completion bonus)
+   - HP: 0 (no damage from finding/taking items)
+   - Gold: 20-60 (reward for successful retrieval)
+   - Loot: 0 (the quest item itself is the reward, handled separately)
+
+2. COMBAT QUESTS (defeat, kill, destroy, stop):
+   - These use "combat" type with "boss" difficulty, NOT "final" type
+   - Follow standard boss combat rewards
+
+3. ESCORT QUESTS (escort, protect, guide):
+   - If peaceful arrival (final type): XP 40-80, HP 0, Gold 30-70, Loot 0
+   - If combat threat (combat type): Follow combat rewards
+
+4. INVESTIGATION QUESTS (investigate, solve, uncover):
+   - XP: 60-120 (mystery solving is mentally rewarding)
+   - HP: 0 (solving mysteries doesn't cause physical harm)
+   - Gold: 25-75 (investigation fees/rewards)
+   - Loot: 0 (knowledge is the reward)
+
+5. RESCUE QUESTS (rescue, save, free):
+   - If combat rescue (combat type): Follow combat rewards
+   - If peaceful rescue (final type): XP 50-100, HP 0, Gold 40-80, Loot 0
+
+6. DIPLOMATIC QUESTS (negotiate, persuade, convince, diplomacy):
+   - These use "social" type for final negotiation
+   - Follow social encounter rewards (2-5 XP, 0 gold, 0 loot)
 
 OUTPUT: xpGain, hpDelta, goldGain, shouldDropLoot, itemDropCount.
 
-REMEMBER: When in doubt, award NOTHING. Rewards must be earned through combat victories, treasure finding, or challenge completion.
+CRITICAL: For "final" encounter type, hpDelta MUST be 0 or positive (healing). NEVER negative damage for quest completion.
