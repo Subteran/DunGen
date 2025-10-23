@@ -13,6 +13,7 @@ ENCOUNTER TYPES:
 - trap: Environmental hazards, ambushes, traps
 - stealth: Sneaking, hiding, infiltration
 - chase: Pursuit, escape, racing
+- final: ONLY for planned final encounter when quest objective is non-combat (finding item, solving mystery, reaching location)
 
 DIFFICULTY GUIDELINES:
 - easy: Below character level, minor threats, simple challenges

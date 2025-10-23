@@ -168,7 +168,7 @@ struct CharacterView: View {
 
     private func inventorySection(for character: CharacterProfile) -> some View {
         Section(L10n.characterSectionInventory) {
-            if detailedInventory.isEmpty && character.inventory.isEmpty {
+            if detailedInventory.isEmpty {
                 Text(L10n.characterEmptyInventory)
                     .foregroundStyle(.secondary)
                     .italic()
@@ -186,28 +186,6 @@ struct CharacterView: View {
                             Image(systemName: "chevron.right")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-
-                ForEach(Array(character.inventory.enumerated()), id: \.offset) { index, item in
-                    Button {
-                        // For simple items that are consumable, use them directly
-                        if isConsumable(item) {
-                            let _ = onUseItem?(item)
-                        }
-                    } label: {
-                        HStack {
-                            Image(systemName: itemIconForSimple(item))
-                                .foregroundStyle(isConsumable(item) ? .green : .gray)
-                            Text(item)
-                                .foregroundStyle(.primary)
-                            if isConsumable(item) {
-                                Spacer()
-                                Text("Use")
-                                    .font(.caption)
-                                    .foregroundStyle(.blue)
-                            }
                         }
                     }
                 }

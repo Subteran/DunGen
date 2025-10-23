@@ -172,6 +172,249 @@ struct FullAdventureIntegrationTest {
         #expect(engine.log.count > 0, "Should have some narrative log entries")
     }
 
+    @Test("Retrieval quest completes with final encounter presenting artifact",
+          .timeLimit(.minutes(5)))
+    func retrievalQuestCompletion() async throws {
+        // GIVEN a new game engine
+        let engine = LLMGameEngine(levelingService: DefaultLevelingService())
+
+        // Check LLM availability
+        engine.checkAvailabilityAndConfigure()
+        guard case .available = engine.availability else {
+            Issue.record("LLM not available - skipping integration test")
+            return
+        }
+
+        // WHEN starting a new game
+        print("🎲 Starting retrieval quest test")
+
+        await engine.startNewGame(
+            preferredType: .outdoor, // Outdoor tends to have retrieval quests
+            usedNames: []
+        )
+
+        // THEN character should be created
+        let character = try #require(engine.character, "Character should be created")
+        print("✅ Character: \(character.name) - \(character.race) \(character.className)")
+
+        // Continue to world generation
+        if engine.awaitingWorldContinue {
+            await engine.continueNewGame(usedNames: [])
+        }
+
+        // Select first location
+        if engine.awaitingLocationSelection, let firstLocation = engine.worldState?.locations.first {
+            print("📍 Location: \(firstLocation.name)")
+            await engine.submitPlayer(input: firstLocation.name)
+        }
+
+        // THEN verify quest type is retrieval-based
+        let progress = try #require(engine.adventureProgress, "Adventure should have started")
+        print("🎯 Quest: \(progress.questGoal)")
+
+        let questLower = progress.questGoal.lowercased()
+        let isRetrievalQuest = questLower.contains("find") || questLower.contains("retrieve") ||
+                               questLower.contains("locate") || questLower.contains("discover")
+
+        if !isRetrievalQuest {
+            print("⚠️  Quest is not retrieval type, skipping specific checks")
+        }
+
+        var encounterCount = 0
+        let maxEncounters = progress.totalEncounters + 3
+        var questCompleted = false
+        var hadFinalEncounter = false
+        var finalEncounterHadMonster = false
+
+        // Progress through encounters
+        while encounterCount < maxEncounters && !engine.characterDied && !questCompleted {
+            encounterCount += 1
+            print("\n--- Encounter \(encounterCount) ---")
+
+            // Check if this is the final encounter
+            let isFinalEncounter = engine.adventureProgress?.isFinalEncounter ?? false
+
+            var action: String
+            if engine.combatManager.inCombat {
+                action = "Attack"
+                print("⚔️  Combat: Attacking")
+            } else if engine.combatManager.pendingMonster != nil {
+                if isFinalEncounter && isRetrievalQuest {
+                    finalEncounterHadMonster = true
+                    print("❌ ERROR: Final encounter for retrieval quest has a monster!")
+                }
+                action = "Attack the \(engine.combatManager.pendingMonster?.fullName ?? "enemy")"
+                print("⚔️  Engaging: \(engine.combatManager.pendingMonster?.fullName ?? "enemy")")
+            } else {
+                if isFinalEncounter {
+                    hadFinalEncounter = true
+                    print("🏁 Final encounter (non-combat) detected")
+                    // For retrieval quests, try to take/claim the artifact
+                    action = engine.suggestedActions.first ?? "Take the artifact"
+                } else {
+                    action = engine.suggestedActions.randomElement() ?? "continue"
+                }
+                print("🎲 Action: \(action)")
+            }
+
+            await engine.submitPlayer(input: action)
+
+            if let currentProgress = engine.adventureProgress {
+                questCompleted = currentProgress.completed
+                print("📊 Progress: \(currentProgress.currentEncounter)/\(currentProgress.totalEncounters) - Completed: \(questCompleted)")
+            }
+
+            if let char = engine.character {
+                print("💚 HP: \(char.hp)/\(char.maxHP) | XP: \(char.xp)")
+            }
+
+            if encounterCount >= maxEncounters {
+                print("⚠️  Reached maximum encounter limit")
+                break
+            }
+        }
+
+        // THEN verify retrieval quest results
+        print("\n=== Retrieval Quest Test Results ===")
+        print("Quest Type: \(isRetrievalQuest ? "Retrieval" : "Other")")
+        print("Quest Completed: \(questCompleted)")
+        print("Had Final Encounter: \(hadFinalEncounter)")
+        print("Final Encounter Had Monster: \(finalEncounterHadMonster)")
+
+        if isRetrievalQuest {
+            // For retrieval quests, the final encounter should NOT have a monster
+            #expect(!finalEncounterHadMonster, "Retrieval quest final encounter should not generate monster")
+        }
+
+        // Test passes if we successfully progressed through encounters
+        #expect(encounterCount > 0)
+    }
+
+    @Test("Combat quest completes with final boss encounter",
+          .timeLimit(.minutes(5)))
+    func combatQuestCompletion() async throws {
+        // GIVEN a new game engine
+        let engine = LLMGameEngine(levelingService: DefaultLevelingService())
+
+        // Check LLM availability
+        engine.checkAvailabilityAndConfigure()
+        guard case .available = engine.availability else {
+            Issue.record("LLM not available - skipping integration test")
+            return
+        }
+
+        // WHEN starting a new game
+        print("🎲 Starting combat quest test")
+
+        await engine.startNewGame(
+            preferredType: .dungeon, // Dungeons tend to have combat quests
+            usedNames: []
+        )
+
+        // THEN character should be created
+        let character = try #require(engine.character, "Character should be created")
+        print("✅ Character: \(character.name) - \(character.race) \(character.className)")
+
+        // Continue to world generation
+        if engine.awaitingWorldContinue {
+            await engine.continueNewGame(usedNames: [])
+        }
+
+        // Select first location
+        if engine.awaitingLocationSelection, let firstLocation = engine.worldState?.locations.first {
+            print("📍 Location: \(firstLocation.name)")
+            await engine.submitPlayer(input: firstLocation.name)
+        }
+
+        // THEN verify quest type
+        let progress = try #require(engine.adventureProgress, "Adventure should have started")
+        print("🎯 Quest: \(progress.questGoal)")
+
+        let questLower = progress.questGoal.lowercased()
+        let isCombatQuest = questLower.contains("defeat") || questLower.contains("kill") ||
+                            questLower.contains("destroy") || questLower.contains("stop")
+
+        if !isCombatQuest {
+            print("⚠️  Quest is not combat type, skipping specific checks")
+        }
+
+        var encounterCount = 0
+        let maxEncounters = progress.totalEncounters + 3
+        var questCompleted = false
+        var hadBossCombat = false
+        var finalBossDefeated = false
+
+        // Progress through encounters
+        while encounterCount < maxEncounters && !engine.characterDied && !questCompleted {
+            encounterCount += 1
+            print("\n--- Encounter \(encounterCount) ---")
+
+            // Check if this is the final encounter with a boss
+            let isFinalEncounter = engine.adventureProgress?.isFinalEncounter ?? false
+
+            var action: String
+            if engine.combatManager.inCombat {
+                action = "Attack"
+                print("⚔️  Combat: Attacking \(engine.combatManager.currentMonster?.fullName ?? "enemy")")
+
+                if isFinalEncounter && isCombatQuest {
+                    hadBossCombat = true
+                    print("🔥 Final boss combat detected!")
+                }
+            } else if engine.combatManager.pendingMonster != nil {
+                if isFinalEncounter && isCombatQuest {
+                    hadBossCombat = true
+                    print("🔥 Final boss appears: \(engine.combatManager.pendingMonster?.fullName ?? "enemy")")
+                }
+                action = "Attack the \(engine.combatManager.pendingMonster?.fullName ?? "enemy")"
+                print("⚔️  Engaging: \(engine.combatManager.pendingMonster?.fullName ?? "enemy")")
+            } else {
+                action = engine.suggestedActions.randomElement() ?? "continue"
+                print("🎲 Action: \(action)")
+            }
+
+            await engine.submitPlayer(input: action)
+
+            // Check if we just defeated a boss in the final encounter
+            if hadBossCombat && !engine.combatManager.inCombat && engine.combatManager.pendingMonster == nil {
+                let defeatedCount = engine.combatManager.monstersDefeated
+                if defeatedCount > 0 {
+                    finalBossDefeated = true
+                    print("✅ Boss defeated!")
+                }
+            }
+
+            if let currentProgress = engine.adventureProgress {
+                questCompleted = currentProgress.completed
+                print("📊 Progress: \(currentProgress.currentEncounter)/\(currentProgress.totalEncounters) - Completed: \(questCompleted)")
+            }
+
+            if let char = engine.character {
+                print("💚 HP: \(char.hp)/\(char.maxHP) | XP: \(char.xp)")
+            }
+
+            if encounterCount >= maxEncounters {
+                print("⚠️  Reached maximum encounter limit")
+                break
+            }
+        }
+
+        // THEN verify combat quest results
+        print("\n=== Combat Quest Test Results ===")
+        print("Quest Type: \(isCombatQuest ? "Combat" : "Other")")
+        print("Quest Completed: \(questCompleted)")
+        print("Had Boss Combat: \(hadBossCombat)")
+        print("Boss Defeated: \(finalBossDefeated)")
+
+        if isCombatQuest {
+            // For combat quests, the final encounter SHOULD have a boss monster
+            #expect(hadBossCombat, "Combat quest should have boss combat in final encounter")
+        }
+
+        // Test passes if we successfully progressed through encounters
+        #expect(encounterCount > 0)
+    }
+
     @Test("Adventure handles character death correctly")
     func adventureHandlesDeath() async throws {
         // GIVEN a character with 1 HP

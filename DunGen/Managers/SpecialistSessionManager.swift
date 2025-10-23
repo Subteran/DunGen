@@ -57,6 +57,8 @@ final class SpecialistSessionManager {
             usageLimit = 1
         case .encounter:
             usageLimit = 5
+        case .equipment:
+            usageLimit = 3
         default:
             usageLimit = 10
         }

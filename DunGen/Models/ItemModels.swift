@@ -32,7 +32,8 @@ struct ItemDefinition: Codable, Equatable, Identifiable {
     @Guide(description: "For consumables only: maximum value of the effect (e.g., 5 for 2-5 HP healing). Leave empty for non-consumables.")
     var consumableMaxValue: Int?
 
-    var id: String { fullName + "-\(baseName)-\(itemType)" }
+    var uuid: String = UUID().uuidString
+    var id: String { uuid }
 
     var fullName: String {
         var name = ""

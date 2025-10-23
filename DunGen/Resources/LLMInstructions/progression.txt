@@ -40,15 +40,15 @@ Level scaling:
 - Level 13+: 60-150 XP (easy-normal)
 
 HP CHANGES:
-- Combat victories: -1 to -20 HP (based on difficulty)
+- Combat victories: -1 to -15 HP (based on difficulty)
 - Healing encounters: +1 to +10 HP
 - Failed/avoided encounters: 0 HP change
-- Boss battles: -10 to -30 HP
-- Traps: SCALE WITH CHARACTER LEVEL
-  * Level 1-2: -1 to -3 HP (minor traps)
-  * Level 3-5: -2 to -6 HP (moderate traps)
-  * Level 6-9: -4 to -10 HP (dangerous traps)
-  * Level 10+: -6 to -15 HP (deadly traps)
+- Boss battles: -8 to -20 HP
+- Traps: SCALE WITH CHARACTER LEVEL (reduced for easier gameplay)
+  * Level 1-2: -1 to -2 HP (minor traps)
+  * Level 3-5: -2 to -4 HP (moderate traps)
+  * Level 6-9: -3 to -7 HP (dangerous traps)
+  * Level 10+: -5 to -10 HP (deadly traps)
 
 GOLD REWARDS (when earned):
 - Combat victories: 5-50 gold (based on difficulty and level)
@@ -60,11 +60,11 @@ LOOT DROPS:
 Determine if encounter should drop items:
 - shouldDropLoot: true ONLY for combat victories and treasure finding
 - itemDropCount:
-  - easy combat: 0-1 items
-  - normal combat: 0-1 items
-  - hard combat: 1-2 items
-  - boss: 2-3 items
-  - treasure: 1-3 items based on container size
+  - easy combat: 0-1 items (50% chance of 1)
+  - normal combat: 0-1 items (60% chance of 1)
+  - hard combat: 1 item
+  - boss: 1-2 items (final encounter only)
+  - treasure: 1 item
 
 ENCOUNTER TYPE REWARDS:
 - combat: XP + gold + loot ONLY on victory, HP loss expected

@@ -13,18 +13,22 @@ DunGen is an iOS 26 fantasy RPG text adventure game that uses Apple's on-device 
 - **112 base monsters** (7 groups of 16) with procedural affix modifications
 - **Sprite-based visualization** using 4×4 grid sprite sheets (256×384 per sprite, 1024×1536 total)
 - **Dynamic combat system** with player-initiated combat and dedicated UI
+- **6 quest types** with type-specific final encounter handling (retrieval, combat, escort, investigation, rescue, diplomatic)
 - **Quest-based adventures** with clear objectives and progression tracking
 - **Smart NPC system** with limited turn interactions (2 turns max unless explicitly referenced)
 - **Equipment system** with prefix/suffix affixes and 20-slot inventory limit
 - **Context window protection** through prompt size management and post-generation verification
 
 ### Key Mechanics
+- **Starting inventory**: 3 Healing Potions (2-5 HP) + 3 Bandages (1-3 HP) for survivability
 - **HP regeneration**: +1 HP per non-damaging encounter when below max
 - **Encounter variety enforcement**: No consecutive combat, 3+ encounters between traps
 - **Social encounter rewards**: 2-5 XP for meaningful conversations, no HP/gold rewards
-- **Level-scaled trap damage**: 1-3 HP at level 1-2, scaling to 6-15 HP at level 10+
+- **Level-scaled trap damage**: 1-2 HP at level 1-2, scaling to 5-10 HP at level 10+
+- **Combat damage**: Monster attacks deal 2-8 HP damage
 - **Affix variety system**: Tracks last 10 item/monster affixes to avoid repetition
 - **Combat narration sanitization**: Removes combat resolution verbs from narrative (fighting only in combat system)
+- **Quest completion validation**: Character must be alive to complete quests
 
 ## Build & Test Commands
 
@@ -107,7 +111,7 @@ Each specialist has a focused responsibility to maintain coherent gameplay:
 2. **Encounter** - Determines type (combat/social/exploration/puzzle/trap/stealth/chase/final) and difficulty
 3. **Adventure** - Creates narrative text (EXACTLY 2-4 sentences) with quest progression
 4. **Character** - Generates unique level 1 characters with 16 classes and 8 races
-5. **Equipment** - Creates items using consistent prefix/suffix affix system
+5. **Equipment** - Creates items using consistent prefix/suffix affix system with pre-determined rarity
 6. **Progression** - Calculates XP, HP, gold rewards; awards 2-5 XP for social encounters
 7. **Abilities** - Generates physical abilities with mechanical effects
 8. **Spells** - Creates arcane/nature/death/eldritch spells for caster classes
@@ -117,12 +121,13 @@ Each specialist has a focused responsibility to maintain coherent gameplay:
 
 **Key Design Principles:**
 - Specialists work in sequence during `advanceScene()`
-- Session resets every 15 turns via `SpecialistSessionManager`
+- Session resets: Every 15 turns via `SpecialistSessionManager` (Equipment: 3 turns, Encounter: 5 turns)
 - **Encounter variety enforcement** - no consecutive combat, 3+ between traps (code-enforced)
 - **Combat narration sanitization** - removes combat resolution verbs (fighting only in combat system)
 - **Narrative consistency** - Adventure LLM receives full adventure history as compressed summaries (~1200 chars max)
 - **Post-generation verification** - locations, NPCs, abilities/spells checked for duplicates
 - **Affix variety tracking** - last 10 item/monster affixes passed to Equipment/Monster LLMs
+- **Adventure state cleanup** - pending monsters/NPCs cleared on adventure start/completion
 
 ### Character System
 
@@ -153,12 +158,18 @@ Each specialist has a focused responsibility to maintain coherent gameplay:
 
 ### Equipment System
 
-**Item Rarity and Affixes:**
+**Item Generation Strategy:**
+- **Reduced Loot Frequency**: Max 1 item per encounter (1-2 for final boss encounters only)
+- **Pre-determined Rarity**: Rarity determined before LLM generation to reduce failures
+  - Normal/Easy: 1% legendary, 5% epic, 10% rare, 30% uncommon, 54% common
+  - Hard: 2% legendary, 8% epic, 15% rare, 30% uncommon, 45% common
+  - Boss: 5% legendary, 15% epic, 25% rare, 30% uncommon, 25% common
 - **Common/Uncommon/Rare**: Can be plain items (e.g., "Staff", "Sword") or have affixes
 - **Epic/Legendary**: MUST have prefix and/or suffix affixes (validated at generation)
 - **Affix Variety**: Tracks last 10 item affixes to avoid repetition
 - **Generation Retry**: Max 3 attempts per item, graceful fallback on failure
 - **Duplicate Prevention**: Checks existing inventory for duplicate item names
+- **Rarity Enforcement**: If LLM generates wrong rarity, it's corrected to match pre-determined value
 
 ### Context Window Protection
 
@@ -192,12 +203,18 @@ Each specialist has a focused responsibility to maintain coherent gameplay:
 
 **CombatManager** (`Managers/CombatManager.swift`)
 - Manages combat state: `inCombat`, `currentMonster`, `currentMonsterHP`, `pendingMonster`
+- `currentMonsterHP` tracks monster's current HP separately from base `monster.hp`
 - Player-initiated combat (monster pending until player attacks)
 - Handles combat actions: attack, flee, surrender
+- Initiative system: 70% chance player strikes first
+- Monster damage: 2-8 HP per attack
 
 **SpecialistSessionManager** (`Managers/SpecialistSessionManager.swift`)
 - Manages 11 separate `LanguageModelSession` instances
-- Resets sessions every 15 turns to prevent context overflow
+- Session usage limits to prevent context overflow:
+  - Equipment specialist: 3 turns
+  - Encounter specialist: 5 turns
+  - Other specialists: 10 turns
 
 ## Game Flow
 
@@ -206,6 +223,39 @@ Each specialist has a focused responsibility to maintain coherent gameplay:
 - 7-12 encounters per adventure
 - Progress tracked: `currentEncounter` / `totalEncounters`
 - Stats tracked: XP gained, gold earned, monsters defeated
+
+### Quest Types
+Quest type is inferred from keywords in the `questGoal` text. Each type has specific final encounter handling:
+
+1. **Retrieval Quests** (find, retrieve, locate, discover)
+   - Final encounter: "final" type (non-combat)
+   - Completion: Present artifact/item, mark completed=true when player takes it
+   - Example: "Find the lost amulet" → Present amulet → Player "Take the amulet" → Quest complete
+
+2. **Combat Quests** (defeat, kill, destroy, stop)
+   - Final encounter: "combat" type with "boss" difficulty
+   - Completion: Boss monster generated, mark completed=true when combat won
+   - Example: "Defeat the goblin warlord" → Boss fight → Player wins → Quest complete
+
+3. **Escort Quests** (escort, protect, guide)
+   - Final encounter: "final" type OR "combat" type (hard difficulty) if threat
+   - Completion: Present destination or final threat, mark completed=true when reached/defeated
+   - Example: "Escort the merchant to the village" → Arrive safely OR defeat ambushers → Quest complete
+
+4. **Investigation Quests** (investigate, solve, uncover)
+   - Final encounter: "final" type (non-combat)
+   - Completion: Reveal solution/truth, mark completed=true when player acknowledges
+   - Example: "Investigate the mysterious murders" → Reveal culprit → Player "Confront the mayor" → Quest complete
+
+5. **Rescue Quests** (rescue, save, free)
+   - Final encounter: "combat" type (hard difficulty) OR "final" type depending on scenario
+   - Completion: Present captive/prisoner, mark completed=true when freed (combat win or unlock)
+   - Example: "Rescue the kidnapped child" → Defeat captor OR pick lock → Quest complete
+
+6. **Diplomatic Quests** (negotiate, persuade, convince, diplomacy)
+   - Final encounter: "social" type (critical negotiation)
+   - Completion: Present key NPC, mark completed=true when agreement reached
+   - Example: "Negotiate peace between the clans" → Meet chieftain → Player persuades → Quest complete
 
 ### Turn Loop
 1. Player selects action → `submitPlayer(input:)` (truncated to 500 chars)
@@ -277,16 +327,26 @@ Used for locations, NPCs, abilities/spells:
 
 **Always use:**
 - Post-generation verification
+- Smart truncation (1500 chars max, preserves critical instructions)
 - Truncation (500 chars input, 200 chars history)
 - Hard limits (20 inventory, 50 locations)
 - Session resets (15 turns)
 - Recent affixes only (last 10)
 
+**Smart Truncation Strategy:**
+- Max prompt length: 1500 characters
+- Preserves all lines containing: "CRITICAL", "QUEST STAGE", "quest:", "encounter:", "character:", "location:"
+- Compresses adventure history to keywords (150 chars)
+- Compresses encounter history to count + last 3 encounters
+- Final fallback: preserve last 500 chars (where critical instructions are)
+- Ensures final encounter instructions ("CRITICAL - FINAL ENCOUNTER") never get cut off
+
 ## State Management
 
 **Character State:**
 - `CharacterProfile` with racial modifiers applied
-- HP, XP, gold, inventory (ItemDefinition with UUID)
+- HP, XP, gold, inventory (ItemDefinition with UUID for unique identification)
+- Starting inventory: 3 Healing Potions + 3 Bandages
 - Abilities (physical), spells (arcane/nature/death/eldritch), prayers (divine)
 - Name uniqueness enforced
 

@@ -249,6 +249,7 @@ struct GameView: View {
                 NavigationStack {
                     CombatView(
                         monster: monster,
+                        currentMonsterHP: engine.currentMonsterHP,
                         character: character,
                         detailedInventory: engine.detailedInventory,
                         onAction: { action in

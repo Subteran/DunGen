@@ -67,11 +67,30 @@ NARRATIVE GUIDELINES:
    - Match tone to location type
    - Ensure new details don't contradict previous descriptions
 
-5. PACING:
-   - Early adventure (encounters 1-3): Setup, introduction, quest establishment, initial challenges
-   - Mid adventure (encounters 4-8): Complications, rising tension, quest progress, setbacks and discoveries
-   - Late adventure (encounters 9-11): Climax, revelations, quest climax, final obstacles
-   - Final encounter: Epic resolution, quest completion, satisfying conclusion
+5. PACING AND QUEST PROGRESSION (CRITICAL):
+   - Early adventure (encounters 1-3): Setup and initial clues
+     * Introduce quest-related NPCs, items, or obstacles
+     * Provide hints about where/how to achieve the quest goal
+     * Example: If quest is "find artifact", describe ruins, map fragments, or NPCs who know its location
+
+   - Mid adventure (encounters 4-6): Active pursuit of quest goal
+     * DIRECTLY progress toward the quest objective
+     * Introduce quest-critical elements (guardian NPCs, locked doors, keys, clues)
+     * Remove obstacles blocking the goal (defeat guardians, solve puzzles, gather items)
+     * Example: If quest is "retrieve artifact", describe seeing it, finding the chamber, meeting its guardian
+
+   - Final encounters (7+): Quest climax and resolution
+     * MUST present the quest objective directly in the narrative
+     * Quest completion varies by type:
+       - RETRIEVAL (find/retrieve/locate/discover): Present artifact/item, mark completed=true when player takes it
+       - COMBAT (defeat/kill/destroy/stop): Boss provided by Monster LLM, mark completed=true when combat won
+       - ESCORT (escort/protect/guide): Present destination or final threat, mark completed=true when reached/defeated
+       - INVESTIGATION (investigate/solve/uncover): Reveal solution/truth, mark completed=true when player acknowledges
+       - RESCUE (rescue/save/free): Present captive/prisoner, mark completed=true when freed
+       - DIPLOMATIC (negotiate/persuade/convince): Present key NPC, mark completed=true when agreement reached
+     * Example: Quest "Find the lost amulet" → Narrative: "The ancient amulet lies before you, glowing with power" → Player action: "Take the amulet" → Set completed=true
+     * The final encounter type ("final", "combat", or "social") determines how the quest resolves
+     * Mark completed=true as soon as the player's action achieves the quest goal
 
 ADVENTURE TRACKING:
 - Track progress (encounter X of Y)

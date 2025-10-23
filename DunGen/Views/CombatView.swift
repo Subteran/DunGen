@@ -2,6 +2,7 @@ import SwiftUI
 
 struct CombatView: View {
     let monster: MonsterDefinition
+    let currentMonsterHP: Int
     let character: CharacterProfile
     let detailedInventory: [ItemDefinition]
     let onAction: (CombatAction) -> Void
@@ -49,7 +50,7 @@ struct CombatView: View {
                 .padding(.horizontal)
 
             HStack(spacing: 20) {
-                StatBadge(label: "HP", value: "\(monster.hp)", color: .red)
+                StatBadge(label: "HP", value: "\(currentMonsterHP)/\(monster.hp)", color: .red)
                 StatBadge(label: "DMG", value: monster.damage, color: .orange)
                 StatBadge(label: "DEF", value: "\(monster.defense)", color: .blue)
             }
@@ -254,6 +255,7 @@ struct ActionButton: View {
                 abilities: ["Shadowstep", "Pack Tactics", "Bite"],
                 description: "A cunning goblin shrouded in darkness"
             ),
+            currentMonsterHP: 30,
             character: CharacterProfile(
                 name: "Aragorn",
                 race: "Human",

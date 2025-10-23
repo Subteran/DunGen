@@ -13,7 +13,8 @@
       "Bash(find:*)",
       "Bash(echo $TMPDIR)",
       "Read(//private/var/folders/j0/1f6h987x6_10zm_f4yt17rd80000gn/T/**)",
-      "Bash(tee:*)"
+      "Bash(tee:*)",
+      "Read(//Users/giant/Library/Developer/Xcode/DerivedData/DunGen-arbviviwwedmvugoortpzrtxhvxm/Logs/Test/**)"
     ],
     "deny": [],
     "ask": []

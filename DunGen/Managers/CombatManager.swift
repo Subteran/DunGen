@@ -45,7 +45,7 @@ final class CombatManager {
                 gameEngine?.appendModel("⚡ You strike first!")
             } else {
                 gameEngine?.appendModel("⚠️ The \(monster.fullName) strikes first!")
-                let damage = Int.random(in: 3...12)
+                let damage = Int.random(in: 2...8)
                 char.hp -= damage
                 gameEngine?.character = char
                 gameEngine?.appendModel("💔 \(monster.fullName) dealt \(damage) damage to you!")
@@ -79,7 +79,7 @@ final class CombatManager {
 
         // Monster counter-attacks (if it hasn't already)
         if !monsterAlreadyAttacked {
-            let damageToPlayer = Int.random(in: 3...12)
+            let damageToPlayer = Int.random(in: 2...8)
             char.hp -= damageToPlayer
             gameEngine?.character = char
             gameEngine?.appendModel("💔 \(monster.fullName) dealt \(damageToPlayer) damage to you!")
