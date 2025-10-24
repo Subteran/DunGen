@@ -1,100 +1,19 @@
-Equipment specialist. Generate magical items using strict prefix/suffix system.
+Generate items using prefix/suffix system.
 
-QUICK EXAMPLES (follow these patterns):
-{baseName: "Staff", prefix: {name: "Arcane", type: "prefix", effect: "+spell power"}, suffix: null}
-{baseName: "Dagger", prefix: {name: "Shadow", type: "prefix", effect: "+stealth"}, suffix: {name: "of Speed", type: "suffix", effect: "+agility"}}
-{baseName: "Ring", prefix: null, suffix: {name: "of the Bear", type: "suffix", effect: "+strength"}}
+STRUCTURE:
+baseName: single word ("Sword","Staff","Ring")
+prefix: {name, type:"prefix", effect} (optional)
+suffix: {name, type:"suffix", effect} (optional)
 
-CRITICAL BASENAME RULE:
-baseName = ONLY the base item type. Single word like "Sword", "Dagger", "Staff", "Armor", "Ring", "Bow"
+RARITY RULES:
+Common/Uncommon/Rare: affixes optional
+Epic: needs 1+ affix
+Legendary: needs prefix+suffix
 
-WRONG baseName examples (DO NOT DO THIS):
-❌ "Shadow Dagger" - put "Shadow" in prefix field instead
-❌ "Arcane Staff Whispering" - put "Arcane" in prefix and "Whispering" in suffix
-❌ "Flaming Sword of Power" - separate into prefix and suffix fields
-❌ "Staff Whispering" - put "Whispering" in suffix field
+EXAMPLES:
+• "Flaming" prefix → fire damage
+• "of the Bear" suffix → strength
+• Epic "Shadow Dagger" = {baseName:"Dagger", prefix:{name:"Shadow",effect:"stealth"}}
 
-CORRECT baseName examples:
-✓ "Sword" (with prefix: "Flaming", suffix: "of Power")
-✓ "Dagger" (with prefix: "Shadow")
-✓ "Staff" (with prefix: "Arcane", suffix: "Whispering")
-✓ "Ring" (with suffix: "of the Bear")
-
-2. PREFIX (optional): Comes before base name
-   Examples:
-   - Flaming: +fire damage
-   - Sharp: +accuracy
-   - Heavy: +damage, -speed
-   - Light: +speed, -damage
-   - Blessed: +holy power
-   - Vampiric: life steal
-   - Frozen: +cold damage
-
-3. SUFFIX (optional): Comes after base name
-   Examples:
-   - of the Bear: +strength
-   - of the Eagle: +dexterity
-   - of Protection: +defense
-   - of Speed: +agility
-   - of Power: +damage
-   - of Wisdom: +intelligence
-   - of the Titan: +constitution
-
-CONSISTENCY RULES:
-1. Each prefix ALWAYS has the same effect
-2. Each suffix ALWAYS has the same effect
-3. Use known affixes when possible
-4. Create new affixes sparingly
-5. CRITICAL: Separate affixes into prefix and suffix fields
-   - If item has "Spectral Staff Eternal", use:
-     * baseName: "Staff"
-     * prefix: {name: "Spectral", type: "prefix", effect: "ethereal power"}
-     * suffix: {name: "Eternal", type: "suffix", effect: "durability"}
-6. For compound base items (Necrostaff, Warhammer), it's acceptable to keep as single baseName
-
-RARITY AND AFFIX REQUIREMENTS:
-
-Common/Uncommon/Rare: Can be plain OR have affixes
-- baseName: "Sword" (no affixes) ✓
-- baseName: "Dagger", prefix: "Sharp" ✓
-- baseName: "Sword", prefix: "Flaming", suffix: "of the Bear" ✓
-
-Epic: MUST have at least ONE affix (prefix OR suffix)
-- baseName: "Dagger", prefix: "Shadow" ✓
-- baseName: "Staff", prefix: "Arcane" ✓
-- baseName: "Sword", suffix: "of Power" ✓
-- baseName: "Dagger" (no affixes) ❌ WRONG - add a prefix or suffix!
-
-Legendary: MUST have BOTH prefix AND suffix
-- baseName: "Staff", prefix: "Ethereal", suffix: "of the Ancients" ✓
-- baseName: "Blade", prefix: "Dark", suffix: "of Power" ✓
-- baseName: "Staff", prefix: "Arcane" (only prefix) ❌ WRONG - add suffix too!
-- baseName: "Ring" (no affixes) ❌ WRONG - add both prefix and suffix!
-
-ITEM TYPES:
-- Weapon: swords, axes, bows, staves, daggers
-- Armor: cloth, leather, mail, plate
-- Accessory: rings, amulets, cloaks
-- Consumable: potions, scrolls, food
-
-CONSUMABLE GENERATION:
-For consumable items, you MUST provide:
-- consumableEffect: The attribute affected (hp, gold, xp)
-- consumableMinValue: Minimum effect value (e.g., 2 for healing 2-5 HP)
-- consumableMaxValue: Maximum effect value (e.g., 5 for healing 2-5 HP)
-
-Consumable examples:
-- Bandage: hp, 2-2 (common, single-use healing wrap)
-- Healing Potion: hp, 5-10 (common)
-- Greater Healing Potion: hp, 10-20 (uncommon)
-- Superior Healing Potion: hp, 30-50 (rare)
-- Elixir of Fortune: gold, 10-25 (uncommon)
-- Experience Scroll: xp, 20-50 (rare)
-
-For non-consumables, leave consumableEffect, consumableMinValue, and consumableMaxValue EMPTY.
-
-Examples:
-- "Flaming Sword of the Bear": fire damage + strength
-- "Sharp Dagger": increased accuracy
-- "Heavy Plate Armor of Protection": high defense, slow movement
-- "Healing Potion": consumable, hp, 2-5
+CONSUMABLES (hp/gold/xp):
+Healing Potion: hp,5-10 | Bandage: hp,2-2 | XP Scroll: xp,20-50

@@ -39,7 +39,7 @@ struct GameState: Codable, Equatable {
     var pendingLoot: [ItemDefinition]
 
     // Trading state
-    var pendingTransaction: LLMGameEngine.PendingTransaction?
+    var pendingTransaction: PendingTransaction?
 
     // NPC conversation tracking
     var activeNPC: NPCDefinition?
@@ -51,7 +51,9 @@ struct GameState: Codable, Equatable {
     var awaitingWorldContinue: Bool
 
     // Encounter tracking for variety enforcement
-    var recentEncounterTypes: [String]
+    var encounterCounts: [String: Int]?
+    var lastEncounter: String?
+    var encountersSinceLastTrap: Int?
 
     struct SavedLogEntry: Codable, Equatable, Identifiable {
         let id: UUID
@@ -148,7 +150,9 @@ extension LLMGameEngine {
             awaitingCustomCharacterName: awaitingCustomCharacterName,
             partialCharacter: partialCharacter,
             awaitingWorldContinue: awaitingWorldContinue,
-            recentEncounterTypes: recentEncounterTypes
+            encounterCounts: encounterCounts,
+            lastEncounter: lastEncounter,
+            encountersSinceLastTrap: encountersSinceLastTrap
         )
 
         do {
@@ -222,8 +226,10 @@ extension LLMGameEngine {
                 self.partialCharacter = state.partialCharacter
                 self.awaitingWorldContinue = state.awaitingWorldContinue
 
-                // Restore encounter tracking
-                self.recentEncounterTypes = state.recentEncounterTypes
+                // Restore encounter tracking (with migration support)
+                self.encounterCounts = state.encounterCounts ?? [:]
+                self.lastEncounter = state.lastEncounter
+                self.encountersSinceLastTrap = state.encountersSinceLastTrap ?? 0
 
                 // Check if character died before save
                 if let char = state.character, char.hp <= 0 {

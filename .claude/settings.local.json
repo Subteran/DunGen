@@ -14,7 +14,12 @@
       "Bash(echo $TMPDIR)",
       "Read(//private/var/folders/j0/1f6h987x6_10zm_f4yt17rd80000gn/T/**)",
       "Bash(tee:*)",
-      "Read(//Users/giant/Library/Developer/Xcode/DerivedData/DunGen-arbviviwwedmvugoortpzrtxhvxm/Logs/Test/**)"
+      "Read(//Users/giant/Library/Developer/Xcode/DerivedData/DunGen-arbviviwwedmvugoortpzrtxhvxm/Logs/Test/**)",
+      "Bash(xcrun xcresulttool get:*)",
+      "Bash(for:*)",
+      "Bash(done)",
+      "Bash(python3:*)",
+      "Bash(log show:*)"
     ],
     "deny": [],
     "ask": []

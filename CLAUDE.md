@@ -8,7 +8,7 @@ DunGen is an iOS 26 fantasy RPG text adventure game that uses Apple's on-device 
 
 ### Core Features
 - **Permadeath rogue-like gameplay** with character history tracking
-- **11 specialist LLMs** working together for coherent game experiences
+- **10 specialist LLMs** (reduced from 11 - Progression eliminated via code)
 - **16 character classes** across 8 races with racial stat modifiers
 - **112 base monsters** (7 groups of 16) with procedural affix modifications
 - **Sprite-based visualization** using 4×4 grid sprite sheets (256×384 per sprite, 1024×1536 total)
@@ -17,7 +17,7 @@ DunGen is an iOS 26 fantasy RPG text adventure game that uses Apple's on-device 
 - **Quest-based adventures** with clear objectives and progression tracking
 - **Smart NPC system** with limited turn interactions (2 turns max unless explicitly referenced)
 - **Equipment system** with prefix/suffix affixes and 20-slot inventory limit
-- **Context window protection** through prompt size management and post-generation verification
+- **Optimized context management** through tiered prompts, code-based calculations, and compressed instructions (50-80% reduction)
 
 ### Key Mechanics
 - **Starting inventory**: 3 Healing Potions (2-5 HP) + 3 Bandages (1-3 HP) for survivability
@@ -56,7 +56,9 @@ DunGen/
 │   ├── NPCRegistry.swift             # NPC persistence
 │   ├── SpecialistSessionManager.swift # LLM session management (resets every 15 turns)
 │   ├── GameStatePersistence.swift    # Save/load system
-│   └── LevelingService.swift         # XP and leveling logic
+│   ├── LevelingService.swift         # XP and leveling logic
+│   ├── RewardCalculator.swift        # Code-based XP/gold/damage calculations
+│   └── ContextBuilder.swift          # Tiered context generation per LLM
 ├── Models/
 │   ├── WorldModels.swift         # AdventureType, WorldState, AdventureProgress, AdventureSummary
 │   ├── CharacterModels.swift     # CharacterProfile, RaceModifiers, LevelReward
@@ -103,7 +105,7 @@ DunGen/
 
 ## Architecture
 
-### 11 Specialist LLMs
+### 10 Specialist LLMs
 
 Each specialist has a focused responsibility to maintain coherent gameplay:
 
@@ -112,22 +114,26 @@ Each specialist has a focused responsibility to maintain coherent gameplay:
 3. **Adventure** - Creates narrative text (EXACTLY 2-4 sentences) with quest progression
 4. **Character** - Generates unique level 1 characters with 16 classes and 8 races
 5. **Equipment** - Creates items using consistent prefix/suffix affix system with pre-determined rarity
-6. **Progression** - Calculates XP, HP, gold rewards; awards 2-5 XP for social encounters
-7. **Abilities** - Generates physical abilities with mechanical effects
-8. **Spells** - Creates arcane/nature/death/eldritch spells for caster classes
-9. **Prayers** - Generates divine prayers for divine classes
-10. **Monsters** - Modifies base monsters from 112-monster database with affixes
-11. **NPC** - Creates and manages persistent NPCs with dialogue
+6. **Abilities** - Generates physical abilities with mechanical effects
+7. **Spells** - Creates arcane/nature/death/eldritch spells for caster classes
+8. **Prayers** - Generates divine prayers for divine classes
+9. **Monsters** - Modifies base monsters from 112-monster database with affixes
+10. **NPC** - Creates and manages persistent NPCs with dialogue
+
+**Note**: Progression LLM was eliminated - XP/gold/damage/loot now calculated via `RewardCalculator` using deterministic formulas.
 
 **Key Design Principles:**
 - Specialists work in sequence during `advanceScene()`
 - Session resets: Every 15 turns via `SpecialistSessionManager` (Adventure: 10 uses, Equipment: 3 uses, Encounter: 5 uses)
-- **Encounter variety enforcement** - no consecutive combat, 3+ between traps (code-enforced)
+- **Tiered context system** - Each LLM receives minimal relevant context via `ContextBuilder`
+- **Code-based rewards** - XP/gold/damage calculated by `RewardCalculator`, no LLM variance
+- **Encounter variety enforcement** - no consecutive combat, 3+ between traps (code-enforced via count tracking)
 - **Combat narration sanitization** - removes combat resolution verbs (fighting only in combat system)
-- **Narrative consistency** - Adventure LLM receives full adventure history as compressed summaries (~1200 chars max)
+- **Narrative consistency** - Adventure LLM receives last 2 encounter summaries (60 chars each)
 - **Post-generation verification** - locations, NPCs, abilities/spells checked for duplicates
 - **Affix variety tracking** - last 10 item/monster affixes passed to Equipment/Monster LLMs
-- **Adventure state cleanup** - pending monsters/NPCs cleared on adventure start/completion
+- **Adventure state cleanup** - pending monsters/NPCs/traps cleared on adventure start/completion
+- **Compressed instructions** - All instruction files reduced by 50-80% using bullet points and abbreviations
 
 ### Character System
 
@@ -173,16 +179,24 @@ Each specialist has a focused responsibility to maintain coherent gameplay:
 
 ### Context Window Protection
 
-**Critical safeguards to prevent prompt overflow:**
+**CRITICAL: Apple's on-device LLM has a ~2000 character context window INCLUDING instruction files**
 
-1. **Inventory Limit** - 20-slot maximum with UI-based management
-2. **Location Cap** - Maximum 50 locations total
-3. **User Input Truncation** - Player actions limited to 500 characters
-4. **Action History Truncation** - Recent actions truncated to 200 characters each
-5. **Post-Generation Verification** - Locations, NPCs, abilities/spells generated without full lists, then verified
-6. **Session Resets** - Every 15 turns to clear conversation history
-7. **Affix Tracking** - Only last 10 affixes sent to LLMs (not full history)
-8. **Equipment Generation** - Max 3 retry attempts with error catching to prevent infinite loops
+**Safeguards to prevent prompt overflow:**
+
+1. **Instruction File Compression** - Aggressively reduced specialist instructions:
+   - Adventure: 359 chars (was 7,575 - 95% reduction)
+   - Encounter: 340 chars (was 1,885 - 82% reduction)
+   - Progression: 563 chars (was 4,310 - 87% reduction)
+2. **Dynamic Prompt Truncation** - Max 500 characters (ultra-aggressive truncation preserves only critical info)
+3. **Total Prompt Size** - Worst case: 500 (dynamic) + 359 (instructions) = 859 chars (well within limit)
+4. **Inventory Limit** - 20-slot maximum with UI-based management
+5. **Location Cap** - Maximum 50 locations total
+6. **User Input Truncation** - Player actions limited to 500 characters
+7. **Action History Truncation** - Recent actions truncated to 200 characters each
+8. **Post-Generation Verification** - Locations, NPCs, abilities/spells generated without full lists, then verified
+9. **Session Resets** - Every 15 turns to clear conversation history
+10. **Affix Tracking** - Only last 10 affixes sent to LLMs (not full history)
+11. **Equipment Generation** - Max 3 retry attempts with error catching to prevent infinite loops
 
 ### Core Components
 
@@ -340,19 +354,18 @@ Used for locations, NPCs, abilities/spells:
 
 **Always use:**
 - Post-generation verification
-- Smart truncation (1500 chars max, preserves critical instructions)
+- Ultra-aggressive truncation (500 chars max, preserves only critical instructions)
 - Truncation (500 chars input, 200 chars history)
 - Hard limits (20 inventory, 50 locations)
 - Session resets (15 turns)
 - Recent affixes only (last 10)
 
 **Smart Truncation Strategy:**
-- Max prompt length: 1500 characters
-- Preserves all lines containing: "CRITICAL", "QUEST STAGE", "quest:", "encounter:", "character:", "location:"
-- Compresses adventure history to keywords (150 chars)
-- Compresses encounter history to count + last 3 encounters
-- Final fallback: preserve last 500 chars (where critical instructions are)
-- Ensures final encounter instructions ("CRITICAL - FINAL ENCOUNTER") never get cut off
+- Max prompt length: 500 characters (reduced to fit within model's strict context limit)
+- Preserves ONLY: "CRITICAL", "QUEST STAGE", short "quest:", "location:", "encounter:" lines
+- Drops ALL: character stats, history, monster details, abilities, recent actions
+- Final fallback: preserve last 350 chars (critical instructions only)
+- Ensures quest completion and combat instructions never get cut off
 
 ## State Management
 

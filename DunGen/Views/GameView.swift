@@ -3,7 +3,7 @@ import SwiftData
 import MessageUI
 
 struct GameView: View {
-    @State private var engine: LLMGameEngine
+    @State private var engine: any GameEngine
     @State private var input: String = ""
     @State private var showNewGameConfirmation = false
     @State private var showCustomInputSheet = false
@@ -16,7 +16,7 @@ struct GameView: View {
     @FocusState private var inputFocused: Bool
     @Environment(\.modelContext) private var modelContext
 
-    nonisolated init(engine: LLMGameEngine? = nil) {
+    nonisolated init(engine: (any GameEngine)? = nil) {
         _engine = State(initialValue: engine ?? LLMGameEngine(levelingService: DefaultLevelingService()))
     }
 

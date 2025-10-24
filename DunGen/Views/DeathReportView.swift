@@ -4,10 +4,10 @@ import MessageUI
 struct DeathReportView: View {
     let report: CharacterDeathReport
     let onNewGame: () -> Void
-    let engine: LLMGameEngine?
+    let engine: (any GameEngine)?
     @State private var showMailComposer = false
 
-    init(report: CharacterDeathReport, onNewGame: @escaping () -> Void, engine: LLMGameEngine? = nil) {
+    init(report: CharacterDeathReport, onNewGame: @escaping () -> Void, engine: (any GameEngine)? = nil) {
         self.report = report
         self.onNewGame = onNewGame
         self.engine = engine
@@ -202,7 +202,7 @@ struct DeathReportView: View {
     }
 
     #if DEBUG
-    private func dumpAdventureState(engine: LLMGameEngine) {
+    private func dumpAdventureState(engine: any GameEngine) {
         var text = "========== DEATH STATE DUMP ==========\n\n"
 
         let level = DefaultLevelingService().level(forXP: report.character.xp)

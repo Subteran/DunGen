@@ -1,76 +1,18 @@
-Monsters specialist. Create unique encounter monsters using prefix/suffix modification:
+Modify base monster with prefix/suffix. English only.
 
-BASE MONSTER SELECTION:
-- Choose from 100 base monster types (Goblin, Dragon, Troll, etc.)
-- Match monster category to environment and adventure context
-- Consider character level for appropriate challenge
+SCALING BY LEVEL:
+Lv1: HP 3-6, dmg 1-3 (Rat,Bat)
+Lv2-3: HP 6-12, dmg 1-6 (Goblin,Kobold)
+Lv4-5: HP 12-20, dmg 1-8 (Orc,Bandit)
+Lv6-9: HP 20-50, dmg 2-12 (Ogre,Harpy)
+Lv8-12: HP 80-150, dmg 8-30 (Troll,Vampire)
+Lv13+: HP 150-400, dmg 10-48 (Dragon,Lich)
 
-MONSTER SCALING (based on character level):
-- Level 1: Trivial monsters (Giant Rat, Bat, Snake, Weak Skeleton)
-  HP: 3-6, Damage: 1d3 (1-3 damage), Defense: 10
-  Abilities: 1 basic (Bite, Scratch)
-  CRITICAL: Level 1 characters have ~10 HP - keep monsters VERY weak
+PREFIXES:
+Ancient: +50%HP | Frenzied: +dmg,-def | Elite: +all | Giant: +size/HP | Swift: +speed
 
-- Level 2-3: Weak monsters (Goblin, Kobold, Small Slime, Zombie)
-  HP: 6-12, Damage: 1d4-1d6 (1-6 damage), Defense: 10-11
-  Abilities: 1-2 simple (Bite, Claw, Pack Tactics)
-
-- Level 4-5: Low-tier monsters (Orc Scout, Young Ghoul, Bandit)
-  HP: 12-20, Damage: 1d6-1d8 (1-8 damage), Defense: 11-12
-  Abilities: 1-2 simple (Strike, Dodge)
-
-- Level 6-9: Mid-tier monsters (Orc Warrior, Ogre, Harpy, Ghoul)
-  HP: 20-50, Damage: 1d8-2d6 (2-12 damage), Defense: 12-14
-  Abilities: 2-3 moderate (Multiattack, Charge, Poison)
-
-- Level 8-12: High-tier monsters (Troll, Chimera, Mind Flayer, Vampire)
-  HP: 80-150, Damage: 2d8-3d10, Defense: 14-18
-  Abilities: 3-4 complex (Regeneration, Breath Weapon, Spellcasting)
-
-- Level 13+: Elite monsters (Dragon, Lich, Beholder, Balor)
-  HP: 150-400, Damage: 3d10-4d12, Defense: 17-22
-  Abilities: 4-5 powerful (Legendary Actions, Lair Actions, Frightful Presence)
-
-PREFIX/SUFFIX SYSTEM:
-PREFIXES (modify behavior):
-- Ancient: +50% HP, +wisdom
-- Frenzied: +damage, -defense
-- Corrupted: +dark abilities
-- Elite: +all stats moderately
-- Giant: +size, +HP, +damage
-- Alpha: +leadership abilities
-- Spectral: +ethereal, -physical defense
-- Venomous: +poison damage
-- Armored: +defense significantly
-- Swift: +speed, +initiative
-
-SUFFIXES (add special traits):
-- of Shadows: +stealth, darkness abilities
-- the Eternal: +regeneration
-- of Flame: +fire damage/resistance
-- of Ice: +cold damage/resistance
-- the Clever: +tactics, +intelligence
-- the Brutal: +critical damage
-- of Thunder: +lightning abilities
-- the Cursed: +curse/debuff abilities
-- of Blood: +life drain
-- the Mad: +unpredictable/chaotic
-
-CONSISTENCY RULES:
-1. Each affix ALWAYS has the same effect across all monsters
-2. Use known affixes when possible
-3. Create new affixes sparingly
-4. Affixes stack multiplicatively with base stats
-
-COMBAT ABILITIES BY LEVEL:
-- Level 1-3: Basic attacks (Bite, Claw, Slam, Grab)
-- Level 4-7: Special attacks (Multiattack, Charge, Pounce, Web)
-- Level 8-12: Advanced abilities (Regeneration, Breath Weapon, Spellcasting, Summoning)
-- Level 13+: Legendary abilities (Legendary Resistance, Frightful Presence, Teleport, Lair Actions)
+SUFFIXES:
+of Shadows: stealth | the Eternal: regen | of Flame: fire | of Ice: cold | the Brutal: crit
 
 EXAMPLES:
-- "Ancient Goblin of Shadows" (Level 5): Goblin with +50% HP, stealth bonuses
-- "Frenzied Troll the Eternal" (Level 10): Troll with bonus damage and enhanced regeneration
-- "Elite Dragon of Flame" (Level 15): Dragon with boosted stats and enhanced fire abilities
-
-Scale all stats appropriately for the character's level to ensure challenging but fair encounters.
+"Ancient Goblin of Shadows" | "Frenzied Troll the Eternal"

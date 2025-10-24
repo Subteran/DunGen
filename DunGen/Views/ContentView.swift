@@ -10,7 +10,7 @@ import SwiftData
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
-    @State private var engine = LLMGameEngine()
+    @State private var engine: any GameEngine = LLMGameEngine()
 
     var body: some View {
         TabView {

@@ -38,7 +38,28 @@ struct GameStatePersistenceTests {
             adventureProgress: nil,
             detailedInventory: [],
             worldState: nil,
-            awaitingLocationSelection: false
+            awaitingLocationSelection: false,
+            inCombat: false,
+            currentMonster: nil,
+            currentMonsterHP: 0,
+            pendingMonster: nil,
+            pendingTrap: nil,
+            gameStartTime: Date(),
+            adventuresCompleted: 0,
+            itemsCollected: 0,
+            currentAdventureXP: 0,
+            currentAdventureGold: 0,
+            currentAdventureMonsters: 0,
+            adventureSummary: nil,
+            showingAdventureSummary: false,
+            needsInventoryManagement: false,
+            pendingLoot: [],
+            pendingTransaction: nil,
+            activeNPC: nil,
+            activeNPCTurns: 0,
+            awaitingCustomCharacterName: false,
+            partialCharacter: nil,
+            awaitingWorldContinue: false
         )
 
         try persistence.save(state)
@@ -74,7 +95,28 @@ struct GameStatePersistenceTests {
             adventureProgress: nil,
             detailedInventory: [],
             worldState: nil,
-            awaitingLocationSelection: false
+            awaitingLocationSelection: false,
+            inCombat: false,
+            currentMonster: nil,
+            currentMonsterHP: 0,
+            pendingMonster: nil,
+            pendingTrap: nil,
+            gameStartTime: nil,
+            adventuresCompleted: 0,
+            itemsCollected: 0,
+            currentAdventureXP: 0,
+            currentAdventureGold: 0,
+            currentAdventureMonsters: 0,
+            adventureSummary: nil,
+            showingAdventureSummary: false,
+            needsInventoryManagement: false,
+            pendingLoot: [],
+            pendingTransaction: nil,
+            activeNPC: nil,
+            activeNPCTurns: 0,
+            awaitingCustomCharacterName: false,
+            partialCharacter: nil,
+            awaitingWorldContinue: false
         )
 
         try persistence.save(state)
@@ -116,7 +158,28 @@ struct GameStatePersistenceTests {
             adventureProgress: nil,
             detailedInventory: [],
             worldState: nil,
-            awaitingLocationSelection: false
+            awaitingLocationSelection: false,
+            inCombat: false,
+            currentMonster: nil,
+            currentMonsterHP: 0,
+            pendingMonster: nil,
+            pendingTrap: nil,
+            gameStartTime: Date(),
+            adventuresCompleted: 2,
+            itemsCollected: 5,
+            currentAdventureXP: 0,
+            currentAdventureGold: 0,
+            currentAdventureMonsters: 0,
+            adventureSummary: nil,
+            showingAdventureSummary: false,
+            needsInventoryManagement: false,
+            pendingLoot: [],
+            pendingTransaction: nil,
+            activeNPC: nil,
+            activeNPCTurns: 0,
+            awaitingCustomCharacterName: false,
+            partialCharacter: nil,
+            awaitingWorldContinue: false
         )
 
         try persistence.save(state)
