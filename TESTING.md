@@ -122,7 +122,47 @@ func testWithLLM() async {
 }
 ```
 
-4. **Call Tracking**:
+4. **Test Isolation for LLM Tests**:
+```swift
+@Test("LLM integration test", .enabled(if: isLLMAvailable()))
+func testLLMIntegration() async throws {
+    // Add delay at start to ensure clean state
+    try? await Task.sleep(for: .milliseconds(500))
+
+    let engine = MockGameEngine(mode: .llm)
+    await engine.startNewGame(preferredType: .outdoor, usedNames: [])
+
+    // Continue with test...
+}
+```
+⚠️ **Important**: LLM mode tests share `SystemLanguageModel.default` resource. Add 500ms delays at the start of LLM tests to prevent test interference when running full suite.
+
+5. **Complete Game Initialization for LLM Tests**:
+```swift
+@MainActor
+private func setupGameWithAdventure(engine: MockGameEngine, preferredType: AdventureType) async {
+    await engine.startNewGame(preferredType: preferredType, usedNames: [])
+
+    if engine.awaitingWorldContinue {
+        await engine.continueNewGame(usedNames: [])
+    }
+
+    if engine.awaitingLocationSelection, let firstLocation = engine.worldState?.locations.first {
+        await engine.submitPlayer(input: firstLocation.name)
+    }
+}
+
+// Usage
+@Test("Quest test", .enabled(if: isLLMAvailable()))
+func testQuest() async throws {
+    try? await Task.sleep(for: .milliseconds(500))
+    let engine = MockGameEngine(mode: .llm)
+    await setupGameWithAdventure(engine: engine, preferredType: .dungeon)
+    // Now ready for quest testing
+}
+```
+
+6. **Call Tracking**:
 ```swift
 let engine = MockGameEngine(mode: .mock)
 await engine.startNewGame(preferredType: .outdoor, usedNames: [])

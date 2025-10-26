@@ -8,19 +8,19 @@ DunGen is an iOS 26 fantasy RPG text adventure game that uses Apple's on-device 
 
 ### Core Features
 - **Permadeath rogue-like gameplay** with character history tracking
-- **10 specialist LLMs** (reduced from 11 - Progression eliminated via code)
+- **8 specialist LLMs** (reduced from 11 - Progression/Equipment/Monsters eliminated via code)
 - **16 character classes** across 8 races with racial stat modifiers
-- **112 base monsters** (7 groups of 16) with procedural affix modifications
+- **112 base monsters** (7 groups of 16) with **deterministic affix system** (100 prefixes/suffixes)
 - **Sprite-based visualization** using 4×4 grid sprite sheets (256×384 per sprite, 1024×1536 total)
 - **Dynamic combat system** with player-initiated combat and dedicated UI
 - **6 quest types** with type-specific final encounter handling (retrieval, combat, escort, investigation, rescue, diplomatic)
 - **Quest-based adventures** with clear objectives and progression tracking
 - **Smart NPC system** with limited turn interactions (2 turns max unless explicitly referenced)
-- **Equipment system** with prefix/suffix affixes and 20-slot inventory limit
+- **Deterministic equipment system** with 100 item prefixes/suffixes (no LLM generation)
 - **Optimized context management** through tiered prompts, code-based calculations, and compressed instructions (50-80% reduction)
 
 ### Key Mechanics
-- **Starting inventory**: 3 Healing Potions (2-5 HP) + 3 Bandages (1-3 HP) for survivability
+- **Starting inventory**: 3 Healing Potions (2-5 HP) + 3 Bandages (1-3 HP) for survivability (displayed as stacked items with quantity)
 - **HP regeneration**: +1 HP per non-damaging encounter when below max
 - **Encounter variety enforcement**: No consecutive combat, 3+ encounters between traps
 - **Social encounter rewards**: 2-5 XP for meaningful conversations, no HP/gold rewards
@@ -28,6 +28,7 @@ DunGen is an iOS 26 fantasy RPG text adventure game that uses Apple's on-device 
 - **Combat damage**: Monster attacks deal 2-8 HP damage
 - **Affix variety system**: Tracks last 10 item/monster affixes to avoid repetition
 - **Combat narration sanitization**: Removes combat resolution verbs from narrative (fighting only in combat system)
+- **Combat encounter isolation**: Item purchases/acquisitions blocked during combat to prevent UI conflicts
 - **Quest completion validation**: Character must be alive to complete quests
 
 ## Build & Test Commands
@@ -52,7 +53,12 @@ DunGen/
 │   └── LLMGameEngine.swift   # Core game engine with context safeguards
 ├── Managers/
 │   ├── CombatManager.swift           # Combat state with pending monster system
-│   ├── AffixRegistry.swift           # Item/monster affix tracking (full history)
+│   ├── AffixRegistry.swift           # Item/monster affix tracking (last 10 prefixes/suffixes)
+│   ├── AffixDatabase.swift           # 100 monster + 100 item affixes with stats
+│   ├── MonsterAffixGenerator.swift   # Deterministic monster affix application
+│   ├── ItemAffixGenerator.swift      # Deterministic item generation
+│   ├── MonsterGenerator.swift        # Monster selection + affix application
+│   ├── LootGenerator.swift           # Item type/rarity + affix application
 │   ├── NPCRegistry.swift             # NPC persistence
 │   ├── SpecialistSessionManager.swift # LLM session management (resets every 15 turns)
 │   ├── GameStatePersistence.swift    # Save/load system
@@ -105,7 +111,7 @@ DunGen/
 
 ## Architecture
 
-### 10 Specialist LLMs
+### 8 Specialist LLMs (Down from 11)
 
 Each specialist has a focused responsibility to maintain coherent gameplay:
 
@@ -113,18 +119,19 @@ Each specialist has a focused responsibility to maintain coherent gameplay:
 2. **Encounter** - Determines type (combat/social/exploration/puzzle/trap/stealth/chase/final) and difficulty
 3. **Adventure** - Creates narrative text (EXACTLY 2-4 sentences) with quest progression
 4. **Character** - Generates unique level 1 characters with 16 classes and 8 races
-5. **Equipment** - Creates items using consistent prefix/suffix affix system with pre-determined rarity
-6. **Abilities** - Generates physical abilities with mechanical effects
-7. **Spells** - Creates arcane/nature/death/eldritch spells for caster classes
-8. **Prayers** - Generates divine prayers for divine classes
-9. **Monsters** - Modifies base monsters from 112-monster database with affixes
-10. **NPC** - Creates and manages persistent NPCs with dialogue
+5. **Abilities** - Generates physical abilities with mechanical effects
+6. **Spells** - Creates arcane/nature/death/eldritch spells for caster classes
+7. **Prayers** - Generates divine prayers for divine classes
+8. **NPC** - Creates and manages persistent NPCs with dialogue
 
-**Note**: Progression LLM was eliminated - XP/gold/damage/loot now calculated via `RewardCalculator` using deterministic formulas.
+**Eliminated LLMs (Now Code-Based):**
+- **Progression** - XP/gold/damage/loot calculated via `RewardCalculator` using deterministic formulas
+- **Equipment** - Items generated via `ItemAffixGenerator` using 100 prefixes/suffixes from `AffixDatabase`
+- **Monsters** - Affixes applied via `MonsterAffixGenerator` using 100 prefixes/suffixes from `AffixDatabase`
 
 **Key Design Principles:**
 - Specialists work in sequence during `advanceScene()`
-- Session resets: Every 15 turns via `SpecialistSessionManager` (Adventure: 10 uses, Equipment: 3 uses, Encounter: 5 uses)
+- Session resets: Every 15 turns via `SpecialistSessionManager` (Adventure: 6 uses, Equipment: 3 uses, Encounter: 5 uses)
 - **Tiered context system** - Each LLM receives minimal relevant context via `ContextBuilder`
 - **Code-based rewards** - XP/gold/damage calculated by `RewardCalculator`, no LLM variance
 - **Encounter variety enforcement** - no consecutive combat, 3+ between traps (code-enforced via count tracking)
@@ -162,20 +169,55 @@ Each specialist has a focused responsibility to maintain coherent gameplay:
 - `CharacterClass.gridPosition` maps each class to grid coordinates
 - All 8 race sheets + 7 monster sheets implemented ✓
 
-### Equipment System
+### Monster System (Deterministic Affixes - No LLM)
+
+**Monster Generation Strategy:**
+- **Base Monsters**: 112 monsters from `MonsterDatabase` (7 groups of 16)
+- **Level-Based Selection**: Filters by HP range based on character level
+  - Level 1-3: HP ≤ 20
+  - Level 4-7: HP 16-60
+  - Level 8-12: HP 46-120
+  - Level 13+: HP > 80
+- **Affix Application Rules**:
+  - Easy: 30% base chance + 5% per level (max 95%)
+  - Normal: 50% base chance + 5% per level (max 95%)
+  - Hard: 70% base chance + 5% per level (max 95%)
+  - Boss: 100% chance (always affixed)
+- **Affix Count**:
+  - Easy: 1 affix (30% chance for 2 at level 5+)
+  - Normal: 1 affix (50% chance for 2 at level 5+)
+  - Hard: 1 affix (70% chance for 2 at level 3+)
+  - Boss: 2 affixes at level 3+, else 1
+- **100 Monster Affixes** (50 prefixes + 50 suffixes):
+  - HP multipliers: 1.0x to 2.0x
+  - Damage bonuses: +1 to +7
+  - Defense bonuses: +1 to +6
+  - Special effects: poison, fire, ice, lifesteal, reflect, etc.
+- **Affix Variety**: Tracks last 10 prefixes and 10 suffixes separately
+- **Stat Scaling**: Base HP/defense scaled by character level before affixes applied
+
+### Equipment System (Fully Deterministic - No LLM)
 
 **Item Generation Strategy:**
 - **Reduced Loot Frequency**: Max 1 item per encounter (1-2 for final boss encounters only)
-- **Pre-determined Rarity**: Rarity determined before LLM generation to reduce failures
+- **Pre-determined Rarity**: Rarity determined by difficulty
   - Normal/Easy: 1% legendary, 5% epic, 10% rare, 30% uncommon, 54% common
   - Hard: 2% legendary, 8% epic, 15% rare, 30% uncommon, 45% common
   - Boss: 5% legendary, 15% epic, 25% rare, 30% uncommon, 25% common
-- **Common/Uncommon/Rare**: Can be plain items (e.g., "Staff", "Sword") or have affixes
-- **Epic/Legendary**: MUST have prefix and/or suffix affixes (validated at generation)
-- **Affix Variety**: Tracks last 10 item affixes to avoid repetition
-- **Generation Retry**: Max 3 attempts per item, graceful fallback on failure
+- **Affix Application Rules**:
+  - Common: 20% chance for 1 affix
+  - Uncommon: 50% chance for 1 affix
+  - Rare: 70% chance for 2 affixes, else 1
+  - Epic: 70% chance for 2 affixes, else 1 (always has affixes)
+  - Legendary: Always 2 affixes (prefix + suffix)
+- **100 Item Affixes** (50 prefixes + 50 suffixes):
+  - Damage bonuses: +1 to +7
+  - Defense bonuses: +1 to +5
+  - Elemental effects: fire, ice, lightning, poison, holy, void, etc.
+  - Special properties: lifesteal, armor pierce, speed, accuracy
+- **Affix Variety**: Tracks last 10 prefixes and 10 suffixes separately
+- **Base Item Types**: Weapons (Sword, Axe, Mace, Dagger, Spear, Bow, Staff, Wand), Armor (Chestplate, Helmet, Gauntlets, Boots, Shield, Cloak, Bracers), Accessories (Ring, Amulet, Belt, Talisman, Pendant, Brooch)
 - **Duplicate Prevention**: Checks existing inventory for duplicate item names
-- **Rarity Enforcement**: If LLM generates wrong rarity, it's corrected to match pre-determined value
 
 ### Context Window Protection
 
@@ -187,16 +229,17 @@ Each specialist has a focused responsibility to maintain coherent gameplay:
    - Adventure: 359 chars (was 7,575 - 95% reduction)
    - Encounter: 340 chars (was 1,885 - 82% reduction)
    - Progression: 563 chars (was 4,310 - 87% reduction)
-2. **Dynamic Prompt Truncation** - Max 500 characters (ultra-aggressive truncation preserves only critical info)
-3. **Total Prompt Size** - Worst case: 500 (dynamic) + 359 (instructions) = 859 chars (well within limit)
-4. **Inventory Limit** - 20-slot maximum with UI-based management
-5. **Location Cap** - Maximum 50 locations total
-6. **User Input Truncation** - Player actions limited to 500 characters
-7. **Action History Truncation** - Recent actions truncated to 200 characters each
-8. **Post-Generation Verification** - Locations, NPCs, abilities/spells generated without full lists, then verified
-9. **Session Resets** - Every 15 turns to clear conversation history
-10. **Affix Tracking** - Only last 10 affixes sent to LLMs (not full history)
-11. **Equipment Generation** - Max 3 retry attempts with error catching to prevent infinite loops
+2. **Dynamic Prompt Truncation** - Max 600 characters (smart truncation prioritizes: player action, encounter type, CRITICAL instructions, quest stage; then adds character stats, location, quest as space allows)
+3. **Total Prompt Size** - Worst case per turn: 600 (dynamic) + 11 (instructions) = 611 chars
+4. **Session History Management** - Adventure session resets after 6 uses (max 3600 chars accumulated before reset)
+5. **Inventory Limit** - 20-slot maximum with UI-based management
+6. **Location Cap** - Maximum 50 locations total
+7. **User Input Truncation** - Player actions limited to 500 characters
+8. **Action History Truncation** - Recent actions truncated to 200 characters each
+9. **Post-Generation Verification** - Locations, NPCs, abilities/spells generated without full lists, then verified
+10. **Global Session Reset** - Every 15 turns to clear all conversation history
+11. **Affix Tracking** - Only last 10 affixes sent to LLMs (not full history)
+12. **Equipment Generation** - Max 3 retry attempts with error catching to prevent infinite loops
 
 ### Core Components
 
@@ -399,6 +442,9 @@ All game state is persisted to JSON file (`gameState.json`) for save/load contin
 **Inventory State:**
 - `detailedInventory` - current items (max 20)
 - `needsInventoryManagement` - triggers overflow UI
+- **Consumable stacking**: Identical consumables (same baseName/effect) stack with quantity counter
+- **Display format**: Items with quantity > 1 shown as "Item Name (x3)"
+- **Usage**: Consuming an item decrements quantity; item removed when quantity reaches 0
 - `pendingLoot` - items awaiting inventory selection
 
 **Trading State:**
@@ -438,9 +484,57 @@ All game state is persisted to JSON file (`gameState.json`) for save/load contin
 
 ## Testing
 
+### Test Structure
 - Tests in `DunGenTests/` directory
-- Swift Testing framework
-- Mock implementations for protocols
-- Integration tests for LLM behavior
+- Swift Testing framework with `@Test` and `#expect`
+- `MockGameEngine` for fast unit tests without LLM calls
+- `LLMGameEngine` used directly for integration tests (device only)
+- Unit tests for game logic (mock mode)
+- Integration tests for LLM behavior (device only)
 - Level progression tests
 - Character history tests
+- Quest type validation tests
+
+### Key Test Files
+- `MockGameEngineTests.swift` - Tests mock engine functionality
+- `QuestTypeTests.swift` - Tests 6 quest types (retrieval, combat, escort, investigation, rescue, diplomatic)
+- `QuestProgressManagerTests.swift` - Tests quest progression guidance
+- `FullAdventureIntegrationTest.swift` - Integration tests for complete adventures
+- `EngineLevelingIntegrationTests.swift` - Tests XP and leveling
+- `GameStatePersistenceTests.swift` - Tests save/load functionality
+
+### Test Isolation Requirements
+⚠️ **Critical**: LLM mode tests share `SystemLanguageModel.default` resource and can interfere with each other when run as a suite.
+
+**Solution**: Add 500ms delay at start of all LLM mode tests:
+```swift
+@Test("LLM test", .enabled(if: isLLMAvailable()))
+func testLLM() async throws {
+    try? await Task.sleep(for: .milliseconds(500))
+    let engine = MockGameEngine(mode: .llm)
+    // test continues...
+}
+```
+
+### LLM Test Setup Pattern
+LLM mode tests require complete game initialization:
+```swift
+private func setupGameWithAdventure(engine: MockGameEngine, preferredType: AdventureType) async {
+    await engine.startNewGame(preferredType: preferredType, usedNames: [])
+    if engine.awaitingWorldContinue {
+        await engine.continueNewGame(usedNames: [])
+    }
+    if engine.awaitingLocationSelection, let firstLocation = engine.worldState?.locations.first {
+        await engine.submitPlayer(input: firstLocation.name)
+    }
+}
+```
+
+### Manager Initialization
+Tests using `LLMGameEngine` directly must call `setupManagers()`:
+```swift
+let engine = LLMGameEngine(levelingService: DefaultLevelingService())
+engine.setupManagers() // Required to initialize TurnProcessor, etc.
+```
+
+See `TESTING.md` for complete testing guide.

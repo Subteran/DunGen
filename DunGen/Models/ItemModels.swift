@@ -12,7 +12,7 @@ struct ItemAffix: Codable, Equatable {
 }
 
 @Generable(description: "A detailed equipment item")
-struct ItemDefinition: Codable, Equatable, Identifiable {
+struct ItemDefinition: Equatable, Identifiable {
     @Guide(description: "Base item name (e.g., 'Sword', 'Armor', 'Shield', 'Healing Potion')")
     var baseName: String
     @Guide(description: "Optional prefix affix")
@@ -34,6 +34,7 @@ struct ItemDefinition: Codable, Equatable, Identifiable {
 
     var uuid: String = UUID().uuidString
     var id: String { uuid }
+    var quantity: Int = 1
 
     var fullName: String {
         var name = ""
@@ -48,7 +49,10 @@ struct ItemDefinition: Codable, Equatable, Identifiable {
     }
 
     var displayName: String {
-        fullName
+        if quantity > 1 {
+            return "\(fullName) (x\(quantity))"
+        }
+        return fullName
     }
 
     var effect: String {
@@ -60,5 +64,43 @@ struct ItemDefinition: Codable, Equatable, Identifiable {
             effects.append(suffix.effect)
         }
         return effects.joined(separator: ", ")
+    }
+}
+
+extension ItemDefinition: Codable {
+    enum CodingKeys: String, CodingKey {
+        case baseName, prefix, suffix, itemType, description, rarity
+        case consumableEffect, consumableMinValue, consumableMaxValue
+        case uuid, quantity
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        baseName = try container.decode(String.self, forKey: .baseName)
+        prefix = try container.decodeIfPresent(ItemAffix.self, forKey: .prefix)
+        suffix = try container.decodeIfPresent(ItemAffix.self, forKey: .suffix)
+        itemType = try container.decode(String.self, forKey: .itemType)
+        description = try container.decode(String.self, forKey: .description)
+        rarity = try container.decode(String.self, forKey: .rarity)
+        consumableEffect = try container.decodeIfPresent(String.self, forKey: .consumableEffect)
+        consumableMinValue = try container.decodeIfPresent(Int.self, forKey: .consumableMinValue)
+        consumableMaxValue = try container.decodeIfPresent(Int.self, forKey: .consumableMaxValue)
+        uuid = try container.decode(String.self, forKey: .uuid)
+        quantity = try container.decodeIfPresent(Int.self, forKey: .quantity) ?? 1
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(baseName, forKey: .baseName)
+        try container.encodeIfPresent(prefix, forKey: .prefix)
+        try container.encodeIfPresent(suffix, forKey: .suffix)
+        try container.encode(itemType, forKey: .itemType)
+        try container.encode(description, forKey: .description)
+        try container.encode(rarity, forKey: .rarity)
+        try container.encodeIfPresent(consumableEffect, forKey: .consumableEffect)
+        try container.encodeIfPresent(consumableMinValue, forKey: .consumableMinValue)
+        try container.encodeIfPresent(consumableMaxValue, forKey: .consumableMaxValue)
+        try container.encode(uuid, forKey: .uuid)
+        try container.encode(quantity, forKey: .quantity)
     }
 }

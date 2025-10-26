@@ -54,7 +54,7 @@ final class SpecialistSessionManager {
         let usageLimit: Int
         switch specialist {
         case .adventure:
-            usageLimit = 10
+            usageLimit = 6
         case .encounter:
             usageLimit = 5
         case .equipment:

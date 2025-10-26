@@ -137,7 +137,7 @@ struct InventoryManagementView: View {
                 // Item info
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
-                        Text(item.fullName)
+                        Text(item.displayName)
                             .font(.body)
                             .fontWeight(isNew ? .semibold : .regular)
 

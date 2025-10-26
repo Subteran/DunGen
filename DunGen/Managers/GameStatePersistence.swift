@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 struct GameState: Codable, Equatable {
     var character: CharacterProfile?
@@ -18,12 +19,15 @@ struct GameState: Codable, Equatable {
     var pendingMonster: MonsterDefinition?
 
     // Pending trap state
-    var pendingTrap: LLMGameEngine.PendingTrap?
+    var pendingTrap: EncounterStateManager.PendingTrap?
 
-    // Statistics tracking
+    // Statistics tracking (lifetime stats across all adventures)
     var gameStartTime: Date?
     var adventuresCompleted: Int
     var itemsCollected: Int
+    var totalMonstersDefeated: Int?
+    var totalXPEarned: Int?
+    var totalGoldEarned: Int?
 
     // Current adventure tracking
     var currentAdventureXP: Int
@@ -106,6 +110,7 @@ final class GameStatePersistence: GameStatePersistenceProtocol {
 
 extension LLMGameEngine {
     func saveState() {
+        guard !disablePersistence else { return }
         let persistence = GameStatePersistence()
         let logEntries = log.map { entry in
             GameState.SavedLogEntry(
@@ -137,6 +142,9 @@ extension LLMGameEngine {
             gameStartTime: gameStartTime,
             adventuresCompleted: adventuresCompleted,
             itemsCollected: itemsCollected,
+            totalMonstersDefeated: totalMonstersDefeated,
+            totalXPEarned: totalXPEarned,
+            totalGoldEarned: totalGoldEarned,
             currentAdventureXP: currentAdventureXP,
             currentAdventureGold: currentAdventureGold,
             currentAdventureMonsters: currentAdventureMonsters,
@@ -163,10 +171,15 @@ extension LLMGameEngine {
     }
 
     func loadState() {
+        guard !disablePersistence else {
+            logger.info("Persistence disabled, skipping load")
+            return
+        }
         let persistence = GameStatePersistence()
 
         do {
             if let state = try persistence.load() {
+                logger.info("Successfully loaded game state with character: \(state.character?.name ?? "none")")
                 self.character = state.character
                 self.currentLocation = state.currentLocation
                 self.currentEnvironment = state.currentEnvironment
@@ -200,6 +213,9 @@ extension LLMGameEngine {
                 self.gameStartTime = state.gameStartTime
                 self.adventuresCompleted = state.adventuresCompleted
                 self.itemsCollected = state.itemsCollected
+                self.totalMonstersDefeated = state.totalMonstersDefeated ?? 0
+                self.totalXPEarned = state.totalXPEarned ?? 0
+                self.totalGoldEarned = state.totalGoldEarned ?? 0
 
                 // Restore current adventure tracking
                 self.currentAdventureXP = state.currentAdventureXP
@@ -208,7 +224,8 @@ extension LLMGameEngine {
 
                 // Restore adventure summary state
                 self.adventureSummary = state.adventureSummary
-                self.showingAdventureSummary = state.showingAdventureSummary
+                // Migration: Clear showingAdventureSummary if we have a summary (new behavior: manual trigger)
+                self.showingAdventureSummary = false
 
                 // Restore inventory management state
                 self.needsInventoryManagement = state.needsInventoryManagement
@@ -235,8 +252,11 @@ extension LLMGameEngine {
                 if let char = state.character, char.hp <= 0 {
                     checkDeath()
                 }
+            } else {
+                logger.info("No saved game state found, starting fresh")
             }
         } catch {
+            logger.error("Failed to load game state: \(error.localizedDescription)")
             print("Failed to load game state: \(error)")
         }
     }

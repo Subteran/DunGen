@@ -1,14 +1,15 @@
 import Foundation
 import SwiftUI
-
 import FoundationModels
 import OSLog
-
 
 @MainActor
 @Observable
 final class LLMGameEngine: GameEngine {
     typealias LogEntry = GameLogEntry
+
+    weak var delegate: GameEngineDelegate?
+    private let gameplayLogger = GameplayLogger()
 
     // MARK: - Public State
     enum AvailabilityState: Equatable {
@@ -16,118 +17,171 @@ final class LLMGameEngine: GameEngine {
         case unavailable(String)
     }
 
-    // Live log of the adventure
+    // MARK: - Core State (not delegated to managers)
     var log: [GameLogEntry] = []
-
-    // Generation state
-    var isGenerating: Bool = false
-
-    // Debug info for testing
     var lastPrompt: String = ""
-
-    // World state
     var worldState: WorldState?
-
-    // Adventure progress
-    var adventureProgress: AdventureProgress?
-
-    var detailedInventory: [ItemDefinition] = []
-
-    // Character and progression state
     var character: CharacterProfile?
-    var currentLocation: AdventureType = .outdoor
-    var currentEnvironment: String = ""
+    var partialCharacter: CharacterProfile?
 
-    // Encounter tracking (count-based instead of full history)
-    var encounterCounts: [String: Int] = [:]
-    var lastEncounter: String?
-    var encountersSinceLastTrap: Int = 0
-
-    // Known affix tracking for prompt context
-    private var knownItemAffixes: Set<String> = []
-    private var knownMonsterAffixes: Set<String> = []
-
-    // Statistics tracking
     var gameStartTime: Date?
     var adventuresCompleted: Int = 0
-    var itemsCollected: Int = 0
+    var totalMonstersDefeated: Int = 0
+    var totalXPEarned: Int = 0
+    var totalGoldEarned: Int = 0
 
-    // Adventure tracking
-    var currentAdventureXP: Int = 0
-    var currentAdventureGold: Int = 0
-    var currentAdventureMonsters: Int = 0
-
-    // Death state
     var characterDied: Bool = false
     var deathReport: CharacterDeathReport?
 
-    // Current action choices for the player
-    var suggestedActions: [String] = []
-
-    // Location selection state
-    var awaitingLocationSelection: Bool = false
-    var adventureSummary: AdventureSummary?
-    var showingAdventureSummary: Bool = false
-
-    // Character name input state
-    var awaitingCustomCharacterName: Bool = false
-    var partialCharacter: CharacterProfile?
-
-    // Inventory management state
-    var needsInventoryManagement: Bool = false
-    var pendingLoot: [ItemDefinition] = []
-    private let maxInventorySlots = 20
-
-    // Trading/transaction state
     var pendingTransaction: PendingTransaction?
 
-    // Pending trap state
-    struct PendingTrap: Codable, Equatable {
-        let damage: Int
-        let narrative: String
-    }
-    var pendingTrap: PendingTrap?
-
-    // New game flow state
-    var awaitingWorldContinue: Bool = false
-
-    // Active NPC conversation tracking
     var activeNPC: NPCDefinition?
     var activeNPCTurns: Int = 0
 
-    // Encounter keyword history for narrative continuity
-    private var encounterKeywords: [String] = []
-    private let maxKeywordHistory = 10
+    private var knownItemAffixes: Set<String> = []
+    private var knownMonsterAffixes: Set<String> = []
 
-    // Model availability
     var availability: AvailabilityState = .unavailable("Checking model…")
 
     // MARK: - Private
 
-    private let logger = Logger(subsystem: "com.yourcompany.DunGen", category: "LLMGameEngine")
+    internal let logger = Logger(subsystem: "com.yourcompany.DunGen", category: "LLMGameEngine")
     nonisolated(unsafe) private let levelingService: LevelingServiceProtocol
+    internal let disablePersistence: Bool
 
     // MARK: - Managers
     private let sessionManager = SpecialistSessionManager()
     let combatManager = CombatManager()
     let affixRegistry = AffixRegistry()
     let npcRegistry = NPCRegistry()
+    private let narrativeProcessor = NarrativeProcessor()
+    private let adventureState = AdventureStateManager()
+    private let uiState = UIStateManager()
+    private let encounterState = EncounterStateManager()
+    private let inventoryState = InventoryStateManager()
+    private let questValidator = QuestValidator()
+    private var lootGenerator: LootGenerator?
+    private var monsterGenerator: MonsterGenerator?
+    private var npcGenerator: NPCGenerator?
+    private let levelRewardGenerator = LevelRewardGenerator()
+    private let inputHandler = PlayerInputHandler()
+    private let turnProcessor = TurnProcessor()
+    private let encounterOrchestrator = EncounterOrchestrator()
+    private let questProgressManager = QuestProgressManager()
 
     var inCombat: Bool { combatManager.inCombat }
     var currentMonster: MonsterDefinition? { combatManager.currentMonster }
     var currentMonsterHP: Int { combatManager.currentMonsterHP }
 
+    // MARK: - State Manager Proxies
+    var adventureProgress: AdventureProgress? {
+        get { adventureState.adventureProgress }
+        set { adventureState.adventureProgress = newValue }
+    }
+    var currentAdventureXP: Int {
+        get { adventureState.currentAdventureXP }
+        set { adventureState.currentAdventureXP = newValue }
+    }
+    var currentAdventureGold: Int {
+        get { adventureState.currentAdventureGold }
+        set { adventureState.currentAdventureGold = newValue }
+    }
+    var currentAdventureMonsters: Int {
+        get { adventureState.currentAdventureMonsters }
+        set { adventureState.currentAdventureMonsters = newValue }
+    }
+    var adventureSummary: AdventureSummary? {
+        get { adventureState.adventureSummary }
+        set { adventureState.adventureSummary = newValue }
+    }
+    var showingAdventureSummary: Bool {
+        get { adventureState.showingAdventureSummary }
+        set { adventureState.showingAdventureSummary = newValue }
+    }
+    var currentLocation: AdventureType {
+        get { adventureState.currentLocation }
+        set { adventureState.currentLocation = newValue }
+    }
+    var currentEnvironment: String {
+        get { adventureState.currentEnvironment }
+        set { adventureState.currentEnvironment = newValue }
+    }
+
+    var isGenerating: Bool {
+        get { uiState.isGenerating }
+        set { uiState.isGenerating = newValue }
+    }
+    var suggestedActions: [String] {
+        get { uiState.suggestedActions }
+        set { uiState.suggestedActions = newValue }
+    }
+    var awaitingLocationSelection: Bool {
+        get { uiState.awaitingLocationSelection }
+        set { uiState.awaitingLocationSelection = newValue }
+    }
+    var awaitingCustomCharacterName: Bool {
+        get { uiState.awaitingCustomCharacterName }
+        set { uiState.awaitingCustomCharacterName = newValue }
+    }
+    var awaitingWorldContinue: Bool {
+        get { uiState.awaitingWorldContinue }
+        set { uiState.awaitingWorldContinue = newValue }
+    }
+    var needsInventoryManagement: Bool {
+        get { uiState.needsInventoryManagement }
+        set { uiState.needsInventoryManagement = newValue }
+    }
+
+    var detailedInventory: [ItemDefinition] {
+        get { inventoryState.detailedInventory }
+        set { inventoryState.detailedInventory = newValue }
+    }
+    var pendingLoot: [ItemDefinition] {
+        get { inventoryState.pendingLoot }
+        set { inventoryState.pendingLoot = newValue }
+    }
+    var itemsCollected: Int {
+        get { inventoryState.itemsCollected }
+        set { inventoryState.itemsCollected = newValue }
+    }
+
+    var pendingTrap: EncounterStateManager.PendingTrap? {
+        get { encounterState.pendingTrap }
+        set { encounterState.pendingTrap = newValue }
+    }
+
+    // MARK: - Internal Accessors for Persistence
+    internal var encounterCounts: [String: Int] {
+        get { encounterState.encounterCounts }
+        set { encounterState.encounterCounts = newValue }
+    }
+    internal var lastEncounter: String? {
+        get { encounterState.lastEncounter }
+        set { encounterState.lastEncounter = newValue }
+    }
+    internal var encountersSinceLastTrap: Int {
+        get { encounterState.encountersSinceLastTrap }
+        set { encounterState.encountersSinceLastTrap = newValue }
+    }
+
     // MARK: - Setup
-    nonisolated init(levelingService: LevelingServiceProtocol) {
+    nonisolated init(levelingService: LevelingServiceProtocol, disablePersistence: Bool = false) {
         self.levelingService = levelingService
+        self.disablePersistence = disablePersistence
     }
 
-    nonisolated convenience init() {
-        self.init(levelingService: DefaultLevelingService())
+    nonisolated convenience init(disablePersistence: Bool = false) {
+        self.init(levelingService: DefaultLevelingService(), disablePersistence: disablePersistence)
     }
 
-    private func setupManagers() {
+    func setupManagers() {
         combatManager.setGameEngine(self)
+        lootGenerator = LootGenerator(affixRegistry: affixRegistry)
+        monsterGenerator = MonsterGenerator(affixRegistry: affixRegistry)
+        npcGenerator = NPCGenerator(npcRegistry: npcRegistry)
+        inputHandler.gameEngine = self
+        turnProcessor.gameEngine = self
+        encounterOrchestrator.gameEngine = self
     }
 
     func checkAvailabilityAndConfigure() {
@@ -142,33 +196,48 @@ final class LLMGameEngine: GameEngine {
         }
     }
 
+    func getCharacterLevel() -> Int {
+        guard let char = character else { return 1 }
+        return levelingService.level(forXP: char.xp)
+    }
+
     private func getSession(for specialist: LLMSpecialist) -> LanguageModelSession? {
         return sessionManager.getSession(for: specialist)
     }
 
+    private func setGenerating(_ generating: Bool) {
+        uiState.setGenerating(generating)
+        if generating {
+            delegate?.engineDidStartGenerating()
+        } else {
+            delegate?.engineDidFinishGenerating()
+        }
+    }
+
+    internal func updateSuggestedActions(_ actions: [String]) {
+        uiState.updateSuggestedActions(actions)
+        delegate?.engineDidUpdateSuggestedActions(actions)
+    }
+
+    private func updateLog() {
+        delegate?.engineDidUpdateLog(log)
+    }
 
     // MARK: - Game Flow
     func startNewGame(preferredType: AdventureType? = nil, usedNames: [String] = []) async {
         guard case .available = availability else { return }
         logger.info("=== STARTING NEW GAME - CLEARING ALL STATE ===")
 
-        isGenerating = true
+        setGenerating(true)
         deleteState()
 
         log.removeAll()
         character = nil
         worldState = nil
-        adventureProgress = nil
-        detailedInventory.removeAll()
-        encounterCounts.removeAll()
         knownItemAffixes.removeAll()
         knownMonsterAffixes.removeAll()
-        currentEnvironment = ""
-        suggestedActions.removeAll()
-        awaitingLocationSelection = false
         activeNPC = nil
         activeNPCTurns = 0
-        pendingTrap = nil
         combatManager.reset()
         affixRegistry.reset()
         npcRegistry.reset()
@@ -177,7 +246,13 @@ final class LLMGameEngine: GameEngine {
         deathReport = nil
         gameStartTime = Date()
         adventuresCompleted = 0
-        itemsCollected = 0
+
+        // Reset all state managers
+        adventureState.reset()
+        uiState.reset()
+        encounterState.reset()
+        inventoryState.reset()
+
         if let preferred = preferredType { currentLocation = preferred }
 
         do {
@@ -222,36 +297,36 @@ final class LLMGameEngine: GameEngine {
 
                 char.hp = char.maxHP
 
-                // Add starting items to detailed inventory - create unique instances for each
-                for _ in 0..<3 {
-                    let healingPotion = ItemDefinition(
-                        baseName: "Healing Potion",
-                        prefix: nil,
-                        suffix: nil,
-                        itemType: "consumable",
-                        description: "A small vial of red liquid that restores health when consumed.",
-                        rarity: "common",
-                        consumableEffect: "hp",
-                        consumableMinValue: 2,
-                        consumableMaxValue: 5
-                    )
-                    detailedInventory.append(healingPotion)
-                    char.inventory.append(healingPotion.fullName)
+                // Add starting items to detailed inventory with quantities
+                var healingPotion = ItemDefinition(
+                    baseName: "Healing Potion",
+                    prefix: nil,
+                    suffix: nil,
+                    itemType: "consumable",
+                    description: "A small vial of red liquid that restores health when consumed.",
+                    rarity: "common",
+                    consumableEffect: "hp",
+                    consumableMinValue: 2,
+                    consumableMaxValue: 5
+                )
+                healingPotion.quantity = 3
+                detailedInventory.append(healingPotion)
+                char.inventory.append(healingPotion.fullName)
 
-                    let bandage = ItemDefinition(
-                        baseName: "Bandage",
-                        prefix: nil,
-                        suffix: nil,
-                        itemType: "consumable",
-                        description: "A clean cloth bandage that restores a small amount of health.",
-                        rarity: "common",
-                        consumableEffect: "hp",
-                        consumableMinValue: 1,
-                        consumableMaxValue: 3
-                    )
-                    detailedInventory.append(bandage)
-                    char.inventory.append(bandage.fullName)
-                }
+                var bandage = ItemDefinition(
+                    baseName: "Bandage",
+                    prefix: nil,
+                    suffix: nil,
+                    itemType: "consumable",
+                    description: "A clean cloth bandage that restores a small amount of health.",
+                    rarity: "common",
+                    consumableEffect: "hp",
+                    consumableMinValue: 1,
+                    consumableMaxValue: 3
+                )
+                bandage.quantity = 3
+                detailedInventory.append(bandage)
+                char.inventory.append(bandage.fullName)
 
                 character = char
             } else {
@@ -261,8 +336,11 @@ final class LLMGameEngine: GameEngine {
                 awaitingCustomCharacterName = true
                 appendModel("\n⚠️ Unable to generate a unique character name automatically.")
                 appendModel("Please enter a unique name for your character:")
+                if let partial = partialCharacter {
+                    delegate?.engineNeedsCustomCharacterName(partialCharacter: partial)
+                }
                 saveState()
-                isGenerating = false
+                setGenerating(false)
                 return
             }
 
@@ -278,27 +356,28 @@ final class LLMGameEngine: GameEngine {
                                character!.attributes.charisma))
 
             awaitingWorldContinue = true
+            delegate?.engineNeedsWorldContinue()
             saveState()
-            isGenerating = false
+            setGenerating(false)
             return
         } catch {
             logger.error("\(error.localizedDescription, privacy: .public)")
             appendModel(String(format: L10n.errorStartGameFormat, error.localizedDescription))
         }
-        isGenerating = false
+        setGenerating(false)
     }
 
     func continueNewGame(usedNames: [String] = []) async {
         guard case .available = availability else { return }
 
-        isGenerating = true
+        setGenerating(true)
 
         do {
             if awaitingWorldContinue {
                 awaitingWorldContinue = false
 
                 guard let worldSession = getSession(for: .world) else {
-                    isGenerating = false
+                    setGenerating(false)
                     return
                 }
 
@@ -323,7 +402,7 @@ final class LLMGameEngine: GameEngine {
                         appendModel("• \(location.name) (\(location.locationType.rawValue)): \(location.description)")
                     }
                     appendModel("\nWhere would you like to begin your adventure?")
-                    suggestedActions = world.locations.map { $0.name }
+                    updateSuggestedActions(world.locations.map { $0.name })
                     awaitingLocationSelection = true
                 }
 
@@ -334,7 +413,7 @@ final class LLMGameEngine: GameEngine {
             appendModel(String(format: L10n.errorStartGameFormat, error.localizedDescription))
         }
 
-        isGenerating = false
+        setGenerating(false)
     }
 
     func submitPlayer(input: String) async {
@@ -342,259 +421,34 @@ final class LLMGameEngine: GameEngine {
         guard !characterDied else { return }
         guard let adventureSession = getSession(for: .adventure), !adventureSession.isResponding else { return }
 
-        // Truncate input to prevent prompt bloat
+        // Recovery: If quest is completed but summary was dismissed without selecting location
+        if let progress = adventureProgress, progress.completed, !showingAdventureSummary, !awaitingLocationSelection {
+            await promptForNextLocation()
+            return
+        }
+
         let truncatedInput = input.count > 500 ? String(input.prefix(500)) : input
 
-        isGenerating = true
-        suggestedActions.removeAll()
+        setGenerating(true)
+        updateSuggestedActions([])
         appendPlayer(truncatedInput)
 
-        // Handle custom character name input
         if awaitingCustomCharacterName {
-            guard var partial = partialCharacter else {
-                isGenerating = false
+            if await inputHandler.handleCharacterNameInput(truncatedInput, partialCharacter: partialCharacter) {
+                setGenerating(false)
                 return
             }
-            let trimmedName = truncatedInput.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmedName.isEmpty else {
-                appendModel("Please enter a valid name.")
-                isGenerating = false
-                return
-            }
-            partial.name = trimmedName
-
-            // Apply racial stat modifiers
-            let modifiers = RaceModifiers.modifiers(for: partial.race)
-            partial.attributes = modifiers.apply(to: partial.attributes)
-
-            character = partial
-            partialCharacter = nil
-            awaitingCustomCharacterName = false
-
-            appendModel(L10n.gameWelcome)
-            appendCharacterSprite()
-            appendModel(String(format: L10n.gameIntroFormat, character!.name, character!.race, character!.className, character!.backstory))
-            appendModel(String(format: L10n.startingAttributesFormat,
-                               character!.attributes.strength,
-                               character!.attributes.dexterity,
-                               character!.attributes.constitution,
-                               character!.attributes.intelligence,
-                               character!.attributes.wisdom,
-                               character!.attributes.charisma))
-
-            if let world = worldState {
-                appendModel("\nWhere would you like to begin your adventure?")
-                suggestedActions = world.locations.map { $0.name }
-                awaitingLocationSelection = true
-            }
-
-            saveState()
-            isGenerating = false
+            setGenerating(false)
             return
         }
 
         guard character != nil else { return }
 
-        // Check if player is fleeing from a pending monster
-        if let pendingMonster = combatManager.pendingMonster,
-           !combatManager.inCombat,
-           truncatedInput.lowercased().contains("flee") {
-            combatManager.pendingMonster = nil
-            appendModel("You attempt to flee from the \(pendingMonster.fullName)!")
-
-            // 50% chance the monster attacks as the player flees
-            let isAttacked = Bool.random()
-            if isAttacked, var character = character {
-                let damage = Int.random(in: 2...8)
-                character.hp -= damage
-                self.character = character
-                appendModel("💔 The \(pendingMonster.fullName) strikes as you flee, dealing \(damage) damage!")
-
-                if character.hp <= 0 {
-                    handleCharacterDeath(monster: pendingMonster)
-                    saveState()
-                    isGenerating = false
-                    return
-                }
-            } else {
-                appendModel("You successfully escape!")
-            }
-
-            do {
-                try await advanceScene(kind: currentLocation, playerAction: "flee from danger")
-                saveState()
-            } catch {
-                logger.error("\(error.localizedDescription, privacy: .public)")
-                appendModel(String(format: L10n.errorGenericFormat, error.localizedDescription))
-            }
-            isGenerating = false
-            return
-        }
-
-        // Handle pending transaction
-        if let transaction = pendingTransaction {
-            let inputLower = truncatedInput.lowercased()
-            if inputLower.contains("buy") || inputLower.contains("purchase") || inputLower.contains("yes") || inputLower.contains("accept") {
-                // Player wants to buy
-                if var char = character {
-                    if char.gold >= transaction.cost {
-                        char.gold -= transaction.cost
-                        for item in transaction.items {
-                            char.inventory.append(item)
-                        }
-                        self.character = char
-                        appendModel("💸 Paid \(transaction.cost) gold")
-                        for item in transaction.items {
-                            appendModel("📦 Acquired: \(item)")
-                        }
-                        pendingTransaction = nil
-                        saveState()
-                        isGenerating = false
-                        return
-                    } else {
-                        appendModel("⚠️ Not enough gold! Need \(transaction.cost) but only have \(char.gold)")
-                        appendModel("You move on...")
-                        pendingTransaction = nil
-                        // Continue to next encounter instead of stopping
-                        do {
-                            try await advanceScene(kind: currentLocation, playerAction: "continue exploring")
-                            saveState()
-                        } catch {
-                            logger.error("\(error.localizedDescription, privacy: .public)")
-                            appendModel(String(format: L10n.errorGenericFormat, error.localizedDescription))
-                        }
-                        isGenerating = false
-                        return
-                    }
-                }
-            } else if inputLower.contains("decline") || inputLower.contains("no") || inputLower.contains("refuse") || inputLower.contains("pass") {
-                // Player declines
-                appendModel("You decline the offer.")
-                pendingTransaction = nil
-                // Continue to next encounter
-                do {
-                    try await advanceScene(kind: currentLocation, playerAction: "continue exploring")
-                    saveState()
-                } catch {
-                    logger.error("\(error.localizedDescription, privacy: .public)")
-                    appendModel(String(format: L10n.errorGenericFormat, error.localizedDescription))
-                }
-                isGenerating = false
-                return
-            }
-            // If action doesn't match buy/decline keywords, clear transaction and continue with the action
-            pendingTransaction = nil
-        }
-
-        // Check if player is initiating combat with a pending monster
-        if let pendingMonster = combatManager.pendingMonster,
-           !combatManager.inCombat,
-           (truncatedInput.lowercased().contains("attack") || truncatedInput.lowercased().contains("fight") || truncatedInput.lowercased().contains("engage")) {
-            combatManager.enterCombat(with: pendingMonster)
-            saveState()
-            isGenerating = false
-            return
-        }
-
-        // If there's a pending monster and player chose a non-combat action, evaluate if action prevents attack
-        if let pendingMonster = combatManager.pendingMonster, !combatManager.inCombat {
-            let monsterAttacks = await shouldMonsterAttack(monster: pendingMonster, playerAction: truncatedInput)
-
-            if monsterAttacks, var character = character {
-                let damage = Int.random(in: 3...10)
-                character.hp -= damage
-                self.character = character
-                appendModel("💔 The \(pendingMonster.fullName) attacks while you're distracted, dealing \(damage) damage!")
-
-                if character.hp <= 0 {
-                    handleCharacterDeath(monster: pendingMonster)
-                    combatManager.pendingMonster = nil
-                    saveState()
-                    isGenerating = false
-                    return
-                }
-                // Monster remains after attacking - player can still choose to fight or flee next turn
-            } else {
-                // Monster doesn't attack - clear it and player's action succeeds
-                combatManager.pendingMonster = nil
-                appendModel("Your action successfully prevents the \(pendingMonster.fullName) from attacking!")
-            }
-        }
-
-        // Handle pending trap response
-        if let trap = pendingTrap {
-            let inputLower = truncatedInput.lowercased()
-
-            // Determine if player successfully avoids/disarms the trap
-            let avoidanceKeywords = ["disarm", "avoid", "careful", "dodge", "jump", "step", "roll", "evade"]
-            let attemptedAvoidance = avoidanceKeywords.contains { inputLower.contains($0) }
-
-            if attemptedAvoidance {
-                // 50% chance to avoid trap damage
-                let avoided = Bool.random()
-                if avoided {
-                    appendModel("✅ You successfully avoided the trap!")
-                    pendingTrap = nil
-                } else {
-                    // Take reduced damage
-                    let reducedDamage = max(1, trap.damage / 2)
-                    if var character = self.character {
-                        character.hp -= reducedDamage
-                        self.character = character
-                        appendModel("💔 You partially avoided the trap, taking \(reducedDamage) damage!")
-                        checkDeath()
-                        pendingTrap = nil
-
-                        if characterDied {
-                            saveState()
-                            isGenerating = false
-                            return
-                        }
-                    }
-                }
-            } else {
-                // Didn't attempt avoidance - take full damage
-                if var character = self.character {
-                    character.hp -= trap.damage
-                    self.character = character
-                    appendModel("💔 Took \(trap.damage) damage from the trap!")
-                    checkDeath()
-                    pendingTrap = nil
-
-                    if characterDied {
-                        saveState()
-                        isGenerating = false
-                        return
-                    }
-                }
-            }
-
-            // Continue to next encounter after handling trap
-            do {
-                try await advanceScene(kind: currentLocation, playerAction: truncatedInput)
-                saveState()
-            } catch {
-                logger.error("\(error.localizedDescription, privacy: .public)")
-                appendModel(String(format: L10n.errorGenericFormat, error.localizedDescription))
-            }
-            isGenerating = false
-            return
-        }
-
-        // Handle active combat actions
-        if combatManager.inCombat {
-            let inputLower = truncatedInput.lowercased()
-
-            // Capture combat state for logging
-            if let monster = combatManager.currentMonster, let char = character {
-                lastPrompt = "Combat State: \(char.name) (HP: \(char.hp)/\(char.maxHP)) vs \(monster.fullName) (HP: \(combatManager.currentMonsterHP)/\(monster.hp))\nPlayer action: \(truncatedInput)"
-            }
-
-            if inputLower.contains("flee") || inputLower.contains("run") || inputLower.contains("escape") {
-                let success = combatManager.fleeCombat()
-                if success {
+        if let pendingMonster = combatManager.pendingMonster {
+            if let result = await inputHandler.handleFleeFromPendingMonster(truncatedInput, pendingMonster: pendingMonster) {
+                if case .continueToAdvanceScene(let action) = result {
                     do {
-                        try await advanceScene(kind: currentLocation, playerAction: "fled from combat")
+                        try await advanceScene(kind: currentLocation, playerAction: action)
                         saveState()
                     } catch {
                         logger.error("\(error.localizedDescription, privacy: .public)")
@@ -602,66 +456,84 @@ final class LLMGameEngine: GameEngine {
                     }
                 }
                 saveState()
-                isGenerating = false
-                return
-            } else if inputLower.contains("surrender") || inputLower.contains("give up") {
-                combatManager.surrenderCombat()
-                saveState()
-                isGenerating = false
-                return
-            } else {
-                combatManager.performCombatAction(truncatedInput)
-                saveState()
-                isGenerating = false
+                setGenerating(false)
                 return
             }
         }
 
-        // Handle location selection
-        if awaitingLocationSelection {
-            if let world = worldState, let selectedLocation = world.locations.first(where: { $0.name.lowercased() == truncatedInput.lowercased() || truncatedInput.lowercased().contains($0.name.lowercased()) }) {
-                currentLocation = selectedLocation.locationType
-                currentEnvironment = selectedLocation.name
-                awaitingLocationSelection = false
-                showingAdventureSummary = false
-                adventureSummary = nil
-
-                // Reset adventure tracking for new adventure
-                currentAdventureXP = 0
-                currentAdventureGold = 0
-                currentAdventureMonsters = 0
-
-                // Clear any pending monsters/NPCs/traps from previous adventure
-                combatManager.pendingMonster = nil
-                pendingTrap = nil
-                activeNPC = nil
-                activeNPCTurns = 0
-
-                // Mark location as visited
-                if var world = worldState {
-                    if let index = world.locations.firstIndex(where: { $0.name == selectedLocation.name }) {
-                        world.locations[index].visited = true
+        if let transaction = pendingTransaction {
+            if let result = await inputHandler.handlePendingTransaction(truncatedInput, transaction: transaction) {
+                if case .continueToAdvanceScene(let action) = result {
+                    do {
+                        try await advanceScene(kind: currentLocation, playerAction: action)
+                        saveState()
+                    } catch {
+                        logger.error("\(error.localizedDescription, privacy: .public)")
+                        appendModel(String(format: L10n.errorGenericFormat, error.localizedDescription))
                     }
-                    worldState = world
                 }
+                saveState()
+                setGenerating(false)
+                return
+            }
+        }
 
+        if let pendingMonster = combatManager.pendingMonster {
+            if let result = await inputHandler.handlePendingMonsterCombat(truncatedInput, pendingMonster: pendingMonster) {
+                if case .continueToAdvanceScene = result {
+                } else {
+                    saveState()
+                    setGenerating(false)
+                    return
+                }
+            }
+        }
+
+        if let trap = pendingTrap {
+            if let result = await inputHandler.handlePendingTrap(truncatedInput, trap: trap) {
+                if case .continueToAdvanceScene(let action) = result {
+                    do {
+                        try await advanceScene(kind: currentLocation, playerAction: action)
+                        saveState()
+                    } catch {
+                        logger.error("\(error.localizedDescription, privacy: .public)")
+                        appendModel(String(format: L10n.errorGenericFormat, error.localizedDescription))
+                    }
+                }
+                saveState()
+                setGenerating(false)
+                return
+            }
+        }
+
+        if let result = await inputHandler.handleActiveCombat(truncatedInput) {
+            if case .continueToAdvanceScene(let action) = result {
                 do {
-                    try await advanceScene(kind: currentLocation, playerAction: nil)
+                    try await advanceScene(kind: currentLocation, playerAction: action)
                     saveState()
                 } catch {
                     logger.error("\(error.localizedDescription, privacy: .public)")
                     appendModel(String(format: L10n.errorGenericFormat, error.localizedDescription))
                 }
-                isGenerating = false
-                return
-            } else {
-                appendModel("Please choose one of the available locations.")
-                if let world = worldState {
-                    suggestedActions = world.locations.map { $0.name }
-                }
-                isGenerating = false
-                return
             }
+            saveState()
+            setGenerating(false)
+            return
+        }
+
+        if let result = await inputHandler.handleLocationSelection(truncatedInput) {
+            if case .continueToAdvanceScene(let action) = result {
+                do {
+                    try await advanceScene(kind: currentLocation, playerAction: action)
+                    saveState()
+                } catch {
+                    logger.error("\(error.localizedDescription, privacy: .public)")
+                    appendModel(String(format: L10n.errorGenericFormat, error.localizedDescription))
+                }
+            }
+            saveState()
+            setGenerating(false)
+            return
         }
 
         do {
@@ -671,47 +543,25 @@ final class LLMGameEngine: GameEngine {
             logger.error("\(error.localizedDescription, privacy: .public)")
             appendModel(String(format: L10n.errorGenericFormat, error.localizedDescription))
         }
-        isGenerating = false
+        setGenerating(false)
     }
 
-    func apply(turn: AdventureTurn, encounter: EncounterDetails?, rewards: ProgressionRewards?, loot: [ItemDefinition], monster: MonsterDefinition?, npc: NPCDefinition?) async {
+    func apply(turn: AdventureTurn, encounter: EncounterDetails?, rewards: ProgressionRewards?, loot: [ItemDefinition], monster: MonsterDefinition?, npc: NPCDefinition?, playerAction: String? = nil) async {
         if let encounterType = encounter?.encounterType {
             trackEncounter(encounterType)
         }
 
         storeEncounterKeywords(turn: turn, encounter: encounter, monster: monster, npc: npc)
 
-        if let progress = turn.adventureProgress {
-            // Don't trust LLM's encounter counter - increment it ourselves
-            if var currentProgress = adventureProgress {
-                // Keep our counter, but update narrative fields from LLM
-                // Only update questGoal if it's not empty/different (prevent LLM from changing quest mid-adventure)
-                if !progress.questGoal.isEmpty && currentProgress.questGoal.isEmpty {
-                    currentProgress.questGoal = progress.questGoal
-                }
-                currentProgress.adventureStory = progress.adventureStory
-                currentProgress.completed = progress.completed
-                adventureProgress = currentProgress
-            } else {
-                // First encounter - accept LLM's progress but clear its summaries (we'll generate our own)
-                var initialProgress = progress
-                initialProgress.encounterSummaries = []
-                adventureProgress = initialProgress
+        turnProcessor.processAdventureProgress(turn: turn)
 
-                // Display quest goal before first encounter
-                appendModel("\n🎯 Quest: \(progress.questGoal)")
-                appendModel("📍 Location: \(progress.locationName)")
-                appendModel("")
-            }
-        }
+        await turnProcessor.handleQuestCompletion(playerAction: playerAction, turn: turn, questValidator: questValidator)
 
-        // Always increment encounter counter after successful turn (don't rely on LLM returning adventureProgress)
         if var currentProgress = adventureProgress {
             currentProgress.currentEncounter += 1
             adventureProgress = currentProgress
         }
 
-        // Store encounter summary
         if adventureProgress != nil {
             let summary = generateEncounterSummary(
                 narrative: turn.narration,
@@ -722,66 +572,12 @@ final class LLMGameEngine: GameEngine {
             adventureProgress?.encounterSummaries.append(summary)
         }
 
-        // Check if player action completes the quest in final encounter
-        if let finalProgress = adventureProgress, finalProgress.isFinalEncounter {
-            if finalProgress.completed {
-                // Check if character is alive before awarding quest completion
-                guard let char = character, char.hp > 0 else {
-                    // Character died - quest cannot be completed
-                    logger.warning("[Quest] Character died during final encounter - quest completion denied")
-                    var failedProgress = finalProgress
-                    failedProgress.completed = false
-                    adventureProgress = failedProgress
-                    return
-                }
-
-                // LLM marked quest as completed and character is alive - success!
-                appendModel("\n✅ Adventure Complete: \(finalProgress.locationName)")
-                adventuresCompleted += 1
-
-                // Remove completed location from world
-                if var world = worldState {
-                    world.locations.removeAll(where: { $0.name == finalProgress.locationName })
-                    worldState = world
-                }
-
-                // Clear any pending monsters/NPCs since adventure is complete
-                combatManager.pendingMonster = nil
-                activeNPC = nil
-                activeNPCTurns = 0
-
-                // Generate adventure summary
-                await generateAdventureSummary(progress: finalProgress)
-            }
-        }
+        await turnProcessor.handleFinalEncounterCompletion(encounterSummaryGenerator: generateEncounterSummary)
 
         if let monster = monster {
-            // Store monster as pending - don't enter combat automatically
-            // Player must choose to attack via their action
-            combatManager.pendingMonster = monster
-            appendMonsterSprite(monster)
-            appendModel("HP: \(monster.hp) | Defense: \(monster.defense)")
-            if !monster.abilities.isEmpty {
-                appendModel("Abilities: \(monster.abilities.prefix(3).joined(separator: ", "))")
-            }
-
-            // Override suggested actions to give player combat choices
-            var combatActions = ["Attack the \(monster.fullName)", "Flee"]
-            // Keep one non-combat action if available (filter out any combat-triggering words)
-            let nonCombatActions = turn.suggestedActions.filter { action in
-                let lowercased = action.lowercased()
-                return !lowercased.contains("attack") &&
-                       !lowercased.contains("fight") &&
-                       !lowercased.contains("engage") &&
-                       !lowercased.contains("strike") &&
-                       !lowercased.contains("hit")
-            }
-            if let firstNonCombatAction = nonCombatActions.first {
-                combatActions.insert(firstNonCombatAction, at: 1)
-            }
-            self.suggestedActions = combatActions
+            turnProcessor.setupMonsterEncounter(monster: monster, turn: turn)
         } else {
-            self.suggestedActions = turn.suggestedActions
+            updateSuggestedActions(turn.suggestedActions)
         }
 
         if let npc = npc {
@@ -791,239 +587,126 @@ final class LLMGameEngine: GameEngine {
             }
         }
 
-        // Determine encounter type for trap/reward handling
         let encounterType = encounter?.encounterType.lowercased() ?? ""
         let isTrapEncounter = encounterType == "trap"
         let isSocialEncounter = encounterType == "social"
+        let isCombatEncounter = encounterType == "combat"
 
-        // Handle trap encounters - store as pending
-        if isTrapEncounter, let hpDelta = rewards?.hpDelta, hpDelta < 0 {
-            // Store trap damage as pending
-            pendingTrap = PendingTrap(damage: abs(hpDelta), narrative: turn.narration)
-
-            // Override suggested actions to give player trap avoidance choices
-            var trapActions = ["Attempt to disarm", "Carefully proceed", "Try to avoid"]
-            // Keep one original action if available
-            if let firstAction = turn.suggestedActions.first {
-                trapActions.append(firstAction)
-            }
-            self.suggestedActions = trapActions
+        if isTrapEncounter, let rewards = rewards {
+            turnProcessor.setupTrapEncounter(rewards: rewards, turn: turn)
         }
 
-        // Don't apply rewards if a monster or trap is pending - rewards only apply after player chooses action
-        // This prevents damage from being applied when monster/trap first appears
-        let isCombatEncounter = encounterType == "combat"
         let shouldApplyRewards = monster == nil && !isTrapEncounter && !isCombatEncounter
 
         var justLeveledUp = false
+        if shouldApplyRewards, let rewards = rewards {
+            justLeveledUp = await turnProcessor.applyXPRewards(rewards: rewards, isSocialEncounter: isSocialEncounter, levelingService: levelingService)
+        }
+
+        if shouldApplyRewards, let rewards = rewards {
+            let characterDied = turnProcessor.applyHPRewards(rewards: rewards, isSocialEncounter: isSocialEncounter, justLeveledUp: justLeveledUp)
+            if characterDied {
+                return
+            }
+        }
+
+        if shouldApplyRewards, let rewards = rewards {
+            turnProcessor.applyGoldRewards(rewards: rewards, isSocialEncounter: isSocialEncounter)
+        }
+
+        // CRITICAL: Never process item purchases during combat encounters
+        if !isCombatEncounter {
+            await turnProcessor.handleItemAcquisition(turn: turn, npc: npc)
+        }
+
         if shouldApplyRewards {
-            if isSocialEncounter {
-                let clampedXP = min(5, max(2, rewards?.xpGain ?? 0))
-                if clampedXP > 0, var c = self.character {
-                    currentAdventureXP += clampedXP
-                    let outcome = levelingService.applyXPGain(clampedXP, to: &c)
-                    self.character = c
-                    if outcome.didLevelUp {
-                        justLeveledUp = true
-                        appendModel(outcome.logLine)
-                        if outcome.needsNewAbility {
-                            await generateLevelReward(for: c.className, level: outcome.newLevel ?? 1)
-                        }
-                    } else {
-                        appendModel("✨ Gained \(clampedXP) XP!")
-                    }
-                }
-            } else if let xpGain = rewards?.xpGain {
-                currentAdventureXP += xpGain
-                if var c = self.character {
-                    let outcome = levelingService.applyXPGain(xpGain, to: &c)
-                    self.character = c
-                    if outcome.didLevelUp {
-                        justLeveledUp = true
-                        appendModel(outcome.logLine)
-                        if outcome.needsNewAbility {
-                            await generateLevelReward(for: c.className, level: outcome.newLevel ?? 1)
-                        }
-                    }
-                }
-            }
+            turnProcessor.handleLootDistribution(loot: loot, maxInventorySlots: inventoryState.maxInventorySlots)
         }
 
-        // Don't apply HP delta if character just leveled up (they're already at full HP)
-        if shouldApplyRewards, !isSocialEncounter, !justLeveledUp, let hpDelta = rewards?.hpDelta {
-            if var char = self.character {
-                char.hp += hpDelta
-                char.hp = min(char.hp, char.maxHP)
-                self.character = char
-            }
-            if hpDelta < 0 {
-                appendModel("💔 Took \(abs(hpDelta)) damage!")
-                checkDeath()
-                // Stop processing if character died
-                if characterDied {
-                    return
-                }
-            } else if hpDelta > 0 {
-                appendModel("❤️ Healed \(hpDelta) HP!")
-            }
-        } else if shouldApplyRewards {
-            // Natural HP regeneration: +1 HP per encounter if no damage taken and below max HP
-            if var char = self.character, char.hp < char.maxHP, rewards?.hpDelta == nil || rewards?.hpDelta == 0 {
-                char.hp += 1
-                char.hp = min(char.hp, char.maxHP)
-                self.character = char
-                appendModel("❤️‍🩹 Regenerated 1 HP")
-            }
-        }
+        turnProcessor.updateEnvironment(from: turn, encounterType: encounter?.encounterType)
 
-        if shouldApplyRewards, !isSocialEncounter, let gold = rewards?.goldGain, gold > 0 {
-            currentAdventureGold += gold
-            self.character?.gold += gold
-            appendModel("💰 Found \(gold) gold!")
-        }
-
-        // Check if NPC is offering items for purchase - make it pending instead of auto-applying
-        if let items = turn.itemsAcquired, !items.isEmpty, let goldCost = turn.goldSpent, goldCost > 0 {
-            // This is a purchase offer - make it pending
-            pendingTransaction = PendingTransaction(items: items, cost: goldCost, npc: npc)
-            appendModel("\n💰 Offer: \(items.joined(separator: ", ")) for \(goldCost) gold")
-
-            // Override suggested actions to give player choice
-            var transactionActions = ["Buy the items", "Decline the offer"]
-            // Keep one other action if available
-            if let firstOther = turn.suggestedActions.first {
-                transactionActions.insert(firstOther, at: 1)
-            }
-            self.suggestedActions = transactionActions
-        } else {
-            // Free items (gifts, found items) - apply immediately
-            if let items = turn.itemsAcquired, !items.isEmpty {
-                for item in items {
-                    self.character?.inventory.append(item)
-                    appendModel("📦 Acquired: \(item)")
-                }
-            }
-        }
-
-        if shouldApplyRewards, !loot.isEmpty {
-            // Check if adding items would exceed inventory limit
-            let totalItems = detailedInventory.count + loot.count
-            if totalItems > maxInventorySlots {
-                // Trigger inventory management
-                pendingLoot = loot
-                needsInventoryManagement = true
-                appendModel("⚠️ Inventory full! You need to make room for new items.")
-            } else {
-                // Add items normally
-                for item in loot {
-                    detailedInventory.append(item)
-                    self.character?.inventory.append(item.fullName)
-                    appendModel("✨ Obtained: \(item.fullName) (\(item.rarity))")
-                    itemsCollected += 1
-                }
-            }
-        }
-
-        if let environment = turn.currentEnvironment {
-            self.currentEnvironment = environment
-        }
-
-        appendModel(turn.narration)
+        let cleanedNarration = sanitizeNarration(turn.narration, for: encounter?.encounterType)
+        appendModel(cleanedNarration)
         if let prompt = turn.playerPrompt, !prompt.isEmpty {
             appendModel(prompt)
         }
     }
 
-    private func trackEncounter(_ type: String) {
-        encounterCounts[type, default: 0] += 1
-        lastEncounter = type
+    internal func checkQuestCompletion(itemsAcquired: [String]?) async {
+        guard var progress = adventureProgress else { return }
 
-        if type == "trap" {
-            encountersSinceLastTrap = 0
-        } else {
-            encountersSinceLastTrap += 1
+        if let result = questValidator.validateQuestCompletion(progress: progress, itemsAcquired: itemsAcquired) {
+            progress.completed = true
+            adventureProgress = progress
+
+            logger.info("[Quest] Retrieval quest auto-completed: acquired '\(result.completingItem)'")
+            appendModel("\n✅ Quest Objective Achieved!")
+            appendModel("The quest '\(result.questGoal)' is now complete.")
+
+            adventuresCompleted += 1
+
+            // Update lifetime stats
+            totalXPEarned += currentAdventureXP
+            totalGoldEarned += currentAdventureGold
+            totalMonstersDefeated += currentAdventureMonsters
+
+            if var world = worldState {
+                world.locations.removeAll(where: { $0.name == result.locationName })
+                worldState = world
+            }
+
+            combatManager.pendingMonster = nil
+            activeNPC = nil
+            activeNPCTurns = 0
+            pendingTrap = nil
+
+            await generateAdventureSummary(progress: progress)
         }
     }
 
-    private func generateLevelReward(for className: String, level: Int) async {
+    private func trackEncounter(_ type: String) {
+        encounterState.trackEncounter(type)
+    }
+
+    internal func generateLevelReward(for className: String, level: Int) async {
         guard var character = self.character else { return }
 
-        let rewardType: LLMSpecialist
-        let rewardList: String
-
+        let specialist: LLMSpecialist
         switch className.lowercased() {
         case "mage", "necromancer":
-            rewardType = .spells
-            rewardList = className.lowercased() == "necromancer" ? "death spell" : "arcane spell"
+            specialist = .spells
         case "healer", "paladin":
-            rewardType = .prayers
-            rewardList = "divine prayer"
+            specialist = .prayers
         case "druid":
-            rewardType = .spells
-            rewardList = "nature spell"
+            specialist = .spells
         default:
-            rewardType = .abilities
-            rewardList = "class ability"
+            specialist = .abilities
         }
 
-        guard let session = getSession(for: rewardType) else { return }
-
-        let existingRewards = Set(character.abilities + character.spells)
-        var attempts = 0
-        let maxAttempts = 5
+        guard let session = getSession(for: specialist) else { return }
 
         do {
-            while attempts < maxAttempts {
-                attempts += 1
-
-                // Base prompt without listing all existing abilities/spells
-                var prompt = "Character: Level \(level) \(className). Generate a single new \(rewardList). Provide only the name of the \(rewardList)."
-
-                if !existingRewards.isEmpty {
-                    let recentRewards = Array(existingRewards.prefix(5)).joined(separator: ", ")
-                    prompt += " Already has: \(recentRewards)."
+            if let result = try await levelRewardGenerator.generateLevelReward(
+                session: session,
+                character: character,
+                className: className,
+                level: level
+            ) {
+                switch result.rewardType {
+                case .spell:
+                    character.spells.append(result.rewardName)
+                    appendModel("📜 New Spell Learned: \(result.rewardName)")
+                case .prayer:
+                    character.spells.append(result.rewardName)
+                    appendModel("✨ New Prayer Granted: \(result.rewardName)")
+                case .ability:
+                    character.abilities.append(result.rewardName)
+                    appendModel("⚡️ New Ability Gained: \(result.rewardName)")
                 }
 
-                prompt += " Generate a unique \(rewardList) appropriate for this level and class."
-
-                // If we've had duplicates, explicitly mention them
-                if attempts > 1 {
-                    prompt += " AVOID duplicates."
-                }
-
-                logger.debug("[\(rewardType.rawValue.capitalized) LLM] Attempt \(attempts), Prompt length: \(prompt.count) chars")
-
-                let response = try await session.respond(to: prompt, generating: LevelReward.self)
-                let reward = response.content.name
-
-                // Post-generation verification
-                if !existingRewards.contains(reward) {
-                    logger.debug("[\(rewardType.rawValue.capitalized) LLM] Generated unique reward: \(reward)")
-
-                    switch rewardType {
-                    case .spells:
-                        character.spells.append(reward)
-                        appendModel("📜 New Spell Learned: \(reward)")
-                    case .prayers:
-                        character.spells.append(reward)
-                        appendModel("✨ New Prayer Granted: \(reward)")
-                    case .abilities:
-                        character.abilities.append(reward)
-                        appendModel("⚡️ New Ability Gained: \(reward)")
-                    default:
-                        break
-                    }
-
-                    self.character = character
-                    saveState()
-                    return
-                } else {
-                    logger.debug("[\(rewardType.rawValue.capitalized) LLM] Duplicate reward '\(reward)' detected, regenerating...")
-                }
+                self.character = character
+                saveState()
             }
-
-            // Fallback: if all attempts failed, use the last generated reward anyway
-            logger.warning("[\(rewardType.rawValue.capitalized) LLM] Failed to generate unique reward after \(maxAttempts) attempts")
         } catch {
             logger.error("Failed to generate level reward: \(error.localizedDescription, privacy: .public)")
         }
@@ -1032,232 +715,47 @@ final class LLMGameEngine: GameEngine {
 
     private func generateMonster(for encounter: EncounterDetails, characterLevel: Int, location: String) async throws -> MonsterDefinition? {
         guard let monsterSession = getSession(for: .monsters) else { return nil }
+        guard let generator = monsterGenerator else { return nil }
 
-        let baseMonsters = MonsterDatabase.allMonsters.filter { monster in
-            if characterLevel <= 3 { return monster.baseHP <= 20 }
-            else if characterLevel <= 7 { return monster.baseHP > 15 && monster.baseHP <= 60 }
-            else if characterLevel <= 12 { return monster.baseHP > 45 && monster.baseHP <= 120 }
-            else { return monster.baseHP > 80 }
-        }
-
-        let randomBase = baseMonsters.randomElement() ?? MonsterDatabase.allMonsters[0]
-        let knownAffixList = Array(knownMonsterAffixes.suffix(10)).joined(separator: ", ")
-
-        let prompt = "Base: \(randomBase.name) (\(randomBase.description)). Level: \(characterLevel). Difficulty: \(encounter.difficulty). Location: \(location). Recent affixes: \(knownAffixList.isEmpty ? "none" : knownAffixList). Avoid repeating affixes. Use English."
-        logger.debug("[Monster LLM] Prompt length: \(prompt.count) chars")
-
-        let monster: MonsterDefinition
-        do {
-            let response = try await monsterSession.respond(to: prompt, generating: MonsterDefinition.self)
-            logger.debug("[Monster LLM] Generated: \(response.content.fullName)")
-            monster = response.content
-        } catch {
-            logger.error("[Monster LLM] Generation failed: \(error.localizedDescription, privacy: .public)")
-            // Return a basic unmodified monster on error
-            monster = MonsterDefinition(
-                baseName: randomBase.name,
-                prefix: nil,
-                suffix: nil,
-                hp: randomBase.baseHP,
-                damage: randomBase.baseDamage,
-                defense: randomBase.baseDefense,
-                abilities: [],
-                description: randomBase.description
-            )
-        }
-
-        if let prefix = monster.prefix {
-            affixRegistry.registerMonsterAffix(prefix)
-            knownMonsterAffixes.insert(prefix.name)
-        }
-        if let suffix = monster.suffix {
-            affixRegistry.registerMonsterAffix(suffix)
-            knownMonsterAffixes.insert(suffix.name)
-        }
-
-        return monster
+        return try await generator.generateMonster(
+            session: monsterSession,
+            encounter: encounter,
+            characterLevel: characterLevel,
+            location: location
+        )
     }
 
     private func generateOrRetrieveNPC(for location: String, encounter: EncounterDetails) async throws -> NPCDefinition? {
         guard let npcSession = getSession(for: .npc) else { return nil }
+        guard let generator = npcGenerator else { return nil }
 
-        let existingNPCs = npcRegistry.getNPCs(atLocation: location)
-
-        if !existingNPCs.isEmpty && Bool.random() {
-            guard var npc = existingNPCs.randomElement() else { return nil }
-            npc.interactionCount += 1
-            npcRegistry.registerNPC(npc, location: location)
-            return npc
-        }
-
-        let existingNPCNames = Set(existingNPCs.map { $0.name })
-        var attempts = 0
-        let maxAttempts = 5
-
-        while attempts < maxAttempts {
-            attempts += 1
-
-            // Minimal prompt
-            var prompt = "Location: \(location). Difficulty: \(encounter.difficulty)."
-
-            // If we've had duplicates, explicitly mention them
-            if attempts > 1 {
-                prompt += " NOT: \(existingNPCNames.joined(separator: ", "))."
-            }
-
-            logger.debug("[NPC LLM] Attempt \(attempts), Prompt length: \(prompt.count) chars")
-
-            let response = try await npcSession.respond(to: prompt, generating: NPCDefinition.self)
-            let candidate = response.content
-
-            // Post-generation verification
-            if !existingNPCNames.contains(candidate.name) {
-                logger.debug("[NPC LLM] Generated unique NPC: \(candidate.name)")
-                var npc = candidate
-                npc.location = location
-                npc.interactionCount = 0
-                npcRegistry.registerNPC(npc, location: location)
-                return npc
-            } else {
-                logger.debug("[NPC LLM] Duplicate NPC name '\(candidate.name)' detected, regenerating...")
-            }
-        }
-
-        // Fallback: use the last generated NPC even if duplicate
-        logger.warning("[NPC LLM] Failed to generate unique NPC after \(maxAttempts) attempts, using last generated")
-        var npc = try await npcSession.respond(to: "Location: \(location). Create a new NPC.", generating: NPCDefinition.self).content
-        npc.location = location
-        npc.interactionCount = 0
-        npcRegistry.registerNPC(npc, location: location)
-        return npc
-    }
-
-    private func determineItemRarity(difficulty: String, characterLevel: Int) -> String {
-        // Rarity probabilities:
-        // 1% legendary, 5% epic, 10% rare, 30% uncommon, 54% common
-        let roll = Int.random(in: 1...100)
-
-        // Boss encounters get bonus to rarity
-        let isBoss = difficulty.lowercased() == "boss"
-        let isHard = difficulty.lowercased() == "hard"
-
-        if isBoss {
-            // Boss: better odds for high rarity
-            if roll <= 5 { return "legendary" }      // 5% (was 1%)
-            if roll <= 20 { return "epic" }          // 15% (was 5%)
-            if roll <= 45 { return "rare" }          // 25% (was 10%)
-            if roll <= 75 { return "uncommon" }      // 30% (same)
-            return "common"                          // 25% (was 54%)
-        } else if isHard {
-            // Hard: slightly better odds
-            if roll <= 2 { return "legendary" }      // 2%
-            if roll <= 10 { return "epic" }          // 8%
-            if roll <= 25 { return "rare" }          // 15%
-            if roll <= 55 { return "uncommon" }      // 30%
-            return "common"                          // 45%
-        } else {
-            // Normal/easy: standard odds
-            if roll <= 1 { return "legendary" }      // 1%
-            if roll <= 6 { return "epic" }           // 5%
-            if roll <= 16 { return "rare" }          // 10%
-            if roll <= 46 { return "uncommon" }      // 30%
-            return "common"                          // 54%
-        }
+        return try await generator.generateOrRetrieveNPC(
+            session: npcSession,
+            location: location,
+            encounter: encounter
+        )
     }
 
     private func generateLoot(count: Int, difficulty: String, characterLevel: Int, characterClass: String) async throws -> [ItemDefinition] {
-        guard let equipmentSession = getSession(for: .equipment) else { return [] }
+        guard let equipmentSession = getSession(for: .equipment),
+              let generator = lootGenerator else { return [] }
 
-        var items: [ItemDefinition] = []
-        let knownAffixList = Array(knownItemAffixes.suffix(10)).joined(separator: ", ")
+        let items = try await generator.generateLoot(
+            count: count,
+            difficulty: difficulty,
+            characterLevel: characterLevel,
+            characterClass: characterClass,
+            existingInventory: detailedInventory,
+            equipmentSession: equipmentSession
+        )
 
-        var existingItemNames = Set<String>()
-        for item in detailedInventory {
-            existingItemNames.insert(item.fullName)
-        }
-
-        for i in 0..<count {
-            // Determine rarity before generating item
-            let rarity = determineItemRarity(difficulty: difficulty, characterLevel: characterLevel)
-            logger.debug("[Equipment LLM] Pre-determined rarity: \(rarity)")
-
-            var maxAttempts = 3
-            var item: ItemDefinition?
-
-            while maxAttempts > 0 {
-                let prompt = "Lvl\(characterLevel) \(characterClass). \(rarity) rarity. Recent affixes: \(knownAffixList.isEmpty ? "none" : knownAffixList). Epic/legendary MUST have affixes."
-                logger.debug("[Equipment LLM] Item \(i+1)/\(count) Prompt length: \(prompt.count) chars")
-
-                do {
-                    let response = try await equipmentSession.respond(to: prompt, generating: ItemDefinition.self)
-                    var candidate = response.content
-                    logger.debug("[Equipment LLM] Item \(i+1)/\(count) Generated: \(candidate.fullName)")
-
-                    // Force rarity to match pre-determined value if LLM gave wrong rarity
-                    if candidate.rarity.lowercased() != rarity.lowercased() {
-                        logger.warning("[Equipment LLM] Rarity mismatch: expected \(rarity), got \(candidate.rarity). Correcting...")
-                        candidate.rarity = rarity
-                    }
-
-                    // Check for duplicate item name
-                    if existingItemNames.contains(candidate.fullName) {
-                        logger.warning("[Equipment LLM] Duplicate item detected: \(candidate.fullName), regenerating...")
-                        maxAttempts -= 1
-                        continue
-                    }
-
-                    // Check for missing affixes on epic/legendary items only
-                    // Common, uncommon, and rare can be plain items
-                    let rarityLower = candidate.rarity.lowercased()
-                    if (rarityLower == "epic" || rarityLower == "legendary") && candidate.prefix == nil && candidate.suffix == nil {
-                        // Check if baseName contains common affix words (e.g., "Shadow Dagger", "Necrostaff")
-                        let baseNameLower = candidate.baseName.lowercased()
-                        let hasEmbeddedAffix = baseNameLower.contains("shadow") ||
-                                               baseNameLower.contains("spectral") ||
-                                               baseNameLower.contains("dark") ||
-                                               baseNameLower.contains("light") ||
-                                               baseNameLower.contains("necro") ||
-                                               baseNameLower.contains("holy") ||
-                                               baseNameLower.contains("fire") ||
-                                               baseNameLower.contains("ice") ||
-                                               baseNameLower.split(separator: " ").count > 1
-
-                        if !hasEmbeddedAffix {
-                            logger.warning("[Equipment LLM] Epic/Legendary item missing affixes: \(candidate.fullName), regenerating...")
-                            maxAttempts -= 1
-                            continue
-                        } else {
-                            logger.info("[Equipment LLM] Item has embedded affix in baseName: \(candidate.baseName)")
-                        }
-                    }
-
-                    item = candidate
-                    break
-                } catch {
-                    logger.error("[Equipment LLM] Generation failed: \(error.localizedDescription)")
-                    maxAttempts -= 1
-                    if maxAttempts <= 0 {
-                        logger.error("[Equipment LLM] Max attempts reached, skipping item")
-                    }
-                }
+        // Update knownItemAffixes for backward compatibility
+        for item in items {
+            if let prefix = item.prefix {
+                knownItemAffixes.insert(prefix.name)
             }
-
-            // Use the item even if it has issues after max attempts
-            if let finalItem = item {
-                existingItemNames.insert(finalItem.fullName)
-
-                if let prefix = finalItem.prefix {
-                    affixRegistry.registerItemAffix(prefix)
-                    knownItemAffixes.insert(prefix.name)
-                }
-                if let suffix = finalItem.suffix {
-                    affixRegistry.registerItemAffix(suffix)
-                    knownItemAffixes.insert(suffix.name)
-                }
-
-                items.append(finalItem)
-            } else {
-                logger.warning("[Equipment LLM] Failed to generate item \(i+1)/\(count) after \(3) attempts")
+            if let suffix = item.suffix {
+                knownItemAffixes.insert(suffix.name)
             }
         }
 
@@ -1359,9 +857,10 @@ final class LLMGameEngine: GameEngine {
                     let loot = try await generateLoot(count: 1, difficulty: "medium", characterLevel: charLevel, characterClass: classNameForLoot)
                     if !loot.isEmpty {
                         let currentInventoryCount = detailedInventory.count
-                        if currentInventoryCount + loot.count > maxInventorySlots {
+                        if currentInventoryCount + loot.count > inventoryState.maxInventorySlots {
                             pendingLoot = loot
                             needsInventoryManagement = true
+                            delegate?.engineNeedsInventoryManagement(pendingLoot: loot, currentInventory: detailedInventory)
                             appendModel("⚠️ Inventory full! You need to make room for new items.")
                         } else {
                             for item in loot {
@@ -1441,12 +940,17 @@ final class LLMGameEngine: GameEngine {
             return false
         }
 
-        // Remove from inventory (only one instance)
-        if let index = char.inventory.firstIndex(of: itemName) {
-            char.inventory.remove(at: index)
-        }
+        // Decrement quantity or remove if last one
         if let index = detailedInventory.firstIndex(where: { $0.fullName == itemName || $0.baseName == itemName }) {
-            detailedInventory.remove(at: index)
+            detailedInventory[index].quantity -= 1
+
+            if detailedInventory[index].quantity <= 0 {
+                // Remove from both inventories when quantity reaches 0
+                detailedInventory.remove(at: index)
+                if let charIndex = char.inventory.firstIndex(of: itemName) {
+                    char.inventory.remove(at: charIndex)
+                }
+            }
         }
 
         character = char
@@ -1486,12 +990,16 @@ final class LLMGameEngine: GameEngine {
                 playTime: playTime
             )
 
+            if let report = deathReport {
+                delegate?.engineDidDetectDeath(report: report)
+            }
+
             combatManager.reset()
             appendModel("\n💀 You have fallen...")
         }
     }
 
-    private func handleCharacterDeath(monster: MonsterDefinition) {
+    internal func handleCharacterDeath(monster: MonsterDefinition) {
         guard let char = character else { return }
 
         characterDied = true
@@ -1507,11 +1015,15 @@ final class LLMGameEngine: GameEngine {
             playTime: playTime
         )
 
+        if let report = deathReport {
+            delegate?.engineDidDetectDeath(report: report)
+        }
+
         combatManager.reset()
         appendModel("\n💀 You have fallen...")
     }
 
-    private func shouldMonsterAttack(monster: MonsterDefinition, playerAction: String) async -> Bool {
+    internal func shouldMonsterAttack(monster: MonsterDefinition, playerAction: String) async -> Bool {
         guard let encounterSession = getSession(for: .encounter) else { return true }
 
         let evaluationPrompt = """
@@ -1573,77 +1085,29 @@ final class LLMGameEngine: GameEngine {
         }
 
         // Prevent consecutive combat unless it's a final encounter
-        if encounter.encounterType == "combat", lastEncounterType() == "combat" {
+        if encounter.encounterType == "combat", encounterState.lastEncounterType() == "combat" {
             // Coerce to exploration to break up combat streaks
             encounter = EncounterDetails(encounterType: "exploration", difficulty: encounter.difficulty)
         }
         // Prevent consecutive social encounters (too many NPCs)
-        if encounter.encounterType == "social", lastEncounterType() == "social" {
+        if encounter.encounterType == "social", encounterState.lastEncounterType() == "social" {
             // Coerce to exploration to break up NPC streaks
             encounter = EncounterDetails(encounterType: "exploration", difficulty: encounter.difficulty)
         }
         // Enforce 3+ non-trap encounters between traps
         if encounter.encounterType == "trap" {
-            if countSinceLastTrap() < 3 {
+            if encounterState.countSinceLastTrap() < 3 {
                 encounter = EncounterDetails(encounterType: "exploration", difficulty: encounter.difficulty)
             }
         }
     }
 
     private func sanitizeNarration(_ text: String, for encounterType: String?) -> String {
-        // Do not allow combat resolution in narrative. Replace problematic verbs with neutral phrasing.
-        let forbidden = ["defeat", "defeated", "kill", "killed", "slay", "slain", "strike", "struck", "smite", "smitten", "crush", "crushed", "stab", "stabbed", "shoot", "shot", "damage", "wound", "wounded"]
-        var sanitized = text
-        if let type = encounterType, type == "combat" || type == "final" {
-            for word in forbidden {
-                sanitized = sanitized.replacingOccurrences(of: word, with: "confront", options: [.caseInsensitive, .regularExpression])
-            }
-        }
-        return sanitized
+        return narrativeProcessor.sanitizeNarration(text, for: encounterType)
     }
 
     private func smartTruncatePrompt(_ prompt: String, maxLength: Int) -> String {
-        if prompt.count <= maxLength {
-            return prompt
-        }
-
-        // Ultra-aggressive truncation: preserve only essentials
-        let lines = prompt.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
-        var result: [String] = []
-
-        // Only keep absolute essentials
-        for line in lines {
-            let lineLower = line.lowercased()
-
-            // Keep only CRITICAL instructions and quest goal
-            let mustKeep = lineLower.contains("critical") ||
-                          lineLower.contains("quest stage") ||
-                          (lineLower.contains("quest:") && line.count < 100) ||
-                          (lineLower.contains("location:") && line.count < 30) ||
-                          (lineLower.contains("encounter:") && line.count < 40)
-
-            // Skip everything else (character stats, history, monster details, etc.)
-            if mustKeep {
-                result.append(line)
-            }
-        }
-
-        let truncated = result.joined(separator: "\n")
-
-        // If still too long, preserve last 350 chars (critical instructions) only
-        if truncated.count > maxLength {
-            let preserveEnd = min(350, maxLength - 20)
-            let takeFromStart = maxLength - preserveEnd - 20
-            if takeFromStart > 0 {
-                let start = String(truncated.prefix(takeFromStart))
-                let end = String(truncated.suffix(preserveEnd))
-                return start + " [...] " + end
-            } else {
-                return String(truncated.suffix(maxLength))
-            }
-        }
-
-        return truncated
+        return narrativeProcessor.smartTruncatePrompt(prompt, maxLength: maxLength)
     }
 
     private func advanceScene(kind: AdventureType, playerAction: String?) async throws {
@@ -1652,39 +1116,39 @@ final class LLMGameEngine: GameEngine {
 
         // Check if quest is already completed - if so, don't generate new encounters
         if let progress = adventureProgress, progress.completed {
-            await promptForNextLocation()
+            // If summary hasn't been generated yet, generate it first
+            if adventureSummary == nil {
+                await generateAdventureSummary(progress: progress)
+            }
+            // Only prompt for next location if summary has been dismissed
+            if !showingAdventureSummary {
+                await promptForNextLocation()
+            }
             return
         }
 
         // Check if quest has already failed - if so, don't generate new encounters
-        if let progress = adventureProgress, progress.isFinalEncounter {
-            let encountersOverLimit = progress.currentEncounter - progress.totalEncounters
-            if encountersOverLimit >= 3 && !progress.completed {
-                // Quest has failed - show summary and prompt for next location
-                appendModel("\n❌ Quest Failed: You were unable to complete '\(progress.questGoal)' in time.")
-                appendModel("The opportunity has passed...")
+        if let progress = adventureProgress, questProgressManager.checkQuestFailure(adventure: progress) {
+            appendModel("\n❌ Quest Failed: You were unable to complete '\(progress.questGoal)' in time.")
+            appendModel("The opportunity has passed...")
 
-                if var world = worldState {
-                    if let index = world.locations.firstIndex(where: { $0.name == progress.locationName }) {
-                        world.locations[index].visited = true
-                    }
-                    worldState = world
+            if var world = worldState {
+                if let index = world.locations.firstIndex(where: { $0.name == progress.locationName }) {
+                    world.locations[index].visited = true
                 }
-
-                let failedSummary = AdventureSummary(
-                    locationName: progress.locationName,
-                    questGoal: progress.questGoal,
-                    completionSummary: "Quest failed - objective not completed in time",
-                    encountersCompleted: progress.currentEncounter,
-                    totalXPGained: currentAdventureXP,
-                    totalGoldEarned: currentAdventureGold,
-                    notableItems: Array(detailedInventory.suffix(5).map { $0.fullName }),
-                    monstersDefeated: currentAdventureMonsters
-                )
-                adventureSummary = failedSummary
-                showingAdventureSummary = true
-                return
+                worldState = world
             }
+
+            let failedSummary = questProgressManager.createFailedQuestSummary(
+                adventure: progress,
+                currentAdventureXP: currentAdventureXP,
+                currentAdventureGold: currentAdventureGold,
+                currentAdventureMonsters: currentAdventureMonsters,
+                recentItems: Array(detailedInventory.suffix(5).map { $0.fullName })
+            )
+            adventureSummary = failedSummary
+            showingAdventureSummary = true
+            return
         }
 
         sessionManager.incrementTurnCount()
@@ -1692,7 +1156,6 @@ final class LLMGameEngine: GameEngine {
 
         let actionLine = playerAction.map { "Player action: \($0)" } ?? "Begin scene"
         let location = kind.rawValue
-        let contextSummary = buildContextSummary()
         let charLevel = levelingService.level(forXP: character?.xp ?? 0)
 
         var encounter: EncounterDetails
@@ -1700,20 +1163,11 @@ final class LLMGameEngine: GameEngine {
         var npc: NPCDefinition?
 
         // Check if continuing an active NPC conversation
-        let playerActionLower = (playerAction ?? "").lowercased()
-
-        // Check if player specifically references the NPC by name
-        // Only continue conversation if explicitly mentioning NPC name or using direct speech verbs
-        let isReferencingNPC = activeNPC != nil && (
-            playerActionLower.contains(activeNPC!.name.lowercased()) ||
-            (playerActionLower.contains("speak to") ||
-             playerActionLower.contains("talk to") ||
-             playerActionLower.contains("ask the") ||
-             playerActionLower.contains("tell the"))
+        let isContinuingConversation = encounterOrchestrator.shouldContinueNPCConversation(
+            activeNPC: activeNPC,
+            activeNPCTurns: activeNPCTurns,
+            playerAction: playerAction
         )
-
-        // Continue conversation only if: NPC active, referenced by player, and under turn limit
-        let isContinuingConversation = activeNPC != nil && isReferencingNPC && activeNPCTurns < 2
 
         if isContinuingConversation {
             // Continue existing social encounter with same NPC
@@ -1722,78 +1176,22 @@ final class LLMGameEngine: GameEngine {
             activeNPCTurns += 1
             logger.debug("[Encounter] Continuing conversation with \(npc?.name ?? "NPC") (turn \(self.activeNPCTurns))")
         } else {
-            // Clear active NPC if turn limit reached or not referenced
-            if activeNPC != nil && (!isReferencingNPC || activeNPCTurns >= 2) {
+            // Clear active NPC if needed
+            if activeNPC != nil && !isContinuingConversation {
                 logger.debug("[Encounter] Ending conversation with \(self.activeNPC?.name ?? "NPC")")
                 activeNPC = nil
                 activeNPCTurns = 0
             }
 
-            let encounterContext = ContextBuilder.buildContext(
-                for: .encounter,
+            encounter = try await encounterOrchestrator.generateEncounter(
+                session: encounterSession,
+                adventure: adventureProgress,
                 character: character,
                 characterLevel: charLevel,
-                adventure: adventureProgress,
                 location: location,
-                encounterCounts: encounterCounts
+                encounterCounts: encounterCounts,
+                enforceVariety: enforceEncounterVariety
             )
-            var encounterPrompt = encounterContext
-            if let adventure = adventureProgress {
-                if adventure.isFinalEncounter {
-                    // Analyze quest type to determine if final encounter should be combat or non-combat
-                    let questLower = adventure.questGoal.lowercased()
-                    if questLower.contains("find") || questLower.contains("retrieve") || questLower.contains("locate") || questLower.contains("discover") {
-                        // Retrieval quest - present artifact/item
-                        encounterPrompt += " This is the FINAL encounter - use 'final' type (non-combat) to present the artifact/objective for retrieval."
-                    } else if questLower.contains("defeat") || questLower.contains("kill") || questLower.contains("destroy") || questLower.contains("stop") || questLower.contains("eliminate") {
-                        // Combat quest - boss fight
-                        encounterPrompt += " This is the FINAL encounter - use 'combat' type with 'boss' difficulty to present the enemy."
-                    } else if questLower.contains("escort") || questLower.contains("protect") || questLower.contains("guide") {
-                        // Escort quest - reach destination safely or defend against final threat
-                        encounterPrompt += " This is the FINAL encounter - use 'final' type to reach the destination, or 'combat' with 'hard' difficulty if there's a final threat to overcome."
-                    } else if questLower.contains("investigate") || questLower.contains("solve") || questLower.contains("uncover") {
-                        // Investigation quest - solve the mystery
-                        encounterPrompt += " This is the FINAL encounter - use 'final' type to reveal the solution/truth of the mystery."
-                    } else if questLower.contains("rescue") || questLower.contains("save") || questLower.contains("free") {
-                        // Rescue quest - free the captive (may involve combat with captor)
-                        encounterPrompt += " This is the FINAL encounter - use 'combat' type with 'hard' difficulty if rescuing from captor, or 'final' type if freeing from trap/prison."
-                    } else if questLower.contains("negotiate") || questLower.contains("persuade") || questLower.contains("convince") || questLower.contains("diplomacy") {
-                        // Diplomatic quest - final negotiation
-                        encounterPrompt += " This is the FINAL encounter - use 'social' type for the critical negotiation/persuasion."
-                    } else {
-                        encounterPrompt += " This is the FINAL encounter - use 'final' type to resolve the quest goal."
-                    }
-                }
-            }
-            encounterPrompt += " Determine encounter type and difficulty. For trap encounters, scale danger with player level."
-            logger.debug("[Encounter LLM] Prompt length: \(encounterPrompt.count) chars")
-            let encounterResponse = try await encounterSession.respond(to: encounterPrompt, generating: EncounterDetails.self)
-            encounter = encounterResponse.content
-
-            // ENFORCE final encounter type based on quest type (don't trust LLM)
-            // Note: Check if NEXT encounter will be final (counter increments after generation)
-            if let adventure = adventureProgress {
-                let nextEncounter = adventure.currentEncounter + 1
-                let willBeFinalEncounter = nextEncounter >= adventure.totalEncounters
-
-                if willBeFinalEncounter {
-                    let questLower = adventure.questGoal.lowercased()
-                    if questLower.contains("defeat") || questLower.contains("kill") || questLower.contains("destroy") || questLower.contains("stop") || questLower.contains("eliminate") {
-                        // Combat quest MUST have boss combat
-                        encounter.encounterType = "combat"
-                        encounter.difficulty = "boss"
-                        logger.info("[Encounter] ENFORCED boss combat for combat quest final encounter (will be \(nextEncounter)/\(adventure.totalEncounters))")
-                    } else if questLower.contains("find") || questLower.contains("retrieve") || questLower.contains("locate") || questLower.contains("discover") {
-                        // Retrieval quest MUST have final (non-combat) encounter
-                        encounter.encounterType = "final"
-                        logger.info("[Encounter] ENFORCED final (non-combat) for retrieval quest final encounter (will be \(nextEncounter)/\(adventure.totalEncounters))")
-                    }
-                }
-            }
-
-            enforceEncounterVariety(on: &encounter)
-            
-            logger.debug("[Encounter LLM] Success")
 
             if encounter.encounterType == "combat" {
                 activeNPC = nil
@@ -1804,13 +1202,16 @@ final class LLMGameEngine: GameEngine {
                 // No monster generation - the Adventure LLM will present the quest objective
                 activeNPC = nil
                 activeNPCTurns = 0
+                combatManager.pendingMonster = nil
             } else if encounter.encounterType == "social" {
                 npc = try await generateOrRetrieveNPC(for: location, encounter: encounter)
                 activeNPC = npc
                 activeNPCTurns = 1
+                combatManager.pendingMonster = nil
             } else {
                 activeNPC = nil
                 activeNPCTurns = 0
+                combatManager.pendingMonster = nil
             }
         }
 
@@ -1833,56 +1234,13 @@ final class LLMGameEngine: GameEngine {
 
         // Add quest progression guidance based on encounter number
         if let adventure = adventureProgress {
-            let nextEncounter = adventure.currentEncounter + 1
-            let progressPercent = Double(nextEncounter) / Double(adventure.totalEncounters)
-
-            if progressPercent <= 0.4 {
-                // Early adventure (1-3 of 7): Setup
-                scenePrompt += "\nQUEST STAGE - EARLY: Introduce clues, NPCs, or hints related to '\(adventure.questGoal)'. Establish what stands between the player and their goal."
-            } else if progressPercent <= 0.85 {
-                // Mid adventure (4-6 of 7): Active pursuit
-                scenePrompt += "\nQUEST STAGE - MIDDLE: Directly advance toward '\(adventure.questGoal)'. If the quest is 'retrieve X', mention seeing/finding X or its location. If 'defeat Y', introduce Y or their lair. Make tangible progress."
-            }
-
-            if nextEncounter >= adventure.totalEncounters {
-                let encountersOver = nextEncounter - adventure.totalEncounters
-                let questLower = adventure.questGoal.lowercased()
-
-                // Determine quest type and completion criteria
-                var completionInstructions = ""
-                if questLower.contains("find") || questLower.contains("retrieve") || questLower.contains("locate") || questLower.contains("discover") {
-                    completionInstructions = "Present the artifact/item. Mark completed=true when player takes/claims it."
-                } else if questLower.contains("defeat") || questLower.contains("kill") || questLower.contains("destroy") || questLower.contains("stop") || questLower.contains("eliminate") {
-                    completionInstructions = "Boss fight handled by combat system. Mark completed=true when combat is won."
-                } else if questLower.contains("escort") || questLower.contains("protect") || questLower.contains("guide") {
-                    completionInstructions = "Present the destination or final threat. Mark completed=true when destination reached or threat defeated."
-                } else if questLower.contains("investigate") || questLower.contains("solve") || questLower.contains("uncover") {
-                    completionInstructions = "Reveal the solution/truth. Mark completed=true when player acknowledges/understands the answer."
-                } else if questLower.contains("rescue") || questLower.contains("save") || questLower.contains("free") {
-                    completionInstructions = "Present captive/prisoner. Mark completed=true when freed (combat win or unlock action)."
-                } else if questLower.contains("negotiate") || questLower.contains("persuade") || questLower.contains("convince") || questLower.contains("diplomacy") {
-                    completionInstructions = "Present key NPC for negotiation. Mark completed=true when agreement reached."
-                } else {
-                    completionInstructions = "Present quest objective. Mark completed=true when player's action achieves the goal."
-                }
-
-                if encountersOver == 0 {
-                    // This is the planned final encounter
-                    scenePrompt += "\nCRITICAL - FINAL ENCOUNTER: This is encounter \(nextEncounter)/\(adventure.totalEncounters) - the planned final encounter. Quest: '\(adventure.questGoal)'. \(completionInstructions) DO NOT set completed=true unless the player's action actually completes the objective."
-                } else if encountersOver < 3 {
-                    // Grace period - 1-2 encounters past planned end
-                    scenePrompt += "\nCRITICAL - EXTENDED FINALE: This is encounter \(nextEncounter)/\(adventure.totalEncounters) (extra turn \(encountersOver)/3). Quest: '\(adventure.questGoal)'. \(completionInstructions) After 3 extra encounters, the quest will fail."
-                } else {
-                    // Last chance - 3rd extra encounter
-                    scenePrompt += "\nCRITICAL - FINAL CHANCE: This is encounter \(nextEncounter)/\(adventure.totalEncounters) (final extra turn 3/3). This is the LAST opportunity to complete '\(adventure.questGoal)'. \(completionInstructions) If not completed this turn, the quest fails."
-                }
-            }
+            scenePrompt += questProgressManager.buildQuestProgressionGuidance(for: adventure)
         }
 
-        scenePrompt += "\nCRITICAL: If the encounter is combat or final, DO NOT resolve any fighting in the narration. Only describe the monster appearing and the setup. Keep the narration to EXACTLY 2-4 sentences."
+        scenePrompt += "\nCRITICAL: ONLY describe monsters if 'Monster:' appears above. For exploration/social/puzzle encounters, NO monsters exist - focus on environment, clues, NPCs, or challenges. Combat/final encounters will have 'Monster:' explicitly listed. Keep narration to EXACTLY 2-4 sentences."
 
         // Smart truncation to preserve critical instructions
-        let maxPromptLength = 500
+        let maxPromptLength = 600
         if scenePrompt.count > maxPromptLength {
             logger.warning("[Adventure LLM] Prompt too long (\(scenePrompt.count) chars), applying smart truncation to \(maxPromptLength)")
             logger.warning("[Adventure LLM] Original prompt before truncation:\n\(scenePrompt)")
@@ -1921,7 +1279,7 @@ final class LLMGameEngine: GameEngine {
             finalMonster = nil
         }
 
-        await self.apply(turn: sanitizedTurn, encounter: encounter, rewards: rewards, loot: items, monster: finalMonster, npc: npc)
+        await self.apply(turn: sanitizedTurn, encounter: encounter, rewards: rewards, loot: items, monster: finalMonster, npc: npc, playerAction: playerAction)
     }
 
     private func generateEncounterSummary(narrative: String, encounterType: String, monster: MonsterDefinition?, npc: NPCDefinition?) -> String {
@@ -1953,10 +1311,10 @@ final class LLMGameEngine: GameEngine {
             if let lastSpace = truncated.lastIndex(of: " ") {
                 truncated = String(truncated[..<lastSpace])
             }
-            return truncated
+            return truncated + "..."
         }
 
-        return String(cleaned.prefix(60))
+        return String(cleaned.prefix(60)) + "..."
     }
 
     private func buildAdventureHistory() -> String {
@@ -2088,26 +1446,50 @@ final class LLMGameEngine: GameEngine {
         }
 
         let keywordString = keywords.joined(separator: " ")
-        encounterKeywords.append(keywordString)
-
-        if encounterKeywords.count > maxKeywordHistory {
-            encounterKeywords.removeFirst()
-        }
+        encounterState.storeKeywords(keywordString)
     }
 
     private func buildEncounterHistory() -> String {
-        guard !encounterKeywords.isEmpty else { return "" }
-
-        let numbered = encounterKeywords.enumerated().map { index, keywords in
-            "\(index + 1): \(keywords)"
-        }
-
-        return "Encounter History: " + numbered.joined(separator: " | ")
+        let recentKeywords = encounterState.extractRecentKeywords()
+        return recentKeywords.isEmpty ? "" : "Recent: \(recentKeywords)"
     }
 
     // MARK: - Location Management
+    internal func resetAdventureState() {
+        // Clear adventure progress and stats
+        adventureProgress = nil
+        currentAdventureXP = 0
+        currentAdventureGold = 0
+        currentAdventureMonsters = 0
+        adventureSummary = nil
+        showingAdventureSummary = false
+
+        // Clear combat state
+        combatManager.pendingMonster = nil
+        combatManager.inCombat = false
+        combatManager.currentMonster = nil
+        combatManager.currentMonsterHP = 0
+
+        // Clear encounter state
+        pendingTrap = nil
+
+        // Clear NPC state
+        activeNPC = nil
+        activeNPCTurns = 0
+
+        // Clear inventory overflow
+        needsInventoryManagement = false
+        pendingLoot = []
+
+        // Clear transaction state
+        pendingTransaction = nil
+    }
+
     func promptForNextLocation() async {
         guard var world = worldState else { return }
+
+        // Clear adventure summary when prompting for next location
+        adventureSummary = nil
 
         // Generate new locations if needed (completed locations are now removed, so check total count)
         if world.locations.count < 2 {
@@ -2141,7 +1523,7 @@ final class LLMGameEngine: GameEngine {
         let availableLocations = worldState?.locations ?? []
         if !availableLocations.isEmpty {
             appendModel("\nWhere would you like to venture next?")
-            suggestedActions = availableLocations.map { $0.name }
+            updateSuggestedActions(availableLocations.map { $0.name })
             awaitingLocationSelection = true
             saveState()
         }
@@ -2194,7 +1576,7 @@ final class LLMGameEngine: GameEngine {
         return generatedLocations
     }
 
-    private func generateAdventureSummary(progress: AdventureProgress) async {
+    internal func generateAdventureSummary(progress: AdventureProgress) async {
         let notableItems = detailedInventory.suffix(5).map { $0.fullName }
 
         let summary = AdventureSummary(
@@ -2209,25 +1591,29 @@ final class LLMGameEngine: GameEngine {
         )
 
         adventureSummary = summary
-        showingAdventureSummary = true
+        delegate?.engineNeedsLocationSelection(summary: summary)
     }
 
     // MARK: - Logging helpers
     private func appendPlayer(_ text: String) {
         log.append(LogEntry(content: String(format: L10n.playerPrefixFormat, text), isFromModel: false))
+        updateLog()
     }
 
     func appendModel(_ text: String) {
         log.append(LogEntry(content: text, isFromModel: true))
+        updateLog()
     }
 
-    private func appendCharacterSprite() {
+    internal func appendCharacterSprite() {
         guard let character = character else { return }
         log.append(LogEntry(content: "📜 NEW CHARACTER CREATED 📜", isFromModel: true, showCharacterSprite: true, characterForSprite: character))
+        updateLog()
     }
 
-    private func appendMonsterSprite(_ monster: MonsterDefinition) {
+    internal func appendMonsterSprite(_ monster: MonsterDefinition) {
         log.append(LogEntry(content: "⚔️ Monster: \(monster.fullName)", isFromModel: true, showMonsterSprite: true, monsterForSprite: monster))
+        updateLog()
     }
 }
 

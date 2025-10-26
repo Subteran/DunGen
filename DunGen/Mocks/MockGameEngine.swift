@@ -4,10 +4,7 @@ import SwiftUI
 @MainActor
 @Observable
 final class MockGameEngine: GameEngine {
-    enum Mode {
-        case mock
-        case llm
-    }
+    weak var delegate: GameEngineDelegate?
 
     var log: [GameLogEntry] = []
     var character: CharacterProfile?
@@ -26,29 +23,26 @@ final class MockGameEngine: GameEngine {
     var suggestedActions: [String] = []
     var isGenerating = false
 
-    var currentMonsterHP: Int {
-        mode == .llm ? llmEngine.currentMonsterHP : combatManager.currentMonsterHP
-    }
+    var currentMonsterHP: Int { combatManager.currentMonsterHP }
     var needsInventoryManagement = false
     var pendingLoot: [ItemDefinition] = []
     var pendingTransaction: PendingTransaction?
 
     var combatManager = CombatManager()
 
+    var adventuresCompleted: Int = 0
+    var itemsCollected: Int = 0
+    var totalMonstersDefeated: Int = 0
+    var totalXPEarned: Int = 0
+    var totalGoldEarned: Int = 0
+    var gameStartTime: Date? = Date()
+
     private(set) var startNewGameCallCount = 0
     private(set) var submitPlayerCallCount = 0
     private(set) var lastSubmittedInput: String?
 
-    private let mode: Mode
-    private let llmEngine: LLMGameEngine
-
-    init(mode: Mode = .mock) {
-        self.mode = mode
-        self.llmEngine = LLMGameEngine()
-
-        if mode == .mock {
-            setupMockGame()
-        }
+    init() {
+        setupMockGame()
     }
 
     private func setupMockGame() {
@@ -103,13 +97,6 @@ final class MockGameEngine: GameEngine {
 
     func startNewGame(preferredType: AdventureType?, usedNames: [String]) async {
         startNewGameCallCount += 1
-
-        if mode == .llm {
-            await llmEngine.startNewGame(preferredType: preferredType, usedNames: usedNames)
-            syncFromLLM()
-            return
-        }
-
         setupMockGame()
         if let type = preferredType {
             currentLocation = type
@@ -120,12 +107,6 @@ final class MockGameEngine: GameEngine {
     }
 
     func continueNewGame(usedNames: [String]) async {
-        if mode == .llm {
-            await llmEngine.continueNewGame(usedNames: usedNames)
-            syncFromLLM()
-            return
-        }
-
         awaitingWorldContinue = false
         appendLog("Continuing adventure...")
     }
@@ -133,12 +114,6 @@ final class MockGameEngine: GameEngine {
     func submitPlayer(input: String) async {
         submitPlayerCallCount += 1
         lastSubmittedInput = input
-
-        if mode == .llm {
-            await llmEngine.submitPlayer(input: input)
-            syncFromLLM()
-            return
-        }
 
         appendLog("[PLAYER] \(input)", isFromModel: false)
 
@@ -168,59 +143,29 @@ final class MockGameEngine: GameEngine {
     }
 
     func promptForNextLocation() async {
-        if mode == .llm {
-            await llmEngine.promptForNextLocation()
-            syncFromLLM()
-            return
-        }
-
         awaitingLocationSelection = true
         appendLog("Where would you like to venture next?")
         suggestedActions = worldState?.locations.map { $0.name } ?? []
     }
 
     func finalizeInventorySelection(_ selectedItems: [ItemDefinition]) {
-        if mode == .llm {
-            llmEngine.finalizeInventorySelection(selectedItems)
-            syncFromLLM()
-            return
-        }
-
         detailedInventory.append(contentsOf: selectedItems)
         pendingLoot = []
         needsInventoryManagement = false
     }
 
     func fleeCombat() -> Bool {
-        if mode == .llm {
-            let result = llmEngine.fleeCombat()
-            syncFromLLM()
-            return result
-        }
-
         combatManager.inCombat = false
         appendLog("You flee from combat!")
         return true
     }
 
     func surrenderCombat() {
-        if mode == .llm {
-            llmEngine.surrenderCombat()
-            syncFromLLM()
-            return
-        }
-
         combatManager.surrenderCombat()
         appendLog("You surrender...")
     }
 
     func useItem(itemName: String) -> Bool {
-        if mode == .llm {
-            let result = llmEngine.useItem(itemName: itemName)
-            syncFromLLM()
-            return result
-        }
-
         guard let itemIndex = detailedInventory.firstIndex(where: { $0.baseName == itemName || $0.fullName == itemName }) else {
             return false
         }
@@ -238,35 +183,18 @@ final class MockGameEngine: GameEngine {
     }
 
     func checkAvailabilityAndConfigure() {
-        if mode == .llm {
-            llmEngine.checkAvailabilityAndConfigure()
-            syncFromLLM()
-            return
-        }
-
         availability = .available
     }
 
     func loadState() {
-        if mode == .llm {
-            llmEngine.loadState()
-            syncFromLLM()
-        }
+        // Mock engine doesn't persist state
     }
 
     func saveState() {
-        if mode == .llm {
-            llmEngine.saveState()
-        }
+        // Mock engine doesn't persist state
     }
 
     func performCombatAction(_ action: String) async {
-        if mode == .llm {
-            await llmEngine.performCombatAction(action)
-            syncFromLLM()
-            return
-        }
-
         if !combatManager.inCombat, let pendingMonster = combatManager.pendingMonster {
             combatManager.inCombat = true
             combatManager.currentMonster = pendingMonster
@@ -296,28 +224,6 @@ final class MockGameEngine: GameEngine {
                 }
             }
         }
-    }
-
-    private func syncFromLLM() {
-        log = llmEngine.log
-        character = llmEngine.character
-        adventureProgress = llmEngine.adventureProgress
-        worldState = llmEngine.worldState
-        currentLocation = llmEngine.currentLocation
-        availability = llmEngine.availability
-        detailedInventory = llmEngine.detailedInventory
-        awaitingLocationSelection = llmEngine.awaitingLocationSelection
-        awaitingWorldContinue = llmEngine.awaitingWorldContinue
-        characterDied = llmEngine.characterDied
-        deathReport = llmEngine.deathReport
-        showingAdventureSummary = llmEngine.showingAdventureSummary
-        adventureSummary = llmEngine.adventureSummary
-        suggestedActions = llmEngine.suggestedActions
-        isGenerating = llmEngine.isGenerating
-        needsInventoryManagement = llmEngine.needsInventoryManagement
-        pendingLoot = llmEngine.pendingLoot
-        pendingTransaction = llmEngine.pendingTransaction
-        combatManager = llmEngine.combatManager
     }
 
     private func simulateCombat() {

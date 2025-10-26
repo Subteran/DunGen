@@ -12,7 +12,7 @@ struct ItemDetailView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(item.fullName)
+            Text(item.displayName)
                 .font(.title2)
                 .fontWeight(.bold)
                 .foregroundStyle(rarityColor)

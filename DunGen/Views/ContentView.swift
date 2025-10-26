@@ -10,12 +10,12 @@ import SwiftData
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
-    @State private var engine: any GameEngine = LLMGameEngine()
+    @State private var viewModel = GameViewModel()
 
     var body: some View {
         TabView {
             NavigationStack {
-                GameView(engine: engine)
+                GameView(viewModel: viewModel)
                     .toolbar {
                         ToolbarItem(placement: .topBarLeading) {
                             availabilityBadge
@@ -28,10 +28,10 @@ struct ContentView: View {
 
             NavigationStack {
                 CharacterView(
-                    character: engine.character,
-                    detailedInventory: engine.detailedInventory,
+                    character: viewModel.character,
+                    detailedInventory: viewModel.detailedInventory,
                     onUseItem: { itemName in
-                        return engine.useItem(itemName: itemName)
+                        return viewModel.useItem(itemName: itemName)
                     }
                 )
             }
@@ -40,7 +40,7 @@ struct ContentView: View {
             }
 
             NavigationStack {
-                WorldView(worldState: engine.worldState)
+                WorldView(worldState: viewModel.worldState)
             }
             .tabItem {
                 Label("World", systemImage: "map.fill")
@@ -58,7 +58,7 @@ struct ContentView: View {
 
     @ViewBuilder
     private var availabilityBadge: some View {
-        switch engine.availability {
+        switch viewModel.availability {
         case .available:
             Label(L10n.onDevice, systemImage: "bolt.fill")
                 .foregroundStyle(.green)

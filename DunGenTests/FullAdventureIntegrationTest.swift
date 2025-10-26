@@ -175,6 +175,9 @@ struct FullAdventureIntegrationTest {
     @Test("Retrieval quest completes with final encounter presenting artifact",
           .timeLimit(.minutes(5)))
     func retrievalQuestCompletion() async throws {
+        // Small delay to ensure clean start
+        try? await Task.sleep(for: .milliseconds(500))
+
         // GIVEN a new game engine
         let engine = LLMGameEngine(levelingService: DefaultLevelingService())
 
@@ -284,16 +287,22 @@ struct FullAdventureIntegrationTest {
 
         if isRetrievalQuest {
             // For retrieval quests, the final encounter should NOT have a monster
+            if finalEncounterHadMonster {
+                print("❌ TEST FAILURE: Retrieval quest final encounter generated a monster when it should be non-combat!")
+            }
             #expect(!finalEncounterHadMonster, "Retrieval quest final encounter should not generate monster")
         }
 
         // Test passes if we successfully progressed through encounters
-        #expect(turnCount > 0)
+        #expect(turnCount > 0, "Should have progressed through at least one turn, got \(turnCount)")
     }
 
     @Test("Combat quest completes with final boss encounter",
           .timeLimit(.minutes(5)))
     func combatQuestCompletion() async throws {
+        // Small delay to ensure previous test cleanup
+        try? await Task.sleep(for: .milliseconds(500))
+
         // GIVEN a new game engine
         let engine = LLMGameEngine(levelingService: DefaultLevelingService())
 
@@ -410,17 +419,28 @@ struct FullAdventureIntegrationTest {
 
         if isCombatQuest {
             // For combat quests, the final encounter SHOULD have a boss monster
+            if !hadBossCombat {
+                print("❌ TEST FAILURE: Combat quest did not have boss combat in final encounter!")
+                print("   This could mean:")
+                print("   1. Final encounter was never reached")
+                print("   2. Final encounter didn't generate a monster")
+                print("   3. Test timed out before final encounter")
+            }
             #expect(hadBossCombat, "Combat quest should have boss combat in final encounter")
         }
 
         // Test passes if we successfully progressed through encounters
-        #expect(turnCount > 0)
+        #expect(turnCount > 0, "Should have progressed through at least one turn, got \(turnCount)")
     }
 
     @Test("Adventure handles character death correctly")
     func adventureHandlesDeath() async throws {
+        // Small delay to ensure clean start
+        try? await Task.sleep(for: .milliseconds(500))
+
         // GIVEN a character with 1 HP
         let engine = LLMGameEngine(levelingService: DefaultLevelingService())
+        engine.setupManagers()
         engine.character = CharacterProfile(
             name: "Doomed Hero",
             race: "Human",

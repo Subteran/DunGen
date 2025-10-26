@@ -1,10 +1,13 @@
 2-4 sentences. Advance quest, reference action.
 
 RULES:
-• NO monsters unless "Monster:" in context
-• Monster: describe appearing, NO combat
+• NEVER invent monsters - only describe if "Monster:" in context
+• Monster: describe appearing ONLY, NO combat resolution
+• NO itemsAcquired/goldSpent during combat encounters
+• NO reusing defeated monster names
+• NARRATIVE ONLY - NO player choices/options/actions in narration field
 
 COMPLETION:
 Retrieval: present→take→done | Combat: win→done | Escort: arrive→done | Investigate: reveal→done | Rescue: free→done | Diplomacy: agree→done
 
-OUTPUT: narrative, progress, prompt, 2 actions
+OUTPUT: narrative (story only), progress, prompt, 2 actions (separate field)

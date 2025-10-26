@@ -7,7 +7,7 @@ struct MockGameEngineTests {
 
     @Test("MockGameEngine starts with mock data")
     func testMockMode() async throws {
-        let engine = MockGameEngine(mode: .mock)
+        let engine = MockGameEngine()
 
         #expect(engine.character != nil)
         #expect(engine.character?.name == "Test Hero")
@@ -17,9 +17,9 @@ struct MockGameEngineTests {
         #expect(engine.log.first?.content.contains("mock") == true)
     }
 
-    @Test("MockGameEngine can submit player actions in mock mode")
+    @Test("MockGameEngine can submit player actions")
     func testMockModeSubmitPlayer() async throws {
-        let engine = MockGameEngine(mode: .mock)
+        let engine = MockGameEngine()
 
         let initialLogCount = engine.log.count
         await engine.submitPlayer(input: "explore the village")
@@ -29,33 +29,9 @@ struct MockGameEngineTests {
         #expect(engine.lastSubmittedInput == "explore the village")
     }
 
-    @Test("MockGameEngine can use LLM mode", .enabled(if: isLLMAvailable()))
-    func testLLMMode() async throws {
-        let engine = MockGameEngine(mode: .llm)
-
-        await engine.startNewGame(preferredType: .outdoor, usedNames: [])
-
-        #expect(engine.character != nil)
-        #expect(engine.worldState != nil)
-        #expect(engine.log.count > 0)
-    }
-
-    @Test("MockGameEngine can submit player actions in LLM mode", .enabled(if: isLLMAvailable()))
-    func testLLMModeSubmitPlayer() async throws {
-        let engine = MockGameEngine(mode: .llm)
-
-        await engine.startNewGame(preferredType: .outdoor, usedNames: [])
-
-        let initialLogCount = engine.log.count
-        await engine.submitPlayer(input: "look around")
-
-        #expect(engine.log.count > initialLogCount)
-        #expect(engine.submitPlayerCallCount == 1)
-    }
-
-    @Test("MockGameEngine tracks call counts in both modes")
+    @Test("MockGameEngine tracks call counts")
     func testCallCounting() async throws {
-        let mockEngine = MockGameEngine(mode: .mock)
+        let mockEngine = MockGameEngine()
         await mockEngine.startNewGame(preferredType: .village, usedNames: [])
         await mockEngine.submitPlayer(input: "test")
 
@@ -64,10 +40,3 @@ struct MockGameEngineTests {
     }
 }
 
-private func isLLMAvailable() -> Bool {
-    #if targetEnvironment(simulator)
-    return false
-    #else
-    return true
-    #endif
-}

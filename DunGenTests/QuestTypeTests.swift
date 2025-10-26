@@ -9,7 +9,7 @@ struct QuestTypeTests {
 
     @Test("Retrieval quest completes in mock mode")
     func testRetrievalQuestMock() async throws {
-        let engine = MockGameEngine(mode: .mock)
+        let engine = MockGameEngine()
 
         engine.adventureProgress = AdventureProgress(
             locationName: "Ancient Temple",
@@ -27,11 +27,13 @@ struct QuestTypeTests {
         #expect(engine.submitPlayerCallCount == 1)
     }
 
-    @Test("Retrieval quest completes in LLM mode", .enabled(if: isLLMAvailable()))
+    @Test("Retrieval quest completes with LLM", .enabled(if: isLLMAvailable()))
     func testRetrievalQuestLLM() async throws {
-        let engine = MockGameEngine(mode: .llm)
+        try? await Task.sleep(for: .milliseconds(500))
+        let engine = LLMGameEngine(disablePersistence: true)
+        engine.setupManagers()
 
-        await engine.startNewGame(preferredType: .dungeon, usedNames: [])
+        await setupGameWithAdventure(engine: engine, preferredType: .dungeon)
 
         guard var progress = engine.adventureProgress else {
             throw TestError.noAdventureProgress
@@ -51,7 +53,7 @@ struct QuestTypeTests {
 
     @Test("Combat quest requires defeating boss in mock mode")
     func testCombatQuestMock() async throws {
-        let engine = MockGameEngine(mode: .mock)
+        let engine = MockGameEngine()
 
         engine.adventureProgress = AdventureProgress(
             locationName: "Dark Lair",
@@ -89,9 +91,11 @@ struct QuestTypeTests {
 
     @Test("Combat quest with boss in LLM mode", .enabled(if: isLLMAvailable()))
     func testCombatQuestLLM() async throws {
-        let engine = MockGameEngine(mode: .llm)
+        try? await Task.sleep(for: .milliseconds(500))
+        let engine = LLMGameEngine(disablePersistence: true)
+        engine.setupManagers()
 
-        await engine.startNewGame(preferredType: .dungeon, usedNames: [])
+        await setupGameWithAdventure(engine: engine, preferredType: .dungeon)
 
         guard var progress = engine.adventureProgress else {
             throw TestError.noAdventureProgress
@@ -110,7 +114,7 @@ struct QuestTypeTests {
 
     @Test("Escort quest completes safely in mock mode")
     func testEscortQuestMock() async throws {
-        let engine = MockGameEngine(mode: .mock)
+        let engine = MockGameEngine()
 
         engine.adventureProgress = AdventureProgress(
             locationName: "Mountain Pass",
@@ -130,9 +134,11 @@ struct QuestTypeTests {
 
     @Test("Escort quest with combat threat in LLM mode", .enabled(if: isLLMAvailable()))
     func testEscortQuestWithCombatLLM() async throws {
-        let engine = MockGameEngine(mode: .llm)
+        try? await Task.sleep(for: .milliseconds(500))
+        let engine = LLMGameEngine(disablePersistence: true)
+        engine.setupManagers()
 
-        await engine.startNewGame(preferredType: .outdoor, usedNames: [])
+        await setupGameWithAdventure(engine: engine, preferredType: .outdoor)
 
         guard var progress = engine.adventureProgress else {
             throw TestError.noAdventureProgress
@@ -151,7 +157,7 @@ struct QuestTypeTests {
 
     @Test("Investigation quest completes in mock mode")
     func testInvestigationQuestMock() async throws {
-        let engine = MockGameEngine(mode: .mock)
+        let engine = MockGameEngine()
 
         engine.adventureProgress = AdventureProgress(
             locationName: "Mystery Manor",
@@ -171,9 +177,11 @@ struct QuestTypeTests {
 
     @Test("Investigation quest in LLM mode", .enabled(if: isLLMAvailable()))
     func testInvestigationQuestLLM() async throws {
-        let engine = MockGameEngine(mode: .llm)
+        try? await Task.sleep(for: .milliseconds(500))
+        let engine = LLMGameEngine(disablePersistence: true)
+        engine.setupManagers()
 
-        await engine.startNewGame(preferredType: .city, usedNames: [])
+        await setupGameWithAdventure(engine: engine, preferredType: .city)
 
         guard var progress = engine.adventureProgress else {
             throw TestError.noAdventureProgress
@@ -192,7 +200,7 @@ struct QuestTypeTests {
 
     @Test("Rescue quest with combat in mock mode")
     func testRescueQuestCombatMock() async throws {
-        let engine = MockGameEngine(mode: .mock)
+        let engine = MockGameEngine()
 
         engine.adventureProgress = AdventureProgress(
             locationName: "Bandit Hideout",
@@ -229,7 +237,7 @@ struct QuestTypeTests {
 
     @Test("Rescue quest peaceful resolution in mock mode")
     func testRescueQuestPeacefulMock() async throws {
-        let engine = MockGameEngine(mode: .mock)
+        let engine = MockGameEngine()
 
         engine.adventureProgress = AdventureProgress(
             locationName: "Old Mill",
@@ -248,9 +256,11 @@ struct QuestTypeTests {
 
     @Test("Rescue quest in LLM mode", .enabled(if: isLLMAvailable()))
     func testRescueQuestLLM() async throws {
-        let engine = MockGameEngine(mode: .llm)
+        try? await Task.sleep(for: .milliseconds(500))
+        let engine = LLMGameEngine(disablePersistence: true)
+        engine.setupManagers()
 
-        await engine.startNewGame(preferredType: .outdoor, usedNames: [])
+        await setupGameWithAdventure(engine: engine, preferredType: .outdoor)
 
         guard var progress = engine.adventureProgress else {
             throw TestError.noAdventureProgress
@@ -269,7 +279,7 @@ struct QuestTypeTests {
 
     @Test("Diplomatic quest completes in mock mode")
     func testDiplomaticQuestMock() async throws {
-        let engine = MockGameEngine(mode: .mock)
+        let engine = MockGameEngine()
 
         engine.adventureProgress = AdventureProgress(
             locationName: "Neutral Ground",
@@ -289,9 +299,11 @@ struct QuestTypeTests {
 
     @Test("Diplomatic quest in LLM mode", .enabled(if: isLLMAvailable()))
     func testDiplomaticQuestLLM() async throws {
-        let engine = MockGameEngine(mode: .llm)
+        try? await Task.sleep(for: .milliseconds(500))
+        let engine = LLMGameEngine(disablePersistence: true)
+        engine.setupManagers()
 
-        await engine.startNewGame(preferredType: .city, usedNames: [])
+        await setupGameWithAdventure(engine: engine, preferredType: .city)
 
         guard var progress = engine.adventureProgress else {
             throw TestError.noAdventureProgress
@@ -310,7 +322,7 @@ struct QuestTypeTests {
 
     @Test("Retrieval quest awards appropriate rewards in mock mode")
     func testRetrievalRewardsMock() async throws {
-        let engine = MockGameEngine(mode: .mock)
+        let engine = MockGameEngine()
         let initialXP = engine.character?.xp ?? 0
         let initialGold = engine.character?.gold ?? 0
 
@@ -332,7 +344,7 @@ struct QuestTypeTests {
 
     @Test("Combat quest awards higher rewards in mock mode")
     func testCombatRewardsMock() async throws {
-        let engine = MockGameEngine(mode: .mock)
+        let engine = MockGameEngine()
         let initialXP = engine.character?.xp ?? 0
 
         engine.adventureProgress = AdventureProgress(
@@ -371,7 +383,7 @@ struct QuestTypeTests {
 
     @Test("Investigation quest awards no HP loss in mock mode")
     func testInvestigationNoHPLossMock() async throws {
-        let engine = MockGameEngine(mode: .mock)
+        let engine = MockGameEngine()
         let initialHP = engine.character?.hp ?? 0
 
         engine.adventureProgress = AdventureProgress(
@@ -387,6 +399,20 @@ struct QuestTypeTests {
         await engine.submitPlayer(input: "solve the mystery")
 
         #expect(engine.character?.hp ?? 0 >= initialHP)
+    }
+}
+
+@MainActor
+private func setupGameWithAdventure(engine: LLMGameEngine, preferredType: AdventureType) async {
+    engine.checkAvailabilityAndConfigure()
+    await engine.startNewGame(preferredType: preferredType, usedNames: [])
+
+    if engine.awaitingWorldContinue {
+        await engine.continueNewGame(usedNames: [])
+    }
+
+    if engine.awaitingLocationSelection, let firstLocation = engine.worldState?.locations.first {
+        await engine.submitPlayer(input: firstLocation.name)
     }
 }
 

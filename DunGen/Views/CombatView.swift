@@ -135,7 +135,7 @@ struct CombatView: View {
                                 Button {
                                     onAction(.useItem(item.fullName))
                                 } label: {
-                                    ActionButton(title: item.fullName, subtitle: itemEffect(item), color: .green)
+                                    ActionButton(title: item.displayName, subtitle: itemEffect(item), color: .green)
                                 }
                             }
                         }

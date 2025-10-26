@@ -182,7 +182,7 @@ struct CharacterView: View {
                         HStack {
                             Image(systemName: itemIcon(for: item.itemType))
                                 .foregroundStyle(rarityColor(for: item.rarity))
-                            Text(item.fullName)
+                            Text(item.displayName)
                                 .foregroundStyle(.primary)
                             Spacer()
                             Image(systemName: "chevron.right")

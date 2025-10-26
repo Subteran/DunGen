@@ -37,8 +37,7 @@ struct GameLogEntry: Identifiable, Equatable, Codable {
     }
 }
 
-@MainActor
-protocol GameEngine: AnyObject, Observable {
+protocol GameEngine: AnyObject {
     var log: [GameLogEntry] { get }
     var character: CharacterProfile? { get set }
     var adventureProgress: AdventureProgress? { get set }
@@ -46,6 +45,8 @@ protocol GameEngine: AnyObject, Observable {
     var currentLocation: AdventureType { get set }
     var availability: LLMGameEngine.AvailabilityState { get }
     var detailedInventory: [ItemDefinition] { get set }
+
+    var delegate: GameEngineDelegate? { get set }
 
     var awaitingLocationSelection: Bool { get set }
     var awaitingWorldContinue: Bool { get set }
@@ -65,6 +66,13 @@ protocol GameEngine: AnyObject, Observable {
     var pendingTransaction: PendingTransaction? { get set }
 
     var combatManager: CombatManager { get }
+
+    var adventuresCompleted: Int { get set }
+    var itemsCollected: Int { get set }
+    var totalMonstersDefeated: Int { get set }
+    var totalXPEarned: Int { get set }
+    var totalGoldEarned: Int { get set }
+    var gameStartTime: Date? { get set }
 
     func startNewGame(preferredType: AdventureType?, usedNames: [String]) async
     func continueNewGame(usedNames: [String]) async

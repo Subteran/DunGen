@@ -1,0 +1,71 @@
+Command line invocation:
+    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild test -scheme DunGen -destination "platform=iOS Simulator,name=iPhone 16,OS=latest" "-only-testing:DunGenTests/PlayDataGenerationExample/testSingleAdventure"
+
+--- xcodebuild: WARNING: Using the first of multiple matching destinations:
+{ platform:iOS Simulator, arch:arm64, id:BA3B5A2D-CA16-445B-93D9-F13D47F558B0, OS:26.0.1, name:iPhone 16 }
+{ platform:iOS Simulator, arch:x86_64, id:BA3B5A2D-CA16-445B-93D9-F13D47F558B0, OS:26.0.1, name:iPhone 16 }
+ComputePackagePrebuildTargetDependencyGraph
+
+Prepare packages
+
+CreateBuildRequest
+
+SendProjectDescription
+
+CreateBuildOperation
+
+ComputeTargetDependencyGraph
+note: Building targets in dependency order
+note: Target dependency graph (2 targets)
+    Target 'DunGenTests' in project 'DunGen'
+        ➜ Explicit dependency on target 'DunGen' in project 'DunGen'
+    Target 'DunGen' in project 'DunGen' (no dependencies)
+
+GatherProvisioningInputs
+
+CreateBuildDescription
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -v -E -dM -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.0.sdk -x c -c /dev/null
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc --version
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/usr/bin/actool --print-asset-tag-combinations --output-format xml1 /Users/giant/Projects/DunGen/DunGen/Resources/Assets.xcassets
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld -version_details
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/usr/bin/actool --version --output-format xml1
+
+Build description signature: 0a2eccc5b969b7d60c2d644cf3a5400b
+Build description path: /Users/giant/Library/Developer/Xcode/DerivedData/DunGen-arbviviwwedmvugoortpzrtxhvxm/Build/Intermediates.noindex/XCBuildData/0a2eccc5b969b7d60c2d644cf3a5400b.xcbuilddata
+ClangStatCache /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.0.sdk /Users/giant/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphonesimulator26.0-23A339-3885c01c3e6b6a337905948deab2002e26257891a6c027eb51374368541b8346.sdkstatcache
+    cd /Users/giant/Projects/DunGen/DunGen.xcodeproj
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.0.sdk -o /Users/giant/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphonesimulator26.0-23A339-3885c01c3e6b6a337905948deab2002e26257891a6c027eb51374368541b8346.sdkstatcache
+
+CopySwiftLibs /Users/giant/Library/Developer/Xcode/DerivedData/DunGen-arbviviwwedmvugoortpzrtxhvxm/Build/Products/Debug-iphonesimulator/DunGen.app (in target 'DunGen' from project 'DunGen')
+    cd /Users/giant/Projects/DunGen
+    builtin-swiftStdLibTool --copy --verbose --sign - --scan-executable /Users/giant/Library/Developer/Xcode/DerivedData/DunGen-arbviviwwedmvugoortpzrtxhvxm/Build/Products/Debug-iphonesimulator/DunGen.app/DunGen.debug.dylib --scan-folder /Users/giant/Library/Developer/Xcode/DerivedData/DunGen-arbviviwwedmvugoortpzrtxhvxm/Build/Products/Debug-iphonesimulator/DunGen.app/Frameworks --scan-folder /Users/giant/Library/Developer/Xcode/DerivedData/DunGen-arbviviwwedmvugoortpzrtxhvxm/Build/Products/Debug-iphonesimulator/DunGen.app/PlugIns --scan-folder /Users/giant/Library/Developer/Xcode/DerivedData/DunGen-arbviviwwedmvugoortpzrtxhvxm/Build/Products/Debug-iphonesimulator/DunGen.app/SystemExtensions --scan-folder /Users/giant/Library/Developer/Xcode/DerivedData/DunGen-arbviviwwedmvugoortpzrtxhvxm/Build/Products/Debug-iphonesimulator/DunGen.app/Extensions --platform iphonesimulator --toolchain /var/run/com.apple.security.cryptexd/mnt/com.apple.MobileAsset.MetalToolchain-v17.1.324.0.vcCLQm/Metal.xctoolchain --toolchain /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --destination /Users/giant/Library/Developer/Xcode/DerivedData/DunGen-arbviviwwedmvugoortpzrtxhvxm/Build/Products/Debug-iphonesimulator/DunGen.app/Frameworks --strip-bitcode --strip-bitcode-tool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/bitcode_strip --emit-dependency-info /Users/giant/Library/Developer/Xcode/DerivedData/DunGen-arbviviwwedmvugoortpzrtxhvxm/Build/Intermediates.noindex/DunGen.build/Debug-iphonesimulator/DunGen.build/SwiftStdLibToolInputDependencies.dep --filter-for-swift-os
+
+ProcessInfoPlistFile /Users/giant/Library/Developer/Xcode/DerivedData/DunGen-arbviviwwedmvugoortpzrtxhvxm/Build/Products/Debug-iphonesimulator/DunGen.app/Info.plist /Users/giant/Library/Developer/Xcode/DerivedData/DunGen-arbviviwwedmvugoortpzrtxhvxm/Build/Intermediates.noindex/DunGen.build/Debug-iphonesimulator/DunGen.build/empty-DunGen.plist (in target 'DunGen' from project 'DunGen')
+    cd /Users/giant/Projects/DunGen
+    builtin-infoPlistUtility /Users/giant/Library/Developer/Xcode/DerivedData/DunGen-arbviviwwedmvugoortpzrtxhvxm/Build/Intermediates.noindex/DunGen.build/Debug-iphonesimulator/DunGen.build/empty-DunGen.plist -producttype com.apple.product-type.application -genpkginfo /Users/giant/Library/Developer/Xcode/DerivedData/DunGen-arbviviwwedmvugoortpzrtxhvxm/Build/Products/Debug-iphonesimulator/DunGen.app/PkgInfo -expandbuildsettings -format binary -platform iphonesimulator -additionalcontentfile /Users/giant/Library/Developer/Xcode/DerivedData/DunGen-arbviviwwedmvugoortpzrtxhvxm/Build/Intermediates.noindex/DunGen.build/Debug-iphonesimulator/DunGen.build/assetcatalog_generated_info.plist -o /Users/giant/Library/Developer/Xcode/DerivedData/DunGen-arbviviwwedmvugoortpzrtxhvxm/Build/Products/Debug-iphonesimulator/DunGen.app/Info.plist
+
+ProcessInfoPlistFile /Users/giant/Library/Developer/Xcode/DerivedData/DunGen-arbviviwwedmvugoortpzrtxhvxm/Build/Products/Debug-iphonesimulator/DunGen.app/PlugIns/DunGenTests.xctest/Info.plist /Users/giant/Library/Developer/Xcode/DerivedData/DunGen-arbviviwwedmvugoortpzrtxhvxm/Build/Intermediates.noindex/DunGen.build/Debug-iphonesimulator/DunGenTests.build/empty-DunGenTests.plist (in target 'DunGenTests' from project 'DunGen')
+    cd /Users/giant/Projects/DunGen
+    builtin-infoPlistUtility /Users/giant/Library/Developer/Xcode/DerivedData/DunGen-arbviviwwedmvugoortpzrtxhvxm/Build/Intermediates.noindex/DunGen.build/Debug-iphonesimulator/DunGenTests.build/empty-DunGenTests.plist -producttype com.apple.product-type.bundle.unit-test -expandbuildsettings -format binary -platform iphonesimulator -o /Users/giant/Library/Developer/Xcode/DerivedData/DunGen-arbviviwwedmvugoortpzrtxhvxm/Build/Products/Debug-iphonesimulator/DunGen.app/PlugIns/DunGenTests.xctest/Info.plist
+
+CopySwiftLibs /Users/giant/Library/Developer/Xcode/DerivedData/DunGen-arbviviwwedmvugoortpzrtxhvxm/Build/Products/Debug-iphonesimulator/DunGen.app/PlugIns/DunGenTests.xctest (in target 'DunGenTests' from project 'DunGen')
+    cd /Users/giant/Projects/DunGen
+    builtin-swiftStdLibTool --copy --verbose --sign - --scan-executable /Users/giant/Library/Developer/Xcode/DerivedData/DunGen-arbviviwwedmvugoortpzrtxhvxm/Build/Products/Debug-iphonesimulator/DunGen.app/PlugIns/DunGenTests.xctest/DunGenTests --scan-folder /Users/giant/Library/Developer/Xcode/DerivedData/DunGen-arbviviwwedmvugoortpzrtxhvxm/Build/Products/Debug-iphonesimulator/DunGen.app/PlugIns/DunGenTests.xctest/Frameworks --scan-folder /Users/giant/Library/Developer/Xcode/DerivedData/DunGen-arbviviwwedmvugoortpzrtxhvxm/Build/Products/Debug-iphonesimulator/DunGen.app/PlugIns/DunGenTests.xctest/PlugIns --scan-folder /Users/giant/Library/Developer/Xcode/DerivedData/DunGen-arbviviwwedmvugoortpzrtxhvxm/Build/Products/Debug-iphonesimulator/DunGen.app/PlugIns/DunGenTests.xctest/SystemExtensions --scan-folder /Users/giant/Library/Developer/Xcode/DerivedData/DunGen-arbviviwwedmvugoortpzrtxhvxm/Build/Products/Debug-iphonesimulator/DunGen.app/PlugIns/DunGenTests.xctest/Extensions --platform iphonesimulator --toolchain /var/run/com.apple.security.cryptexd/mnt/com.apple.MobileAsset.MetalToolchain-v17.1.324.0.vcCLQm/Metal.xctoolchain --toolchain /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --destination /Users/giant/Library/Developer/Xcode/DerivedData/DunGen-arbviviwwedmvugoortpzrtxhvxm/Build/Products/Debug-iphonesimulator/DunGen.app/PlugIns/DunGenTests.xctest/Frameworks --strip-bitcode --scan-executable /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/lib/libXCTestSwiftSupport.dylib --strip-bitcode-tool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/bitcode_strip --emit-dependency-info /Users/giant/Library/Developer/Xcode/DerivedData/DunGen-arbviviwwedmvugoortpzrtxhvxm/Build/Intermediates.noindex/DunGen.build/Debug-iphonesimulator/DunGenTests.build/SwiftStdLibToolInputDependencies.dep --filter-for-swift-os
+
+2025-10-24 06:42:29.409 xcodebuild[37821:544300] [MT] IDETestOperationsObserverDebug: 26.772 elapsed -- Testing started completed.
+2025-10-24 06:42:29.409 xcodebuild[37821:544300] [MT] IDETestOperationsObserverDebug: 0.000 sec, +0.000 sec -- start
+2025-10-24 06:42:29.409 xcodebuild[37821:544300] [MT] IDETestOperationsObserverDebug: 26.772 sec, +26.772 sec -- end
+
+Test session results, code coverage, and logs:
+	/Users/giant/Library/Developer/Xcode/DerivedData/DunGen-arbviviwwedmvugoortpzrtxhvxm/Logs/Test/Test-DunGen-2025.10.24_06-41-57--0700.xcresult
+
+** TEST SUCCEEDED **
+
+Testing started
+Test suite 'PlayDataGenerationExample' started on 'Clone 1 of iPhone 16 - DunGen (38141)'
+Test suite 'PlayDataGenerationExample' started on 'Clone 1 of iPhone 16 - DunGen (38141)'
