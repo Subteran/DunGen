@@ -9,16 +9,16 @@ final class QuestProgressManager {
         let nextEncounter = adventure.currentEncounter + 1
 
         if adventure.completed {
-            return "\nQUEST COMPLETED: The quest '\(adventure.questGoal)' has been achieved. Wrap up the scene briefly - the adventure is complete."
+            return "\n✓ QUEST DONE: '\(adventure.questGoal)' achieved. Wrap up briefly."
         }
 
         var guidance = ""
         let progressPercent = Double(nextEncounter) / Double(adventure.totalEncounters)
 
         if progressPercent <= 0.4 {
-            guidance += "\nQUEST STAGE - EARLY: Introduce clues, NPCs, or hints related to '\(adventure.questGoal)'. Establish what stands between the player and their goal."
+            guidance += "\nSTAGE-EARLY: Intro clues/NPCs/hints for '\(adventure.questGoal)'. Show obstacles."
         } else if progressPercent <= 0.85 {
-            guidance += "\nQUEST STAGE - MIDDLE: Directly advance toward '\(adventure.questGoal)'. If the quest is 'retrieve X', mention seeing/finding X or its location. If 'defeat Y', introduce Y or their lair. Make tangible progress."
+            guidance += "\nSTAGE-MID: Advance '\(adventure.questGoal)'. Retrieval: show item/location. Combat: show boss/lair. Make progress."
         }
 
         if nextEncounter >= adventure.totalEncounters {
@@ -35,29 +35,29 @@ final class QuestProgressManager {
         let completionInstructions = determineCompletionInstructions(for: questLower)
 
         if encountersOver == 0 {
-            return "\nCRITICAL - FINAL ENCOUNTER: This is encounter \(nextEncounter)/\(adventure.totalEncounters) - the planned final encounter. Quest: '\(adventure.questGoal)'. \(completionInstructions) DO NOT set completed=true unless the player's action actually completes the objective."
+            return "\n⚠ FINAL ENC: \(nextEncounter)/\(adventure.totalEncounters). Quest: '\(adventure.questGoal)'. \(completionInstructions) Only completed=true if action completes goal."
         } else if encountersOver < 3 {
-            return "\nCRITICAL - EXTENDED FINALE: This is encounter \(nextEncounter)/\(adventure.totalEncounters) (extra turn \(encountersOver)/3). Quest: '\(adventure.questGoal)'. \(completionInstructions) After 3 extra encounters, the quest will fail."
+            return "\n⚠ FINALE+\(encountersOver): \(nextEncounter)/\(adventure.totalEncounters). Quest: '\(adventure.questGoal)'. \(completionInstructions) 3 extra max or fail."
         } else {
-            return "\nCRITICAL - FINAL CHANCE: This is encounter \(nextEncounter)/\(adventure.totalEncounters) (final extra turn 3/3). This is the LAST opportunity to complete '\(adventure.questGoal)'. \(completionInstructions) If not completed this turn, the quest fails."
+            return "\n⚠ LAST CHANCE: \(nextEncounter)/\(adventure.totalEncounters) (3/3 extra). FINAL chance for '\(adventure.questGoal)'. \(completionInstructions) Fail if not done now."
         }
     }
 
     private func determineCompletionInstructions(for questLower: String) -> String {
         if questLower.contains("find") || questLower.contains("retrieve") || questLower.contains("locate") || questLower.contains("discover") {
-            return "Present the artifact/item. Mark completed=true when player takes/claims it."
+            return "Show artifact. completed=true when taken."
         } else if questLower.contains("defeat") || questLower.contains("kill") || questLower.contains("destroy") || questLower.contains("stop") || questLower.contains("eliminate") {
-            return "Boss fight handled by combat system. Mark completed=true when combat is won."
+            return "Boss fight via combat. completed=true on win."
         } else if questLower.contains("escort") || questLower.contains("protect") || questLower.contains("guide") {
-            return "Present the destination or final threat. Mark completed=true when destination reached or threat defeated."
+            return "Show destination/threat. completed=true on reach/defeat."
         } else if questLower.contains("investigate") || questLower.contains("solve") || questLower.contains("uncover") {
-            return "Reveal the solution/truth. Mark completed=true when player acknowledges/understands the answer."
+            return "Show solution. completed=true on acknowledgment."
         } else if questLower.contains("rescue") || questLower.contains("save") || questLower.contains("free") {
-            return "Present captive/prisoner. Mark completed=true when freed (combat win or unlock action)."
+            return "Show captive. completed=true on free (win/unlock)."
         } else if questLower.contains("negotiate") || questLower.contains("persuade") || questLower.contains("convince") || questLower.contains("diplomacy") {
-            return "Present key NPC for negotiation. Mark completed=true when agreement reached."
+            return "Show NPC. completed=true on agreement."
         } else {
-            return "Present quest objective. Mark completed=true when player's action achieves the goal."
+            return "Show objective. completed=true on achievement."
         }
     }
 

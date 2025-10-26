@@ -59,6 +59,9 @@ struct GameState: Codable, Equatable {
     var lastEncounter: String?
     var encountersSinceLastTrap: Int?
 
+    // Quest type tracking for variety enforcement
+    var recentQuestTypes: [String]?
+
     struct SavedLogEntry: Codable, Equatable, Identifiable {
         let id: UUID
         let content: String
@@ -160,7 +163,8 @@ extension LLMGameEngine {
             awaitingWorldContinue: awaitingWorldContinue,
             encounterCounts: encounterCounts,
             lastEncounter: lastEncounter,
-            encountersSinceLastTrap: encountersSinceLastTrap
+            encountersSinceLastTrap: encountersSinceLastTrap,
+            recentQuestTypes: recentQuestTypes
         )
 
         do {
@@ -247,6 +251,7 @@ extension LLMGameEngine {
                 self.encounterCounts = state.encounterCounts ?? [:]
                 self.lastEncounter = state.lastEncounter
                 self.encountersSinceLastTrap = state.encountersSinceLastTrap ?? 0
+                self.recentQuestTypes = state.recentQuestTypes ?? []
 
                 // Check if character died before save
                 if let char = state.character, char.hp <= 0 {

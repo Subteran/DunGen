@@ -23,6 +23,7 @@ DunGen is an iOS 26 fantasy RPG text adventure game that uses Apple's on-device 
 - **Starting inventory**: 3 Healing Potions (2-5 HP) + 3 Bandages (1-3 HP) for survivability (displayed as stacked items with quantity)
 - **HP regeneration**: +1 HP per non-damaging encounter when below max
 - **Encounter variety enforcement**: No consecutive combat, 3+ encounters between traps
+- **Quest variety enforcement**: Tracks last 5 completed quest types (combat, retrieval, escort, investigation, rescue, diplomatic), passes to Adventure LLM to avoid repetition
 - **Social encounter rewards**: 2-5 XP for meaningful conversations, no HP/gold rewards
 - **Level-scaled trap damage**: 1-2 HP at level 1-2, scaling to 5-10 HP at level 10+
 - **Combat damage**: Monster attacks deal 2-8 HP damage
@@ -404,11 +405,25 @@ Used for locations, NPCs, abilities/spells:
 - Recent affixes only (last 10)
 
 **Smart Truncation Strategy:**
-- Max prompt length: 500 characters (reduced to fit within model's strict context limit)
-- Preserves ONLY: "CRITICAL", "QUEST STAGE", short "quest:", "location:", "encounter:" lines
-- Drops ALL: character stats, history, monster details, abilities, recent actions
-- Final fallback: preserve last 350 chars (critical instructions only)
-- Ensures quest completion and combat instructions never get cut off
+- Max prompt length: 600 characters (reduced to fit within model's strict context limit)
+- **Tier 1 Priority** (always preserved):
+  - CRITICAL instructions (combat/quest completion rules)
+  - QUEST STAGE (early/middle/finale guidance)
+  - NEW ADVENTURE (signals fresh quest generation)
+  - AVOID RECENT QUEST TYPES (quest variety enforcement)
+  - Player action (current user input)
+  - Encounter type (combat/social/exploration/etc.)
+- **Tier 2 Priority** (preserved if space allows):
+  - Quest goal (if <120 chars)
+  - Location (if <50 chars)
+  - Character stats (if <80 chars)
+  - Monster info (always kept)
+  - NPC info (always kept)
+- **Tier 3 - Dropped** (nice-to-have context):
+  - Recent actions history
+  - Encounter count statistics
+  - Long descriptions
+- Ensures quest completion, variety, and combat instructions never get cut off
 
 ## State Management
 

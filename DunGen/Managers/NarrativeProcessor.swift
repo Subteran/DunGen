@@ -58,13 +58,15 @@ final class NarrativeProcessor {
         for line in lines {
             let lineLower = line.lowercased()
 
-            let mustKeep = lineLower.contains("critical") ||
-                          lineLower.contains("quest stage") ||
-                          lineLower.contains("player action:") ||
+            let mustKeep = lineLower.contains("⚠") ||
+                          lineLower.contains("stage-") ||
+                          lineLower.contains("action:") ||
+                          lineLower.contains("new adventure") ||
+                          lineLower.contains("avoid quest types") ||
                           (lineLower.contains("quest:") && line.count < 120) ||
-                          (lineLower.contains("location:") && line.count < 50) ||
-                          (lineLower.contains("encounter:") && line.count < 50) ||
-                          (lineLower.contains("character:") && line.count < 80) ||
+                          (lineLower.contains("loc:") && line.count < 50) ||
+                          (lineLower.contains("enc:") && line.count < 50) ||
+                          (lineLower.contains("char:") && line.count < 80) ||
                           (lineLower.starts(with: "hp:") || lineLower.contains(" hp:")) ||
                           lineLower.contains("monster:") ||
                           lineLower.contains("npc:")
@@ -83,10 +85,12 @@ final class NarrativeProcessor {
 
             for line in result {
                 let lineLower = line.lowercased()
-                if lineLower.contains("encounter:") ||
-                   lineLower.contains("critical") ||
-                   lineLower.contains("quest stage") ||
-                   lineLower.contains("player action:") {
+                if lineLower.contains("enc:") ||
+                   lineLower.contains("⚠") ||
+                   lineLower.contains("stage-") ||
+                   lineLower.contains("new adventure") ||
+                   lineLower.contains("avoid quest types") ||
+                   lineLower.contains("action:") {
                     priorityLines.append(line)
                 } else {
                     otherLines.append(line)

@@ -18,7 +18,8 @@ struct ContextBuilder {
         difficulty: String? = nil,
         recentActions: String? = nil,
         encounterCounts: [String: Int]? = nil,
-        questGoal: String? = nil
+        questGoal: String? = nil,
+        recentQuestTypes: [String]? = nil
     ) -> String {
 
         switch specialist {
@@ -49,7 +50,8 @@ struct ContextBuilder {
                 encounterType: encounterType,
                 difficulty: difficulty,
                 recentActions: recentActions,
-                encounterCounts: encounterCounts
+                encounterCounts: encounterCounts,
+                recentQuestTypes: recentQuestTypes
             )
 
         case .equipment:
@@ -82,11 +84,11 @@ struct ContextBuilder {
         difficulty: String,
         characterLevel: Int
     ) -> String {
-        return "Location: \(location)\nDifficulty: \(difficulty)\nCharacter level: \(characterLevel)"
+        return "Loc: \(location)\nDiff: \(difficulty)\nLvl: \(characterLevel)"
     }
 
     private static func buildNPCContext(location: String, difficulty: String) -> String {
-        return "Location: \(location)\nDifficulty: \(difficulty)"
+        return "Loc: \(location)\nDiff: \(difficulty)"
     }
 
     private static func buildAdventureContext(
@@ -97,22 +99,25 @@ struct ContextBuilder {
         encounterType: String?,
         difficulty: String?,
         recentActions: String?,
-        encounterCounts: [String: Int]?
+        encounterCounts: [String: Int]?,
+        recentQuestTypes: [String]?
     ) -> String {
         var lines: [String] = []
 
         if let character = character {
-            lines.append("Character: \(character.name) Lvl\(characterLevel) \(character.className) HP:\(character.hp) Gold:\(character.gold)")
+            lines.append("Char: \(character.name) L\(characterLevel) \(character.className) HP:\(character.hp) G:\(character.gold)")
         }
 
-        lines.append("Location: \(location)")
+        lines.append("Loc: \(location)")
 
         if let adventure = adventure {
             lines.append("Quest: \(adventure.questGoal)")
+        } else {
+            lines.append("NEW ADVENTURE - Generate new quest goal for this location")
         }
 
         if let type = encounterType, let diff = difficulty {
-            lines.append("Encounter: \(type) (\(diff))")
+            lines.append("Enc: \(type) (\(diff))")
         }
 
         if let actions = recentActions, !actions.isEmpty {
@@ -124,7 +129,14 @@ struct ContextBuilder {
             let summary = counts.sorted { $0.value > $1.value }.prefix(3)
                 .map { "\($0.value) \($0.key)" }
                 .joined(separator: ", ")
-            lines.append("History: \(total) encounters (\(summary))")
+            lines.append("Hist: \(total) enc (\(summary))")
+        }
+
+        // Add recent quest types for new quest generation (only if no current quest)
+        if adventure == nil || adventure?.questGoal.isEmpty == true {
+            if let questTypes = recentQuestTypes, !questTypes.isEmpty {
+                lines.append("AVOID QUEST TYPES: \(questTypes.joined(separator: ", "))")
+            }
         }
 
         return lines.joined(separator: "\n")
@@ -135,6 +147,6 @@ struct ContextBuilder {
         characterClass: String,
         difficulty: String
     ) -> String {
-        return "Character: Lvl\(characterLevel) \(characterClass)\nDifficulty: \(difficulty)"
+        return "Char: L\(characterLevel) \(characterClass)\nDiff: \(difficulty)"
     }
 }

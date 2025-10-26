@@ -100,6 +100,31 @@ final class TurnProcessor {
         engine.appendModel("\n✅ Adventure Complete: \(finalProgress.locationName)")
         engine.adventuresCompleted += 1
 
+        // Track quest type for variety
+        let questValidator = QuestValidator()
+        let questType: String
+        if questValidator.isCombatQuest(questGoal: finalProgress.questGoal) {
+            questType = "combat"
+        } else if questValidator.isRetrievalQuest(questGoal: finalProgress.questGoal) {
+            questType = "retrieval"
+        } else if finalProgress.questGoal.lowercased().contains("escort") || finalProgress.questGoal.lowercased().contains("protect") {
+            questType = "escort"
+        } else if finalProgress.questGoal.lowercased().contains("investigate") || finalProgress.questGoal.lowercased().contains("solve") {
+            questType = "investigation"
+        } else if finalProgress.questGoal.lowercased().contains("rescue") || finalProgress.questGoal.lowercased().contains("save") {
+            questType = "rescue"
+        } else if finalProgress.questGoal.lowercased().contains("negotiate") || finalProgress.questGoal.lowercased().contains("diplomacy") {
+            questType = "diplomatic"
+        } else {
+            questType = "other"
+        }
+
+        engine.recentQuestTypes.append(questType)
+        if engine.recentQuestTypes.count > 5 {
+            engine.recentQuestTypes.removeFirst()
+        }
+        logger.info("[Quest] Completed quest type: \(questType). Recent types: \(engine.recentQuestTypes.joined(separator: ", "))")
+
         // Update lifetime stats
         engine.totalXPEarned += engine.currentAdventureXP
         engine.totalGoldEarned += engine.currentAdventureGold

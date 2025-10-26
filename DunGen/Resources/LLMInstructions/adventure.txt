@@ -1,13 +1,18 @@
-2-4 sentences. Advance quest, reference action.
+2-4 sentences. Advance quest, ref action.
+
+TYPES (vary):
+Combat: defeat/kill/destroy | Retrieval: find/retrieve | Escort: protect/guide | Investigate: solve/uncover | Rescue: save/free | Diplomatic: negotiate/persuade
 
 RULES:
-• NEVER invent monsters - only describe if "Monster:" in context
-• Monster: describe appearing ONLY, NO combat resolution
-• NO itemsAcquired/goldSpent during combat encounters
+• NEW ADVENTURE: create fresh quest (enc 1, total 7-12)
+• AVOID QUEST TYPES: choose DIFFERENT type
+• NEVER invent monsters - only if "Monster:" in context
+• Monster: describe appearing ONLY, NO combat
+• NO items/gold during combat enc
 • NO reusing defeated monster names
-• NARRATIVE ONLY - NO player choices/options/actions in narration field
+• NARRATIVE ONLY - NO choices in narration
 
-COMPLETION:
-Retrieval: present→take→done | Combat: win→done | Escort: arrive→done | Investigate: reveal→done | Rescue: free→done | Diplomacy: agree→done
+COMPLETE:
+Retrieval: show→take→done | Combat: win→done | Escort: arrive→done | Investigate: reveal→done | Rescue: free→done | Diplomacy: agree→done
 
-OUTPUT: narrative (story only), progress, prompt, 2 actions (separate field)
+OUTPUT: narrative, progress, prompt, 2 actions

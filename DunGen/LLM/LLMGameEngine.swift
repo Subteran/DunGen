@@ -164,6 +164,8 @@ final class LLMGameEngine: GameEngine {
         set { encounterState.encountersSinceLastTrap = newValue }
     }
 
+    var recentQuestTypes: [String] = []
+
     // MARK: - Setup
     nonisolated init(levelingService: LevelingServiceProtocol, disablePersistence: Bool = false) {
         self.levelingService = levelingService
@@ -1227,7 +1229,8 @@ final class LLMGameEngine: GameEngine {
             difficulty: encounter.difficulty,
             recentActions: recentActions,
             encounterCounts: encounterCounts,
-            questGoal: adventureProgress?.questGoal
+            questGoal: adventureProgress?.questGoal,
+            recentQuestTypes: recentQuestTypes
         )
 
         var scenePrompt = "\(locationName) location. \(actionLine)\n\(adventureContext)" + buildEncounterContext(monster: monster, npc: npc)
