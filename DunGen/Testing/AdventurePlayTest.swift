@@ -1,7 +1,8 @@
 import Foundation
 import OSLog
 
-actor AdventurePlayTest {
+@MainActor
+final class AdventurePlayTest {
     private let logger = Logger(subsystem: "com.logicchaos.DunGen", category: "AdventurePlayTest")
     private let gameplayLogger = GameplayLogger()
 
@@ -41,7 +42,7 @@ actor AdventurePlayTest {
         engine.checkAvailabilityAndConfigure()
 
         // Check LLM availability
-        let availability = await engine.availability
+        let availability = engine.availability
         guard case .available = availability else {
             logger.error("[PlayTest] LLM not available: \(String(describing: availability))")
             return failedResult(characterClass: characterClass, race: race, questType: questType)
@@ -49,7 +50,7 @@ actor AdventurePlayTest {
 
         await engine.startNewGame(preferredType: .outdoor, usedNames: [])
 
-        guard var character = await engine.character else {
+        guard var character = engine.character else {
             logger.error("[PlayTest] Failed to generate character - startNewGame() did not create character")
             return failedResult(characterClass: characterClass, race: race, questType: questType)
         }
@@ -62,7 +63,7 @@ actor AdventurePlayTest {
         // Continue to generate world
         await engine.continueNewGame(usedNames: [])
 
-        guard let world = await engine.worldState else {
+        guard let world = engine.worldState else {
             logger.error("[PlayTest] Failed to generate world")
             return failedResult(characterClass: characterClass, race: race, questType: questType)
         }
@@ -75,7 +76,7 @@ actor AdventurePlayTest {
 
         await engine.submitPlayer(input: randomLocation.name)
 
-        guard let progress = await engine.adventureProgress else {
+        guard let progress = engine.adventureProgress else {
             logger.error("[PlayTest] Failed to start adventure after selecting location")
             return failedResult(characterClass: characterClass, race: race, questType: questType)
         }
@@ -97,12 +98,11 @@ actor AdventurePlayTest {
 
             logger.info("[PlayTest] Turn \(turnCount): \(action)")
 
-            let promptBefore = await engine.lastPrompt
             await engine.submitPlayer(input: action)
-            let promptAfter = await engine.lastPrompt
+            let promptAfter = engine.lastPrompt
 
-            if let lastLog = await engine.log.last {
-                let currentProgress = await engine.adventureProgress
+            if let lastLog = engine.log.last {
+                let currentProgress = engine.adventureProgress
                 let questStage = currentProgress.map { progress in
                     let percent = Double(progress.currentEncounter) / Double(progress.totalEncounters)
                     if percent <= 0.4 { return "EARLY" }
@@ -121,17 +121,17 @@ actor AdventurePlayTest {
                 )
             }
 
-            questCompleted = await engine.adventureProgress?.completed ?? false
-            survivedToEnd = await (engine.character?.hp ?? 0) > 0
+            questCompleted = engine.adventureProgress?.completed ?? false
+            survivedToEnd = (engine.character?.hp ?? 0) > 0
 
-            if let char = await engine.character {
+            if let char = engine.character {
                 gameplayLogger.updateStats(
-                    level: await engine.getCharacterLevel(),
+                    level: engine.getCharacterLevel(),
                     hp: char.hp,
-                    xpGained: await engine.currentAdventureXP,
-                    goldEarned: await engine.currentAdventureGold,
-                    monstersDefeated: await engine.currentAdventureMonsters,
-                    itemsCollected: await engine.itemsCollected
+                    xpGained: engine.currentAdventureXP,
+                    goldEarned: engine.currentAdventureGold,
+                    monstersDefeated: engine.currentAdventureMonsters,
+                    itemsCollected: engine.itemsCollected
                 )
             }
 
@@ -143,7 +143,7 @@ actor AdventurePlayTest {
             try? await Task.sleep(nanoseconds: 100_000_000)
         }
 
-        let deathReport = survivedToEnd ? nil : await engine.deathReport
+        let deathReport = survivedToEnd ? nil : engine.deathReport
         gameplayLogger.endSession(questCompleted: questCompleted, deathReport: deathReport)
 
         let duration = Date().timeIntervalSince(startTime)
@@ -154,7 +154,7 @@ actor AdventurePlayTest {
             questCompleted: questCompleted,
             survivedToEnd: survivedToEnd,
             encountersCompleted: turnCount,
-            finalLevel: await engine.getCharacterLevel(),
+            finalLevel: engine.getCharacterLevel(),
             narrativeQualityScore: 0.0,
             averageResponseLength: 0,
             combatVerbViolations: 0,
@@ -166,7 +166,7 @@ actor AdventurePlayTest {
     }
 
     private func selectAction(for strategy: PlayStrategy, engine: LLMGameEngine, turn: Int) async -> String {
-        let suggestedActions = await engine.suggestedActions
+        let suggestedActions = engine.suggestedActions
 
         guard !suggestedActions.isEmpty else {
             return defaultAction(for: strategy, turn: turn)

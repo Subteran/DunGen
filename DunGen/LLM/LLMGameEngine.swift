@@ -600,7 +600,7 @@ final class LLMGameEngine: GameEngine {
         turnProcessor.processAdventureProgress(turn: turn)
 
         // Check narrative consistency
-        let consistencyIssues = NarrativeConsistencyChecker.checkConsistency(
+        _ = NarrativeConsistencyChecker.checkConsistency(
             narration: turn.narration,
             state: adventureState.narrativeState,
             encounterType: encounter?.encounterType ?? ""

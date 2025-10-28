@@ -87,7 +87,7 @@ struct LogEntryView: View {
 
                             Text(locationInfo.locationType)
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(.primary.opacity(0.85))
                         }
 
                         Spacer()
@@ -96,25 +96,25 @@ struct LogEntryView: View {
                     // Location description
                     Text(locationInfo.description)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.primary.opacity(0.85))
                         .lineLimit(2)
 
                     // Quest info in grouped box
                     HStack(alignment: .top, spacing: 8) {
                         Image(systemName: questIcon(for: locationInfo.questType))
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.primary.opacity(0.6))
                             .frame(width: 16)
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text(locationInfo.questType.capitalized)
                                 .font(.caption)
                                 .fontWeight(.medium)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(.primary.opacity(0.85))
 
                             Text(locationInfo.questGoal)
                                 .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(.primary.opacity(0.85))
                                 .lineLimit(2)
                         }
                     }
@@ -200,7 +200,7 @@ struct LogEntryView: View {
 
     private func questIcon(for questType: String) -> String {
         switch questType.lowercased() {
-        case "combat": return "crossed.swords"
+        case "combat": return "flame.fill"
         case "retrieval": return "cube.box"
         case "escort": return "figure.walk"
         case "investigation": return "magnifyingglass"

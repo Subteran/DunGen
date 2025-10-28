@@ -69,7 +69,7 @@ DunGen/
 │   ├── AffixDatabase.swift           # 100 monster + 100 item affixes with stats
 │   ├── MonsterAffixGenerator.swift   # Deterministic monster affix application
 │   ├── ItemAffixGenerator.swift      # Deterministic item generation
-│   ├── MonsterGenerator.swift        # Monster selection + affix application
+│   ├── MonsterGenerator.swift        # Monster selection + affix application + boss pre-generation
 │   ├── LootGenerator.swift           # Item type/rarity + affix application
 │   ├── NPCRegistry.swift             # NPC persistence
 │   ├── SpecialistSessionManager.swift # LLM session management with token tracking
@@ -82,7 +82,7 @@ DunGen/
 ├── Utilities/
 │   └── TokenEstimator.swift          # Token estimation and context usage analysis
 ├── Models/
-│   ├── WorldModels.swift         # AdventureType, WorldState, AdventureProgress, AdventureSummary
+│   ├── WorldModels.swift         # AdventureType, WorldLocation (with bossMonster), WorldState, AdventureProgress, AdventureSummary
 │   ├── CharacterModels.swift     # CharacterProfile, RaceModifiers, LevelReward
 │   ├── MonsterModels.swift       # MonsterDefinition, MonsterAffix
 │   ├── NPCModels.swift           # NPCDefinition, NPCDialogue
@@ -195,12 +195,12 @@ Each specialist has a focused responsibility to maintain coherent gameplay:
   - Level 8-12: HP 46-120
   - Level 13+: HP > 80
 - **Combat Quest Boss Matching**: Boss monsters guaranteed to match quest goals
-  - During world generation, combat quests pre-generate a **base monster name** (e.g., "Skeleton")
-  - Quest goal updated to include specific boss (e.g., "Defeat the Skeleton" instead of "Defeat the necromancer")
-  - Base monster name stored in `WorldLocation.bossMonsterName`
-  - Final boss encounter generates the exact base monster (may have affixes like "Ancient Skeleton")
-  - `MonsterDefinition.baseName` preserves base name even with affixes applied
-  - Ensures quest objectives always match available monsters regardless of affixes
+  - During world generation, combat quests pre-generate a **complete boss monster** with affixes and stats
+  - Quest goal updated to include full affixed name (e.g., "Defeat the Ancient Skeleton")
+  - Complete `MonsterDefinition` stored in `WorldLocation.bossMonster` (HP, damage, defense, abilities, affixes)
+  - Final boss encounter uses the exact pre-generated boss (no reconstruction needed)
+  - Migration support for old save formats (bossMonsterName, bossMonsterBaseName/Prefix/Suffix)
+  - Ensures quest objectives always match the exact boss that appears, with interesting affixed names
 - **Affix Application Rules**:
   - Easy: 30% base chance + 5% per level (max 95%)
   - Normal: 50% base chance + 5% per level (max 95%)
@@ -428,8 +428,8 @@ Quest type is inferred from keywords in the `questGoal` text. Each type has spec
 
 2. **Combat Quests** (defeat, kill, destroy, stop)
    - Final encounter: "combat" type with "boss" difficulty
-   - Completion: Boss monster generated, mark completed=true when combat won
-   - Example: "Defeat the goblin warlord" → Boss fight → Player wins → Quest complete
+   - Completion: Pre-generated boss monster retrieved from `WorldLocation.bossMonster`, mark completed=true when combat won
+   - Example: "Defeat the Ancient Skeleton" → Boss fight (exact pre-generated monster) → Player wins → Quest complete
 
 3. **Escort Quests** (escort, protect, guide)
    - Final encounter: "final" type OR "combat" type (hard difficulty) if threat
@@ -574,6 +574,7 @@ All game state is persisted to JSON file (`gameState.json`) for save/load contin
 
 **World State:**
 - `WorldState` - world story + locations (max 50)
+- `WorldLocation` - includes `bossMonster` (complete pre-generated MonsterDefinition for combat quests)
 - `AdventureProgress` - includes `questGoal` and `encounterSummaries`
 - `currentLocation` - current adventure type
 - `currentEnvironment` - specific location description

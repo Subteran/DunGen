@@ -22,6 +22,7 @@ struct PlayDataGenerationExample {
     ///
     /// Output: One JSON file with narrative samples, encounter breakdown, and completion stats
     @Test("Generate single adventure playthrough", .disabled("Long running - enable manually for data generation"))
+    @MainActor
     func testSingleAdventure() async throws {
         let playTest = AdventurePlayTest()
 
@@ -53,6 +54,7 @@ struct PlayDataGenerationExample {
     ///
     /// Run time: ~5-10 minutes depending on device performance
     @Test("Generate 10 adventures for data analysis", .disabled("Long running - enable manually for data generation"))
+    @MainActor
     func testGenerate10Adventures() async throws {
         let playTest = AdventurePlayTest()
 
@@ -83,6 +85,7 @@ struct PlayDataGenerationExample {
     /// NOTE: This test is disabled by default (commented out @Test) because it takes time.
     /// Uncomment the @Test attribute and adjust the count as needed.
     // @Test("Generate batch adventure data")
+    @MainActor
     func testBatchAdventures() async throws {
         let playTest = AdventurePlayTest()
 
@@ -108,6 +111,7 @@ struct PlayDataGenerationExample {
     /// - Balanced: Random action selection
     /// - Exploratory: Prefers search/investigate actions
     // @Test("Compare play strategies")
+    @MainActor
     func testCompareStrategies() async throws {
         let playTest = AdventurePlayTest()
 
@@ -140,6 +144,7 @@ struct PlayDataGenerationExample {
     /// - Rescue: Free a captive
     /// - Diplomatic: Negotiate an agreement
     // @Test("Generate data for all quest types")
+    @MainActor
     func testAllQuestTypes() async throws {
         let playTest = AdventurePlayTest()
 
