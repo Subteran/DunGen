@@ -19,10 +19,96 @@ struct WorldLocation: Codable, Equatable {
     var locationType: AdventureType
     @Guide(description: "Brief description of the location (1-2 sentences)")
     var description: String
+    @Guide(description: "Type of quest for this location (combat, retrieval, escort, investigation, rescue, diplomatic)")
+    var questType: String = "combat"
+    @Guide(description: "Specific quest goal for this location (e.g., 'Defeat the bandit leader', 'Retrieve the stolen crown', 'Escort the merchant safely')")
+    var questGoal: String = "Complete the quest"
 
     var id: String { name }
     var visited: Bool = false
     var completed: Bool = false
+
+    // For combat quests: pre-generated boss monster
+    var bossMonster: MonsterDefinition? = nil   // Complete pre-generated boss with affixes and stats
+
+    // Custom decoding for migration support
+    enum CodingKeys: String, CodingKey {
+        case name, locationType, description, questType, questGoal, visited, completed
+        case bossMonsterName  // Old field for migration (removed)
+        case bossMonsterBaseName, bossMonsterPrefix, bossMonsterSuffix  // Old fields for migration (removed)
+        case bossMonster  // Current field: complete MonsterDefinition
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        name = try container.decode(String.self, forKey: .name)
+        locationType = try container.decode(AdventureType.self, forKey: .locationType)
+        description = try container.decode(String.self, forKey: .description)
+        // Migration: questType and questGoal are optional for old saves
+        questType = try container.decodeIfPresent(String.self, forKey: .questType) ?? "combat"
+        questGoal = try container.decodeIfPresent(String.self, forKey: .questGoal) ?? "Complete the quest"
+        visited = try container.decodeIfPresent(Bool.self, forKey: .visited) ?? false
+        completed = try container.decodeIfPresent(Bool.self, forKey: .completed) ?? false
+
+        // Migration: handle old boss storage formats
+        if let storedBoss = try container.decodeIfPresent(MonsterDefinition.self, forKey: .bossMonster) {
+            // Current format: complete MonsterDefinition
+            bossMonster = storedBoss
+        } else if let baseName = try container.decodeIfPresent(String.self, forKey: .bossMonsterBaseName) {
+            // Old format: separate base name + affixes (needs reconstruction)
+            // Create a basic MonsterDefinition for migration
+            let prefix = try container.decodeIfPresent(String.self, forKey: .bossMonsterPrefix)
+            let suffix = try container.decodeIfPresent(String.self, forKey: .bossMonsterSuffix)
+
+            bossMonster = MonsterDefinition(
+                baseName: baseName,
+                prefix: prefix.map { MonsterAffix(name: $0, type: "prefix", effect: "") },
+                suffix: suffix.map { MonsterAffix(name: $0, type: "suffix", effect: "") },
+                hp: 50,  // Placeholder stats - will be regenerated on load
+                damage: "2d6",
+                defense: 12,
+                abilities: ["Strike"],
+                description: "A powerful foe"
+            )
+        } else if let oldBossName = try container.decodeIfPresent(String.self, forKey: .bossMonsterName) {
+            // Oldest format: just boss name
+            bossMonster = MonsterDefinition(
+                baseName: oldBossName,
+                prefix: nil,
+                suffix: nil,
+                hp: 50,
+                damage: "2d6",
+                defense: 12,
+                abilities: ["Strike"],
+                description: "A powerful foe"
+            )
+        } else {
+            bossMonster = nil
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(name, forKey: .name)
+        try container.encode(locationType, forKey: .locationType)
+        try container.encode(description, forKey: .description)
+        try container.encode(questType, forKey: .questType)
+        try container.encode(questGoal, forKey: .questGoal)
+        try container.encode(visited, forKey: .visited)
+        try container.encode(completed, forKey: .completed)
+        try container.encodeIfPresent(bossMonster, forKey: .bossMonster)
+    }
+
+    init(name: String, locationType: AdventureType, description: String, questType: String, questGoal: String, visited: Bool = false, completed: Bool = false, bossMonster: MonsterDefinition? = nil) {
+        self.name = name
+        self.locationType = locationType
+        self.description = description
+        self.questType = questType
+        self.questGoal = questGoal
+        self.visited = visited
+        self.completed = completed
+        self.bossMonster = bossMonster
+    }
 }
 
 @Generable(description: "The game world with story and locations")
@@ -49,6 +135,10 @@ struct AdventureProgress: Codable, Equatable {
     var completed: Bool
 
     var encounterSummaries: [String] = []
+
+    // Extracted quest objective (e.g., "lost heirloom", "bandit leader", "merchant")
+    // Used for validation of quest completion
+    var questObjective: String? = nil
 
     var progress: String {
         "\(currentEncounter)/\(totalEncounters)"

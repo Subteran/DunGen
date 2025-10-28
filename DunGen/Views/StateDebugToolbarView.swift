@@ -98,6 +98,29 @@ struct StateDebugToolbarView: View {
             }
         }
 
+        // Narrative State
+        let narrativeState = viewModel.engine.adventureState.narrativeState
+        text += "\n🧠 NARRATIVE STATE:\n"
+        if !narrativeState.activeThreads.isEmpty {
+            text += "Active Threads (\(narrativeState.activeThreads.count)):\n"
+            for thread in narrativeState.activeThreads.sorted(by: { $0.priority > $1.priority }) {
+                text += "  • [\(thread.priority)] \(thread.text)\n"
+            }
+        }
+        if !narrativeState.clearedAreas.isEmpty {
+            text += "Cleared Areas: \(narrativeState.clearedAreas.sorted().joined(separator: ", "))\n"
+        }
+        if !narrativeState.lockedAreas.isEmpty {
+            text += "Locked Areas: \(narrativeState.lockedAreas.sorted().joined(separator: ", "))\n"
+        }
+        if !narrativeState.npcRelations.isEmpty {
+            text += "NPC Relations:\n"
+            for (name, relation) in narrativeState.npcRelations.sorted(by: { $0.key < $1.key }) {
+                text += "  • \(name): \(relation.relationshipValue) (\(relation.relationDescription)) - met \(relation.timesMet)x\n"
+                text += "    Last: \(relation.lastInteraction)\n"
+            }
+        }
+
         text += "\n📝 COMPLETE NARRATIVE LOG (\(viewModel.log.count) entries):\n"
         for (index, entry) in viewModel.log.enumerated() {
             let prefix = entry.isFromModel ? "[MODEL]" : "[PLAYER]"

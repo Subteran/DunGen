@@ -64,9 +64,9 @@ final class MockGameEngine: GameEngine {
         worldState = WorldState(
             worldStory: "A test world for rapid development",
             locations: [
-                WorldLocation(name: "Test Village", locationType: .village, description: "A peaceful test village"),
-                WorldLocation(name: "Dark Forest", locationType: .outdoor, description: "A dangerous forest"),
-                WorldLocation(name: "Ancient Ruins", locationType: .dungeon, description: "Mysterious ruins")
+                WorldLocation(name: "Test Village", locationType: .village, description: "A peaceful test village", questType: "rescue", questGoal: "Rescue the missing villagers"),
+                WorldLocation(name: "Dark Forest", locationType: .outdoor, description: "A dangerous forest", questType: "combat", questGoal: "Defeat the forest guardian"),
+                WorldLocation(name: "Ancient Ruins", locationType: .dungeon, description: "Mysterious ruins", questType: "retrieval", questGoal: "Retrieve the ancient artifact")
             ]
         )
 

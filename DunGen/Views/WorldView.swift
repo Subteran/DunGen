@@ -59,32 +59,71 @@ struct LocationRow: View {
     let location: WorldLocation
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: locationIcon)
-                .font(.title2)
-                .foregroundStyle(locationColor)
-                .frame(width: 30)
+        VStack(alignment: .leading, spacing: 8) {
+            // Location header
+            HStack(alignment: .center, spacing: 12) {
+                Image(systemName: locationIcon)
+                    .font(.title2)
+                    .foregroundStyle(locationColor)
+                    .frame(width: 30)
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(location.name)
-                    .font(.headline)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(location.name)
+                        .font(.headline)
 
-                Text(location.locationType.rawValue)
+                    Text(location.locationType.rawValue)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                if location.completed {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                } else if location.visited {
+                    Image(systemName: "eye.fill")
+                        .foregroundStyle(.blue)
+                }
+            }
+
+            // Quest info in grouped box
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: questIcon)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-            }
+                    .frame(width: 16)
 
-            Spacer()
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(location.questType.capitalized)
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundStyle(.secondary)
 
-            if location.completed {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
-            } else if location.visited {
-                Image(systemName: "eye.fill")
-                    .foregroundStyle(.blue)
+                    Text(location.questGoal)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
             }
+            .padding(8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(uiColor: .secondarySystemGroupedBackground))
+            .cornerRadius(6)
         }
         .padding(.vertical, 4)
+    }
+
+    private var questIcon: String {
+        switch location.questType.lowercased() {
+        case "combat": return "crossed.swords"
+        case "retrieval": return "cube.box"
+        case "escort": return "figure.walk"
+        case "investigation": return "magnifyingglass"
+        case "rescue": return "hand.raised"
+        case "diplomatic": return "bubble.left.and.bubble.right"
+        default: return "exclamationmark.circle"
+        }
     }
 
     private var locationIcon: String {
@@ -148,6 +187,24 @@ struct LocationDetailView: View {
             } header: {
                 Text("Description")
             }
+
+            Section {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Quest Type:")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        Text(location.questType.capitalized)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                    }
+
+                    Text(location.questGoal)
+                        .font(.body)
+                }
+            } header: {
+                Text("Quest")
+            }
         }
         .navigationTitle(location.name)
         .navigationBarTitleDisplayMode(.large)
@@ -181,6 +238,8 @@ struct LocationDetailView: View {
                     name: "Whispering Woods",
                     locationType: .outdoor,
                     description: "A dense forest where strange sounds echo through the trees. Local villagers speak of bandits and worse lurking in the shadows.",
+                    questType: "combat",
+                    questGoal: "Defeat the bandit leader terrorizing the woods",
                     visited: true,
                     completed: false
                 ),
@@ -188,6 +247,8 @@ struct LocationDetailView: View {
                     name: "Ironhaven",
                     locationType: .city,
                     description: "The grand capital city, home to thousands. Markets bustle with trade, but rumors of corruption spread through the noble courts.",
+                    questType: "investigation",
+                    questGoal: "Investigate the corruption in the noble courts",
                     visited: false,
                     completed: false
                 ),
@@ -195,6 +256,8 @@ struct LocationDetailView: View {
                     name: "Blackstone Ruins",
                     locationType: .dungeon,
                     description: "Ancient crypts beneath a fallen fortress. Undead creatures guard forgotten treasures and terrible secrets.",
+                    questType: "retrieval",
+                    questGoal: "Retrieve the ancient artifact from the ruins",
                     visited: false,
                     completed: false
                 )

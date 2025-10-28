@@ -108,4 +108,36 @@ final class MonsterGenerator {
             affixRegistry.registerMonsterAffix(suffix)
         }
     }
+
+    /// Generates a complete boss monster for world generation (combat quests)
+    /// Returns a full MonsterDefinition with affixes pre-applied
+    /// This is used to pre-generate bosses so quest goals can use the exact affixed name
+    func generateBossMonster(for characterLevel: Int) -> MonsterDefinition {
+        let baseMonsters = selectBaseMonsters(for: characterLevel)
+        guard let randomBase = baseMonsters.randomElement() else {
+            return createFallbackMonster(from: MonsterDatabase.allMonsters[0])
+        }
+
+        let recentPrefixes = affixRegistry.getRecentMonsterPrefixes(limit: 10)
+        let recentSuffixes = affixRegistry.getRecentMonsterSuffixes(limit: 10)
+
+        let baseMonster = createBaseMonster(from: randomBase, characterLevel: characterLevel)
+
+        // Generate with boss difficulty to ensure affixes are applied
+        let bossMonster = affixGenerator.generateAffixedMonster(
+            baseMonster: baseMonster,
+            difficulty: "boss",
+            characterLevel: characterLevel,
+            recentPrefixes: recentPrefixes,
+            recentSuffixes: recentSuffixes
+        )
+
+        logger.debug("[Monster] Pre-generated boss: \(bossMonster.fullName) (base: \(bossMonster.baseName))")
+
+        // Register affixes for variety tracking
+        registerAffixes(from: bossMonster)
+
+        return bossMonster
+    }
+
 }

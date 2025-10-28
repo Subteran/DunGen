@@ -1,0 +1,359 @@
+{
+  "inCombat" : false,
+  "gameStartTime" : 783374562.03805,
+  "lastEncounter" : "combat",
+  "narrativeState" : {
+    "activeThreads" : [
+
+    ],
+    "lockedAreas" : [
+
+    ],
+    "clearedAreas" : [
+
+    ],
+    "npcRelations" : {
+
+    }
+  },
+  "suggestedActions" : [
+    "Attack the Elder Sprite",
+    "Investigate the dense thicket ahead.",
+    "Flee"
+  ],
+  "currentAdventureXP" : 0,
+  "totalMonstersDefeated" : 0,
+  "adventureProgress" : {
+    "questGoal" : "Retrieve the missing heirloom from the bandits plaguing the nearby plains.",
+    "currentEncounter" : 2,
+    "completed" : false,
+    "questObjective" : "missing heirloom",
+    "adventureStory" : "You seek the missing heirloom.",
+    "locationName" : "Hilltop Village of Elderwood",
+    "encounterSummaries" : [
+      "Encountered Elder Sprite"
+    ],
+    "totalEncounters" : 6
+  },
+  "encounterCounts" : {
+    "combat" : 1
+  },
+  "encountersSinceLastTrap" : 1,
+  "totalGoldEarned" : 0,
+  "recentQuestTypes" : [
+
+  ],
+  "detailedInventory" : [
+    {
+      "uuid" : "8E76A864-1820-44C5-8DFA-067C265DEF86",
+      "consumableMaxValue" : 5,
+      "itemType" : "consumable",
+      "description" : "A small vial of red liquid that restores health when consumed.",
+      "quantity" : 3,
+      "rarity" : "common",
+      "baseName" : "Healing Potion",
+      "consumableMinValue" : 2,
+      "consumableEffect" : "hp"
+    },
+    {
+      "rarity" : "common",
+      "uuid" : "B7F7D7A2-5DB9-46F6-8034-BD0A87B8347A",
+      "consumableMaxValue" : 3,
+      "consumableEffect" : "hp",
+      "quantity" : 3,
+      "description" : "A clean cloth bandage that restores a small amount of health.",
+      "consumableMinValue" : 1,
+      "itemType" : "consumable",
+      "baseName" : "Bandage"
+    }
+  ],
+  "showingAdventureSummary" : false,
+  "currentAdventureGold" : 0,
+  "pendingMonster" : {
+    "damage" : "1d4",
+    "defense" : 18,
+    "baseName" : "Sprite",
+    "description" : "[+60% HP, +3 defense] Miniature fey",
+    "prefix" : {
+      "type" : "prefix",
+      "effect" : "+60% HP, +3 defense",
+      "name" : "Elder"
+    },
+    "hp" : 3,
+    "abilities" : [
+      "Gore"
+    ]
+  },
+  "currentEnvironment" : "Hilltop Village of Elderwood",
+  "needsInventoryManagement" : false,
+  "pendingLoot" : [
+
+  ],
+  "totalXPEarned" : 0,
+  "awaitingCustomCharacterName" : false,
+  "awaitingWorldContinue" : false,
+  "currentLocation" : "Village",
+  "itemsCollected" : 0,
+  "character" : {
+    "xp" : 0,
+    "gold" : 5,
+    "abilities" : [
+      "performance",
+      "inspiration"
+    ],
+    "hp" : 14,
+    "spells" : [
+
+    ],
+    "inventory" : [
+      "rapier",
+      "leather armor",
+      "lute",
+      "backpack",
+      "Healing Potion",
+      "Bandage"
+    ],
+    "race" : "Ursa",
+    "attributes" : {
+      "constitution" : 15,
+      "intelligence" : 9,
+      "dexterity" : 11,
+      "wisdom" : 15,
+      "charisma" : 15,
+      "strength" : 12
+    },
+    "backstory" : "Liora hails from the dense forests of Thundergrove, where she learned the art of song from the trees and streams. Once a mere wanderer, she now journeys with tales of wonder and bravery.",
+    "className" : "Bard",
+    "maxHP" : 14,
+    "name" : "Liora"
+  },
+  "worldState" : {
+    "locations" : [
+      {
+        "questType" : "Investigation",
+        "questGoal" : "Discover the lost artifact hidden within the heart of the forest.",
+        "description" : "A lush forest teeming with magical creatures and hidden secrets, where the trees whisper tales of old.",
+        "locationType" : "Outdoor",
+        "name" : "Verdant Grove Forest",
+        "visited" : false,
+        "completed" : false
+      },
+      {
+        "questType" : "Retrieval",
+        "questGoal" : "Retrieve the missing heirloom from the bandits plaguing the nearby plains.",
+        "description" : "A peaceful hamlet surrounded by rolling hills and grazing meadows, known for its skilled herbalists and friendly folk.",
+        "locationType" : "Village",
+        "name" : "Hilltop Village of Elderwood",
+        "visited" : true,
+        "completed" : false
+      },
+      {
+        "questType" : "Combat",
+        "questGoal" : "Defeat the slumbering dragon guarding the cursed relic within.",
+        "description" : "An ancient crypt filled with flickering torches and eerie echoes, rumored to be home to long-forgotten spirits.",
+        "locationType" : "Dungeon",
+        "name" : "Cave of Echoing Shadows",
+        "visited" : false,
+        "completed" : false
+      },
+      {
+        "questType" : "Diplomatic",
+        "questGoal" : "Negotiate peace between warring factions threatening the city's prosperity.",
+        "description" : "A bustling trade hub where merchants from distant lands converge, filled with vibrant markets and grand architecture.",
+        "locationType" : "City",
+        "name" : "The Silver Harbor City",
+        "visited" : false,
+        "completed" : false
+      }
+    ],
+    "worldStory" : "In the realm of Eldoria, an ancient prophecy foretells the rise of the Starborn, a chosen hero destined to unite fractured kingdoms and restore balance to the realm."
+  },
+  "log" : [
+    {
+      "id" : "0D9200EE-6B55-4539-9E14-FF95C8EC21B4",
+      "content" : "Welcome, adventurer!",
+      "isFromModel" : true,
+      "showCharacterSprite" : false,
+      "showMonsterSprite" : false
+    },
+    {
+      "id" : "5CFAD0B9-B541-4B4D-8C94-5A752D0841A2",
+      "content" : "📜 NEW CHARACTER CREATED 📜",
+      "isFromModel" : true,
+      "showCharacterSprite" : true,
+      "showMonsterSprite" : false,
+      "characterForSprite" : {
+        "xp" : 0,
+        "gold" : 5,
+        "abilities" : [
+          "performance",
+          "inspiration"
+        ],
+        "hp" : 14,
+        "spells" : [
+
+        ],
+        "inventory" : [
+          "rapier",
+          "leather armor",
+          "lute",
+          "backpack",
+          "Healing Potion",
+          "Bandage"
+        ],
+        "race" : "Ursa",
+        "attributes" : {
+          "constitution" : 15,
+          "dexterity" : 11,
+          "intelligence" : 9,
+          "wisdom" : 15,
+          "charisma" : 15,
+          "strength" : 12
+        },
+        "backstory" : "Liora hails from the dense forests of Thundergrove, where she learned the art of song from the trees and streams. Once a mere wanderer, she now journeys with tales of wonder and bravery.",
+        "className" : "Bard",
+        "maxHP" : 14,
+        "name" : "Liora"
+      }
+    },
+    {
+      "id" : "18EFB798-D8CF-431A-B422-AB34DD1C880B",
+      "content" : "You are Liora, a Ursa Bard. Liora hails from the dense forests of Thundergrove, where she learned the art of song from the trees and streams. Once a mere wanderer, she now journeys with tales of wonder and bravery.",
+      "isFromModel" : true,
+      "showCharacterSprite" : false,
+      "showMonsterSprite" : false
+    },
+    {
+      "id" : "2CBDA3F6-6C1E-453E-8466-55EA81F8BCFB",
+      "content" : "Attributes: STR 12 | DEX 11 | CON 15 | INT 9 | WIS 15 | CHA 15",
+      "isFromModel" : true,
+      "showCharacterSprite" : false,
+      "showMonsterSprite" : false
+    },
+    {
+      "id" : "7107E4A0-51EA-47EE-86DC-BA5EF230CEEA",
+      "content" : "🌍 In the realm of Eldoria, an ancient prophecy foretells the rise of the Starborn, a chosen hero destined to unite fractured kingdoms and restore balance to the realm.",
+      "isFromModel" : true,
+      "showCharacterSprite" : false,
+      "showMonsterSprite" : false
+    },
+    {
+      "id" : "D43ACDB0-F189-4599-89D5-25EDC72F0731",
+      "content" : "\nDiscovered locations:",
+      "isFromModel" : true,
+      "showCharacterSprite" : false,
+      "showMonsterSprite" : false
+    },
+    {
+      "id" : "0A91426B-E9F7-4BBD-BDAD-76AE941EFA22",
+      "content" : "• Verdant Grove Forest|Outdoor|Investigation|Discover the lost artifact hidden within the heart of the forest.|A lush forest teeming with magical creatures and hidden secrets, where the trees whisper tales of old.",
+      "isFromModel" : true,
+      "showCharacterSprite" : false,
+      "showMonsterSprite" : false
+    },
+    {
+      "id" : "EF1F3EE0-FDC5-4C7E-8AE1-96EB617E0D4A",
+      "content" : "• Hilltop Village of Elderwood|Village|Retrieval|Retrieve the missing heirloom from the bandits plaguing the nearby plains.|A peaceful hamlet surrounded by rolling hills and grazing meadows, known for its skilled herbalists and friendly folk.",
+      "isFromModel" : true,
+      "showCharacterSprite" : false,
+      "showMonsterSprite" : false
+    },
+    {
+      "id" : "387E31F9-808B-493B-AF1C-7E8B7C230978",
+      "content" : "• Cave of Echoing Shadows|Dungeon|Combat|Defeat the slumbering dragon guarding the cursed relic within.|An ancient crypt filled with flickering torches and eerie echoes, rumored to be home to long-forgotten spirits.",
+      "isFromModel" : true,
+      "showCharacterSprite" : false,
+      "showMonsterSprite" : false
+    },
+    {
+      "id" : "7748832A-AE8E-4890-A8A8-296810F94C25",
+      "content" : "• The Silver Harbor City|City|Diplomatic|Negotiate peace between warring factions threatening the city's prosperity.|A bustling trade hub where merchants from distant lands converge, filled with vibrant markets and grand architecture.",
+      "isFromModel" : true,
+      "showCharacterSprite" : false,
+      "showMonsterSprite" : false
+    },
+    {
+      "content" : "\nWhere would you like to begin your adventure?",
+      "isFromModel" : true,
+      "showCharacterSprite" : false,
+      "showMonsterSprite" : false,
+      "id" : "268A3503-2129-4A00-8B2A-4413C5FB85DF"
+    },
+    {
+      "content" : "You: Hilltop Village of Elderwood",
+      "isFromModel" : false,
+      "showCharacterSprite" : false,
+      "showMonsterSprite" : false,
+      "id" : "49948522-5D87-458D-B132-899062FBCC67"
+    },
+    {
+      "content" : "LiorYou see something in the shadows. stands on the hilltop overlooking the plains where the bandits have taken hold. Ahead, the path descends into You see something in the shadows. dense thicket.",
+      "isFromModel" : true,
+      "showCharacterSprite" : false,
+      "showMonsterSprite" : false,
+      "id" : "1C5CE7B3-EB4A-41CB-BD37-891614E83136"
+    },
+    {
+      "content" : "\n🎯 Quest: Retrieve the missing heirloom from the bandits plaguing the nearby plains.",
+      "isFromModel" : true,
+      "showCharacterSprite" : false,
+      "showMonsterSprite" : false,
+      "id" : "6557C0AC-698E-4123-A348-69FFCC7C15F5"
+    },
+    {
+      "content" : "📍 Location: Hilltop Village of Elderwood",
+      "isFromModel" : true,
+      "showCharacterSprite" : false,
+      "showMonsterSprite" : false,
+      "id" : "E2BE5919-2D31-49B9-9B4D-7E093E58A881"
+    },
+    {
+      "content" : "",
+      "isFromModel" : true,
+      "showCharacterSprite" : false,
+      "showMonsterSprite" : false,
+      "id" : "5E1F68D1-DFAA-4E30-B5C9-10C453835F43"
+    },
+    {
+      "content" : "⚔️ Monster: Elder Sprite",
+      "isFromModel" : true,
+      "showCharacterSprite" : false,
+      "monsterForSprite" : {
+        "description" : "[+60% HP, +3 defense] Miniature fey",
+        "damage" : "1d4",
+        "hp" : 3,
+        "prefix" : {
+          "effect" : "+60% HP, +3 defense",
+          "name" : "Elder",
+          "type" : "prefix"
+        },
+        "defense" : 18,
+        "abilities" : [
+          "Gore"
+        ],
+        "baseName" : "Sprite"
+      },
+      "showMonsterSprite" : true,
+      "id" : "9910505D-93E6-455E-8183-694CDC248B3B"
+    },
+    {
+      "content" : "HP: 3 | Defense: 18",
+      "isFromModel" : true,
+      "showCharacterSprite" : false,
+      "showMonsterSprite" : false,
+      "id" : "21098C5C-C17D-4E93-82DF-449F33B558CB"
+    },
+    {
+      "content" : "Abilities: Gore",
+      "isFromModel" : true,
+      "showCharacterSprite" : false,
+      "showMonsterSprite" : false,
+      "id" : "0264CEAB-1C82-4A49-8716-D07CFC193908"
+    }
+  ],
+  "currentMonsterHP" : 0,
+  "adventuresCompleted" : 0,
+  "activeNPCTurns" : 0,
+  "awaitingLocationSelection" : false,
+  "currentAdventureMonsters" : 0
+}

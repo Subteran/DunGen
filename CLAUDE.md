@@ -194,6 +194,13 @@ Each specialist has a focused responsibility to maintain coherent gameplay:
   - Level 4-7: HP 16-60
   - Level 8-12: HP 46-120
   - Level 13+: HP > 80
+- **Combat Quest Boss Matching**: Boss monsters guaranteed to match quest goals
+  - During world generation, combat quests pre-generate a **base monster name** (e.g., "Skeleton")
+  - Quest goal updated to include specific boss (e.g., "Defeat the Skeleton" instead of "Defeat the necromancer")
+  - Base monster name stored in `WorldLocation.bossMonsterName`
+  - Final boss encounter generates the exact base monster (may have affixes like "Ancient Skeleton")
+  - `MonsterDefinition.baseName` preserves base name even with affixes applied
+  - Ensures quest objectives always match available monsters regardless of affixes
 - **Affix Application Rules**:
   - Easy: 30% base chance + 5% per level (max 95%)
   - Normal: 50% base chance + 5% per level (max 95%)

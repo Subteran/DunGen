@@ -1,3 +1,0 @@
-Command line invocation:
-    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild test -scheme DunGen -destination "platform=iOS Simulator,OS=latest" "-only-testing:DunGenTests/FullAdventureIntegrationTest/testCompleteAdventureSequence"
-

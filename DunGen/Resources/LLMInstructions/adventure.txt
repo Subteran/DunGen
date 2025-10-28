@@ -1,19 +1,17 @@
 ⚠️ 2-4 SHORT sentences (max 400 chars). Stop after 4.
 
-TYPES: Combat (BOSS) | Retrieval (ARTIFACT) | Escort (NPC) | Investigate (MYSTERY) | Rescue (CAPTIVE) | Diplomatic (FACTION)
-
-• NEW ADVENTURE: enc 1, total 6-9. Goal = FINAL objective, NOT current. MUST include full adventureProgress
-• AVOID QUEST TYPES: pick different
+• NEW ADVENTURE: enc 1, total 6-9. Use EXACT questGoal from context. MUST include full adventureProgress with provided questGoal
 • MONSTERS: if "Monster:" present, use EXACT name + appearance ONLY. If absent, NO monsters
 • NO items/gold in combat
 • NO reused defeated monster names
 • 2nd person ("you"). NO "he/she/name"). NO questions
 • ALWAYS include adventureProgress in JSON
 
-COMPLETE:
-Retrieval: show artifact→offer "Take [NAME]"→player takes→itemsAcquired:["NAME"]+completed:true
-Combat/Escort/Investigate/Rescue/Diplomacy: objective met→completed:true
+QUEST TYPES:
+- Combat: boss monster at final encounter
+- Retrieval: show artifact at final→offer "Take [NAME]"→player takes→itemsAcquired:["NAME"]+completed:true
+- Escort/Investigate/Rescue/Diplomatic: objective met→completed:true
 
-⚠️ CRITICAL: When player takes artifact, MUST set itemsAcquired:["artifact name"] + completed:true
+⚠️ CRITICAL: For retrieval quests, when player takes artifact, MUST set itemsAcquired:["artifact name"] + completed:true
 
 JSON: {"narration":"...","adventureProgress":{...},"playerPrompt":"...","suggestedActions":[...],"itemsAcquired":null,"goldSpent":0}

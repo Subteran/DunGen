@@ -21,6 +21,15 @@ final class TurnProcessor {
                 // Replace with new adventure progress entirely
                 var initialProgress = progress
                 initialProgress.encounterSummaries = []
+
+                // Extract quest objective from quest goal
+                if let location = engine.worldState?.locations.first(where: { $0.name == progress.locationName }) {
+                    initialProgress.questObjective = QuestObjectiveExtractor.extractObjective(
+                        from: progress.questGoal,
+                        questType: location.questType
+                    )
+                }
+
                 engine.adventureProgress = initialProgress
 
                 engine.appendModel("\n🎯 Quest: \(progress.questGoal)")
@@ -30,6 +39,15 @@ final class TurnProcessor {
                 // Update existing adventure progress
                 if !progress.questGoal.isEmpty && currentProgress.questGoal.isEmpty {
                     currentProgress.questGoal = progress.questGoal
+
+                    // Extract quest objective if not already set
+                    if currentProgress.questObjective == nil,
+                       let location = engine.worldState?.locations.first(where: { $0.name == currentProgress.locationName }) {
+                        currentProgress.questObjective = QuestObjectiveExtractor.extractObjective(
+                            from: progress.questGoal,
+                            questType: location.questType
+                        )
+                    }
                 }
                 currentProgress.adventureStory = progress.adventureStory
 
@@ -51,6 +69,15 @@ final class TurnProcessor {
         } else {
             var initialProgress = progress
             initialProgress.encounterSummaries = []
+
+            // Extract quest objective from quest goal
+            if let location = engine.worldState?.locations.first(where: { $0.name == progress.locationName }) {
+                initialProgress.questObjective = QuestObjectiveExtractor.extractObjective(
+                    from: progress.questGoal,
+                    questType: location.questType
+                )
+            }
+
             engine.adventureProgress = initialProgress
 
             engine.appendModel("\n🎯 Quest: \(progress.questGoal)")
@@ -64,26 +91,68 @@ final class TurnProcessor {
         guard var currentProgress = engine.adventureProgress else { return }
         guard !currentProgress.completed && currentProgress.isFinalEncounter else { return }
         guard let action = playerAction else { return }
-        guard questValidator.isRetrievalQuest(questGoal: currentProgress.questGoal) else { return }
 
         let actionLower = action.lowercased()
         let narrativeLower = turn.narration.lowercased()
-        let completionKeywords = ["claim", "take", "grab", "pick up", "retrieve", "acquire", "collect", "get", "seize", "obtain"]
-        let artifactKeywords = ["artifact", "item", "treasure", "relic", "stolen", "amulet", "crown", "scroll", "gem", "orb"]
 
-        let hasCompletionVerb = completionKeywords.contains(where: { actionLower.contains($0) })
-        let hasArtifactInAction = artifactKeywords.contains(where: { actionLower.contains($0) })
-        let narrativeMentionsAcquisition = narrativeLower.contains("acquired:") ||
-                                           narrativeLower.contains("📦 acquired") ||
-                                           narrativeLower.contains("obtained:") ||
-                                           narrativeLower.contains("you take the") ||
-                                           narrativeLower.contains("you claim the") ||
-                                           narrativeLower.contains("you grab the")
+        // Handle retrieval quest completion
+        if questValidator.isRetrievalQuest(questGoal: currentProgress.questGoal) {
+            let completionKeywords = ["claim", "take", "grab", "pick up", "retrieve", "acquire", "collect", "get", "seize", "obtain"]
+            let hasCompletionVerb = completionKeywords.contains(where: { actionLower.contains($0) })
 
-        if (hasCompletionVerb && hasArtifactInAction) || narrativeMentionsAcquisition {
-            logger.info("[Quest] Auto-completing retrieval quest based on player action: '\(action)'")
-            currentProgress.completed = true
-            engine.adventureProgress = currentProgress
+            // Check if the specific quest objective is mentioned in the action or narrative
+            var mentionsObjective = false
+            if let objective = currentProgress.questObjective {
+                let objectiveLower = objective.lowercased()
+                mentionsObjective = actionLower.contains(objectiveLower) || narrativeLower.contains(objectiveLower)
+            }
+
+            let narrativeMentionsAcquisition = narrativeLower.contains("acquired:") ||
+                                               narrativeLower.contains("📦 acquired") ||
+                                               narrativeLower.contains("obtained:") ||
+                                               narrativeLower.contains("you take the") ||
+                                               narrativeLower.contains("you claim the") ||
+                                               narrativeLower.contains("you grab the")
+
+            // Complete quest if:
+            // 1. Player uses completion verb AND mentions the specific quest objective, OR
+            // 2. Narrative explicitly mentions acquisition of the objective
+            if (hasCompletionVerb && mentionsObjective) || (narrativeMentionsAcquisition && mentionsObjective) {
+                logger.info("[Quest] Auto-completing retrieval quest based on objective '\(currentProgress.questObjective ?? "unknown")' mentioned in action: '\(action)'")
+                currentProgress.completed = true
+                engine.adventureProgress = currentProgress
+            }
+        }
+
+        // Handle escort quest completion
+        if questValidator.isEscortQuest(questGoal: currentProgress.questGoal) {
+            // Extract destination from quest objective (e.g., "merchant caravan" -> destination implied in narrative)
+            let destinationKeywords = ["arrive", "reach", "made it", "safely", "destination", "delivered", "escorted"]
+            let hasArrival = destinationKeywords.contains(where: { narrativeLower.contains($0) })
+
+            // Check for failure conditions
+            let failureKeywords = ["died", "dead", "killed", "lost", "fallen", "perished", "slain"]
+            let hasCasualty = failureKeywords.contains(where: { narrativeLower.contains($0) })
+
+            // Check if quest objective is mentioned positively
+            var mentionsObjectiveSafely = false
+            if let objective = currentProgress.questObjective {
+                let objectiveLower = objective.lowercased()
+                if narrativeLower.contains(objectiveLower) {
+                    // Check if mentioned in context of success (not death/failure)
+                    mentionsObjectiveSafely = !hasCasualty
+                }
+            }
+
+            // Complete quest if: arrived at destination AND no casualties AND objective mentioned
+            if hasArrival && !hasCasualty && mentionsObjectiveSafely {
+                logger.info("[Quest] Auto-completing escort quest - destination reached safely")
+                currentProgress.completed = true
+                engine.adventureProgress = currentProgress
+            } else if hasCasualty {
+                logger.info("[Quest] Escort quest failed - casualties detected")
+                // Don't mark as complete - will be handled as failure
+            }
         }
     }
 
@@ -107,23 +176,28 @@ final class TurnProcessor {
         engine.sessionManager.logTranscriptMetrics(for: .adventure)
         engine.sessionManager.logTranscriptMetrics(for: .encounter)
 
-        // Track quest type for variety
-        let questValidator = QuestValidator()
+        // Track quest type for variety (use location's questType if available)
         let questType: String
-        if questValidator.isCombatQuest(questGoal: finalProgress.questGoal) {
-            questType = "combat"
-        } else if questValidator.isRetrievalQuest(questGoal: finalProgress.questGoal) {
-            questType = "retrieval"
-        } else if finalProgress.questGoal.lowercased().contains("escort") || finalProgress.questGoal.lowercased().contains("protect") {
-            questType = "escort"
-        } else if finalProgress.questGoal.lowercased().contains("investigate") || finalProgress.questGoal.lowercased().contains("solve") {
-            questType = "investigation"
-        } else if finalProgress.questGoal.lowercased().contains("rescue") || finalProgress.questGoal.lowercased().contains("save") {
-            questType = "rescue"
-        } else if finalProgress.questGoal.lowercased().contains("negotiate") || finalProgress.questGoal.lowercased().contains("diplomacy") {
-            questType = "diplomatic"
+        if let location = engine.worldState?.locations.first(where: { $0.name == finalProgress.locationName }) {
+            questType = location.questType
         } else {
-            questType = "other"
+            // Fallback: infer from quest goal
+            let questValidator = QuestValidator()
+            if questValidator.isCombatQuest(questGoal: finalProgress.questGoal) {
+                questType = "combat"
+            } else if questValidator.isRetrievalQuest(questGoal: finalProgress.questGoal) {
+                questType = "retrieval"
+            } else if finalProgress.questGoal.lowercased().contains("escort") || finalProgress.questGoal.lowercased().contains("protect") {
+                questType = "escort"
+            } else if finalProgress.questGoal.lowercased().contains("investigate") || finalProgress.questGoal.lowercased().contains("solve") {
+                questType = "investigation"
+            } else if finalProgress.questGoal.lowercased().contains("rescue") || finalProgress.questGoal.lowercased().contains("save") {
+                questType = "rescue"
+            } else if finalProgress.questGoal.lowercased().contains("negotiate") || finalProgress.questGoal.lowercased().contains("diplomacy") {
+                questType = "diplomatic"
+            } else {
+                questType = "other"
+            }
         }
 
         engine.recentQuestTypes.append(questType)
@@ -137,9 +211,13 @@ final class TurnProcessor {
         engine.totalGoldEarned += engine.currentAdventureGold
         engine.totalMonstersDefeated += engine.currentAdventureMonsters
 
+        // Mark location as completed (don't remove it)
         if var world = engine.worldState {
-            world.locations.removeAll(where: { $0.name == finalProgress.locationName })
-            engine.worldState = world
+            if let index = world.locations.firstIndex(where: { $0.name == finalProgress.locationName }) {
+                world.locations[index].completed = true
+                engine.worldState = world
+                logger.info("[Quest] Marked location '\(finalProgress.locationName)' as completed")
+            }
         }
 
         engine.combatManager.pendingMonster = nil

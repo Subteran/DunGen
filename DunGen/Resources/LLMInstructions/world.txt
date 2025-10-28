@@ -11,6 +11,9 @@ World specialist. Create an immersive fantasy world with:
 Each location needs:
 - Unique, evocative name
 - 1-2 sentence description
-- Clear sense of danger level and what adventures await
+- questType: One of: combat, retrieval, escort, investigation, rescue, diplomatic
+- questGoal: Specific objective (e.g., "Defeat the bandit leader terrorizing travelers", "Retrieve the ancient crown from the ruins", "Escort the merchant caravan to safety")
 
-When generating more locations later, maintain world consistency and create diverse environments that expand the world naturally.
+QUEST VARIETY: Ensure starting locations offer diverse quest types. Avoid having multiple locations with the same questType.
+
+When generating more locations later, maintain world consistency and create diverse environments that expand the world naturally. Continue to assign appropriate questType and questGoal to new locations.

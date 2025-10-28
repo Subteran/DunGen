@@ -8,13 +8,18 @@ struct RewardCalculator {
         characterLevel: Int,
         currentHP: Int,
         maxHP: Int,
-        isFinalEncounter: Bool
+        isFinalEncounter: Bool,
+        currentEncounter: Int = 0,
+        totalEncounters: Int = 0,
+        questCompleted: Bool = false
     ) -> ProgressionRewards {
 
         let type = encounterType.lowercased()
         let diff = difficulty.lowercased()
 
-        if isFinalEncounter {
+        // Final rewards are ONLY given when quest is actually completed
+        // This prevents repeated boss rewards during overtime encounters
+        if questCompleted && isFinalEncounter {
             return ProgressionRewards(
                 xpGain: Int.random(in: 50...100),
                 hpDelta: 0,

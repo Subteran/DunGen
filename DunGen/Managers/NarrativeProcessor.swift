@@ -12,7 +12,25 @@ final class NarrativeProcessor {
 
         sanitized = removeActionSuggestions(from: sanitized)
         sanitized = validateMonsterReferences(in: sanitized, expectedMonster: expectedMonster)
+        sanitized = removeSpuriousCharacters(from: sanitized)
         return sanitized
+    }
+
+    private func removeSpuriousCharacters(from text: String) -> String {
+        var cleaned = text
+
+        // Remove stray JSON characters that might appear from malformed LLM output
+        // Remove standalone curly braces (not part of emoji or formatting)
+        cleaned = cleaned.replacingOccurrences(of: "\n{\n", with: "\n")
+        cleaned = cleaned.replacingOccurrences(of: "\n}\n", with: "\n")
+        cleaned = cleaned.replacingOccurrences(of: "^\\{\\s*$", with: "", options: .regularExpression)
+        cleaned = cleaned.replacingOccurrences(of: "^\\}\\s*$", with: "", options: .regularExpression)
+
+        // Remove standalone brackets
+        cleaned = cleaned.replacingOccurrences(of: "\n[\n", with: "\n")
+        cleaned = cleaned.replacingOccurrences(of: "\n]\n", with: "\n")
+
+        return cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private func validateMonsterReferences(in text: String, expectedMonster: MonsterDefinition?) -> String {
@@ -32,9 +50,16 @@ final class NarrativeProcessor {
                     // Check if it's the expected monster
                     let hasExpectedWord = expectedWords.contains { lower.contains($0) }
                     if !hasExpectedWord {
-                        // Line mentions a different monster - replace with generic description
-                        return line.replacingOccurrences(of: "A ", with: "You see something in the shadows. ", options: .caseInsensitive)
-                            .replacingOccurrences(of: "An ", with: "Movement ahead. ", options: .caseInsensitive)
+                        // Line mentions a different monster - replace sentence with generic description
+                        let trimmed = line.trimmingCharacters(in: .whitespaces)
+                        if trimmed.hasPrefix("A ") || trimmed.hasPrefix("a ") {
+                            return "You see something in the shadows."
+                        } else if trimmed.hasPrefix("An ") || trimmed.hasPrefix("an ") {
+                            return "Movement ahead."
+                        } else {
+                            // If not starting with article, replace the whole sentence
+                            return "A threat approaches."
+                        }
                     }
                 }
             }

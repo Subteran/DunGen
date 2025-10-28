@@ -18,6 +18,12 @@ final class QuestValidator {
                !isCombatQuest(questGoal: questGoal)
     }
 
+    func isEscortQuest(questGoal: String) -> Bool {
+        let questLower = questGoal.lowercased()
+        return questLower.contains("escort") || questLower.contains("protect") ||
+               questLower.contains("guide") || questLower.contains("caravan")
+    }
+
     func validateQuestCompletion(
         progress: AdventureProgress,
         itemsAcquired: [String]?

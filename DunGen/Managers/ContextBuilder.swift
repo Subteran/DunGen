@@ -20,7 +20,9 @@ struct ContextBuilder {
         encounterCounts: [String: Int]? = nil,
         questGoal: String? = nil,
         recentQuestTypes: [String]? = nil,
-        questProgressGuidance: String? = nil
+        questProgressGuidance: String? = nil,
+        narrativeState: NarrativeState? = nil,
+        locationQuestGoal: String? = nil
     ) -> String {
 
         switch specialist {
@@ -53,7 +55,9 @@ struct ContextBuilder {
                 recentActions: recentActions,
                 encounterCounts: encounterCounts,
                 recentQuestTypes: recentQuestTypes,
-                questProgressGuidance: questProgressGuidance
+                questProgressGuidance: questProgressGuidance,
+                narrativeState: narrativeState,
+                locationQuestGoal: locationQuestGoal
             )
 
         case .equipment:
@@ -103,7 +107,9 @@ struct ContextBuilder {
         recentActions: String?,
         encounterCounts: [String: Int]?,
         recentQuestTypes: [String]?,
-        questProgressGuidance: String?
+        questProgressGuidance: String?,
+        narrativeState: NarrativeState?,
+        locationQuestGoal: String?
     ) -> String {
         var lines: [String] = []
 
@@ -115,6 +121,8 @@ struct ContextBuilder {
 
         if let adventure = adventure {
             lines.append("Quest: \(adventure.questGoal)")
+        } else if let questGoal = locationQuestGoal {
+            lines.append("NEW ADVENTURE - Use EXACT questGoal: \(questGoal)")
         } else {
             lines.append("NEW ADVENTURE - Generate new quest goal for this location")
         }
@@ -145,6 +153,14 @@ struct ContextBuilder {
         // Add quest progression guidance if available
         if let guidance = questProgressGuidance, !guidance.isEmpty {
             lines.append(guidance)
+        }
+
+        // Add narrative state context
+        if let narrative = narrativeState {
+            let summary = narrative.getContextSummary()
+            if !summary.isEmpty {
+                lines.append(summary)
+            }
         }
 
         return lines.joined(separator: "\n")

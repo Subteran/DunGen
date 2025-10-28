@@ -15,6 +15,8 @@ final class AdventureStateManager {
     var currentLocation: AdventureType = .outdoor
     var currentEnvironment: String = ""
 
+    var narrativeState: NarrativeState = NarrativeState()
+
     func reset() {
         adventureProgress = nil
         currentAdventureXP = 0
@@ -23,6 +25,7 @@ final class AdventureStateManager {
         adventureSummary = nil
         showingAdventureSummary = false
         currentEnvironment = ""
+        narrativeState = NarrativeState()
     }
 
     func resetAdventureStats() {

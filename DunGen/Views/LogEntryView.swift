@@ -72,11 +72,67 @@ struct LogEntryView: View {
                 onLocationTap?(locationName)
             }
         } label: {
-            Text(entry.content)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(8)
+            if let locationInfo = parseLocationInfo(from: entry.content) {
+                VStack(alignment: .leading, spacing: 8) {
+                    // Location header
+                    HStack(alignment: .center, spacing: 12) {
+                        Image(systemName: locationIcon(for: locationInfo.locationType))
+                            .font(.title2)
+                            .foregroundStyle(locationColor(for: locationInfo.locationType))
+                            .frame(width: 30)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(locationInfo.name)
+                                .font(.headline)
+
+                            Text(locationInfo.locationType)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Spacer()
+                    }
+
+                    // Location description
+                    Text(locationInfo.description)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+
+                    // Quest info in grouped box
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: questIcon(for: locationInfo.questType))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .frame(width: 16)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(locationInfo.questType.capitalized)
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundStyle(.secondary)
+
+                            Text(locationInfo.questGoal)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(2)
+                        }
+                    }
+                    .padding(8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color(uiColor: .secondarySystemGroupedBackground))
+                    .cornerRadius(6)
+                }
+                .padding(12)
                 .background(Color.blue.opacity(0.15))
-                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            } else {
+                Text(entry.content)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(8)
+                    .background(Color.blue.opacity(0.15))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+            }
         }
         .buttonStyle(.plain)
         .id(entry.id)
@@ -94,9 +150,63 @@ struct LogEntryView: View {
     private func extractLocationName(from text: String) -> String? {
         guard text.hasPrefix("• ") else { return nil }
         let withoutBullet = text.dropFirst(2)
-        if let parenIndex = withoutBullet.firstIndex(of: "(") {
-            return String(withoutBullet[..<parenIndex]).trimmingCharacters(in: .whitespaces)
+        if let pipeIndex = withoutBullet.firstIndex(of: "|") {
+            return String(withoutBullet[..<pipeIndex]).trimmingCharacters(in: .whitespaces)
         }
         return nil
+    }
+
+    private struct LocationInfo {
+        let name: String
+        let locationType: String
+        let questType: String
+        let questGoal: String
+        let description: String
+    }
+
+    private func parseLocationInfo(from text: String) -> LocationInfo? {
+        guard text.hasPrefix("• ") else { return nil }
+        let withoutBullet = String(text.dropFirst(2))
+        let components = withoutBullet.components(separatedBy: "|")
+        guard components.count == 5 else { return nil }
+        return LocationInfo(
+            name: components[0].trimmingCharacters(in: .whitespaces),
+            locationType: components[1].trimmingCharacters(in: .whitespaces),
+            questType: components[2].trimmingCharacters(in: .whitespaces),
+            questGoal: components[3].trimmingCharacters(in: .whitespaces),
+            description: components[4].trimmingCharacters(in: .whitespaces)
+        )
+    }
+
+    private func locationIcon(for locationType: String) -> String {
+        switch locationType.lowercased() {
+        case "outdoor": return "tree.fill"
+        case "city": return "building.2.fill"
+        case "dungeon": return "lock.shield.fill"
+        case "village": return "house.fill"
+        default: return "mappin"
+        }
+    }
+
+    private func locationColor(for locationType: String) -> Color {
+        switch locationType.lowercased() {
+        case "outdoor": return .green
+        case "city": return .blue
+        case "dungeon": return .purple
+        case "village": return .orange
+        default: return .gray
+        }
+    }
+
+    private func questIcon(for questType: String) -> String {
+        switch questType.lowercased() {
+        case "combat": return "crossed.swords"
+        case "retrieval": return "cube.box"
+        case "escort": return "figure.walk"
+        case "investigation": return "magnifyingglass"
+        case "rescue": return "hand.raised"
+        case "diplomatic": return "bubble.left.and.bubble.right"
+        default: return "exclamationmark.circle"
+        }
     }
 }

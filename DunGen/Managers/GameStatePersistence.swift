@@ -62,6 +62,9 @@ struct GameState: Codable, Equatable {
     // Quest type tracking for variety enforcement
     var recentQuestTypes: [String]?
 
+    // Narrative state tracking
+    var narrativeState: NarrativeState?
+
     struct SavedLogEntry: Codable, Equatable, Identifiable {
         let id: UUID
         let content: String
@@ -164,7 +167,8 @@ extension LLMGameEngine {
             encounterCounts: encounterCounts,
             lastEncounter: lastEncounter,
             encountersSinceLastTrap: encountersSinceLastTrap,
-            recentQuestTypes: recentQuestTypes
+            recentQuestTypes: recentQuestTypes,
+            narrativeState: adventureState.narrativeState
         )
 
         do {
@@ -252,6 +256,9 @@ extension LLMGameEngine {
                 self.lastEncounter = state.lastEncounter
                 self.encountersSinceLastTrap = state.encountersSinceLastTrap ?? 0
                 self.recentQuestTypes = state.recentQuestTypes ?? []
+
+                // Restore narrative state (with migration support)
+                self.adventureState.narrativeState = state.narrativeState ?? NarrativeState()
 
                 // Check if character died before save
                 if let char = state.character, char.hp <= 0 {
