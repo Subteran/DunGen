@@ -1,10 +1,12 @@
 import SwiftUI
 import MessageUI
+import FoundationModels
 
 struct StateDebugToolbarView: View {
     let viewModel: GameViewModel
     let levelingService: LevelingServiceProtocol
     @Binding var showMailComposer: Bool
+    @Binding var emailWithStateAttachment: Bool
 
     var body: some View {
         HStack {
@@ -22,6 +24,7 @@ struct StateDebugToolbarView: View {
             .tint(.orange)
 
             Button {
+                emailWithStateAttachment = true
                 showMailComposer = true
             } label: {
                 HStack {
@@ -34,6 +37,7 @@ struct StateDebugToolbarView: View {
             .tint(.blue)
             #else
             Button {
+                emailWithStateAttachment = true
                 showMailComposer = true
             } label: {
                 HStack {
@@ -94,10 +98,10 @@ struct StateDebugToolbarView: View {
             }
         }
 
-        text += "\n📝 NARRATIVE LOG (last 10 entries):\n"
-        for entry in viewModel.log.suffix(10) {
+        text += "\n📝 COMPLETE NARRATIVE LOG (\(viewModel.log.count) entries):\n"
+        for (index, entry) in viewModel.log.enumerated() {
             let prefix = entry.isFromModel ? "[MODEL]" : "[PLAYER]"
-            text += "\(prefix) \(entry.content)\n"
+            text += "\(index + 1). \(prefix) \(entry.content)\n"
         }
 
         if let monster = viewModel.currentMonster {
@@ -113,11 +117,33 @@ struct StateDebugToolbarView: View {
             text += "Cost: \(transaction.cost) gold\n"
         }
 
+        text += "\n📜 LLM TRANSCRIPTS:\n"
+        for specialist in LLMSpecialist.allCases {
+            if let transcript = viewModel.engine.sessionManager.getTranscript(for: specialist) {
+                let entries = Array(transcript)
+                text += "\n[\(specialist.rawValue.uppercased())] - \(entries.count) entries:\n"
+                for (index, entry) in entries.enumerated() {
+                    text += formatTranscriptEntry(entry, index: index + 1)
+                }
+            }
+        }
+
         text += "\n========== END DUMP ==========\n"
         return text
     }
 
     private func dumpAdventureState() {
         print("\n" + buildAdventureStateText())
+    }
+
+    private func formatTranscriptEntry(_ entry: Transcript.Entry, index: Int) -> String {
+        if case .prompt(let prompt) = entry {
+            let promptText = String(describing: prompt)
+            return "  \(index). PROMPT (\(promptText.count) chars): \(promptText.prefix(100))...\n"
+        } else if case .response(let response) = entry {
+            let responseText = String(describing: response)
+            return "  \(index). RESPONSE (\(responseText.count) chars): \(responseText.prefix(100))...\n"
+        }
+        return ""
     }
 }

@@ -11,6 +11,7 @@ struct GameView: View {
     @State private var showActionsSheet = false
     @State private var showQuestSheet = false
     @State private var showMailComposer = false
+    @State private var emailWithStateAttachment = false
     @FocusState private var inputFocused: Bool
     @Environment(\.modelContext) private var modelContext
 
@@ -63,6 +64,11 @@ struct GameView: View {
         .fullScreenCover(isPresented: $showDeathReport) {
             deathReportView
         }
+        .onChange(of: viewModel.characterDied) { _, died in
+            if died {
+                showDeathReport = true
+            }
+        }
         .onChange(of: viewModel.needsInventoryManagement) { _, newValue in
             viewModel.showingInventoryManagement = newValue
         }
@@ -113,11 +119,21 @@ struct GameView: View {
         }
         .sheet(isPresented: $showMailComposer) {
             if MFMailComposeViewController.canSendMail() {
+                let stateURL = emailWithStateAttachment ? getGameStateURL() : nil
+                let subject = emailWithStateAttachment ? "DunGen Debug - Game State" : "DunGen Feedback"
+                let body = emailWithStateAttachment ? "Game state JSON attached.\n\n" : ""
+
                 MailComposeView(
-                    subject: "DunGen Feedback",
-                    messageBody: "",
-                    isPresented: $showMailComposer
+                    subject: subject,
+                    messageBody: body,
+                    isPresented: $showMailComposer,
+                    attachmentURL: stateURL
                 )
+            }
+        }
+        .onChange(of: showMailComposer) { _, newValue in
+            if !newValue {
+                emailWithStateAttachment = false
             }
         }
     }
@@ -311,8 +327,15 @@ struct GameView: View {
         StateDebugToolbarView(
             viewModel: viewModel,
             levelingService: levelingService,
-            showMailComposer: $showMailComposer
+            showMailComposer: $showMailComposer,
+            emailWithStateAttachment: $emailWithStateAttachment
         )
+    }
+
+    private func getGameStateURL() -> URL? {
+        let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let fileURL = documentsDirectory.appendingPathComponent("gameState.json")
+        return FileManager.default.fileExists(atPath: fileURL.path) ? fileURL : nil
     }
 
 

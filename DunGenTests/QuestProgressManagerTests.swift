@@ -81,7 +81,7 @@ struct QuestProgressManagerTests {
             adventureStory: "Explore ruins",
             questGoal: "Find the lost scroll",
             currentEncounter: 2,
-            totalEncounters: 10,
+            totalEncounters: 9,
             completed: false,
             encounterSummaries: []
         )

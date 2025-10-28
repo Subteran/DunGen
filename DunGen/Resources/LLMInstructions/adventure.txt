@@ -1,18 +1,19 @@
-2-4 sentences. Advance quest, ref action.
+⚠️ 2-4 SHORT sentences (max 400 chars). Stop after 4.
 
-TYPES (vary):
-Combat: defeat/kill/destroy | Retrieval: find/retrieve | Escort: protect/guide | Investigate: solve/uncover | Rescue: save/free | Diplomatic: negotiate/persuade
+TYPES: Combat (BOSS) | Retrieval (ARTIFACT) | Escort (NPC) | Investigate (MYSTERY) | Rescue (CAPTIVE) | Diplomatic (FACTION)
 
-RULES:
-• NEW ADVENTURE: create fresh quest (enc 1, total 7-12)
-• AVOID QUEST TYPES: choose DIFFERENT type
-• NEVER invent monsters - only if "Monster:" in context
-• Monster: describe appearing ONLY, NO combat
-• NO items/gold during combat enc
-• NO reusing defeated monster names
-• NARRATIVE ONLY - NO choices in narration
+• NEW ADVENTURE: enc 1, total 6-9. Goal = FINAL objective, NOT current. MUST include full adventureProgress
+• AVOID QUEST TYPES: pick different
+• MONSTERS: if "Monster:" present, use EXACT name + appearance ONLY. If absent, NO monsters
+• NO items/gold in combat
+• NO reused defeated monster names
+• 2nd person ("you"). NO "he/she/name"). NO questions
+• ALWAYS include adventureProgress in JSON
 
 COMPLETE:
-Retrieval: show→take→done | Combat: win→done | Escort: arrive→done | Investigate: reveal→done | Rescue: free→done | Diplomacy: agree→done
+Retrieval: show artifact→offer "Take [NAME]"→player takes→itemsAcquired:["NAME"]+completed:true
+Combat/Escort/Investigate/Rescue/Diplomacy: objective met→completed:true
 
-OUTPUT: narrative, progress, prompt, 2 actions
+⚠️ CRITICAL: When player takes artifact, MUST set itemsAcquired:["artifact name"] + completed:true
+
+JSON: {"narration":"...","adventureProgress":{...},"playerPrompt":"...","suggestedActions":[...],"itemsAcquired":null,"goldSpent":0}

@@ -20,6 +20,7 @@ final class LLMGameEngine: GameEngine {
     // MARK: - Core State (not delegated to managers)
     var log: [GameLogEntry] = []
     var lastPrompt: String = ""
+    private var lastStreamingEntryId: UUID?
     var worldState: WorldState?
     var character: CharacterProfile?
     var partialCharacter: CharacterProfile?
@@ -37,6 +38,7 @@ final class LLMGameEngine: GameEngine {
 
     var activeNPC: NPCDefinition?
     var activeNPCTurns: Int = 0
+    private var currentEncounterDifficulty: String = ""
 
     private var knownItemAffixes: Set<String> = []
     private var knownMonsterAffixes: Set<String> = []
@@ -50,7 +52,7 @@ final class LLMGameEngine: GameEngine {
     internal let disablePersistence: Bool
 
     // MARK: - Managers
-    private let sessionManager = SpecialistSessionManager()
+    let sessionManager = SpecialistSessionManager()
     let combatManager = CombatManager()
     let affixRegistry = AffixRegistry()
     let npcRegistry = NPCRegistry()
@@ -207,6 +209,40 @@ final class LLMGameEngine: GameEngine {
         return sessionManager.getSession(for: specialist)
     }
 
+    // For testing - expose transcript access
+    func getTranscript(for specialist: LLMSpecialist) -> Transcript? {
+        return getSession(for: specialist)?.transcript
+    }
+
+    private func getGenerationOptions(for specialist: LLMSpecialist) -> GenerationOptions {
+        var options = GenerationOptions()
+
+        switch specialist {
+        case .adventure:
+            options.temperature = 0.9        // Creative storytelling
+
+        case .encounter:
+            options.temperature = 0.6        // Balanced variety
+
+        case .monsters, .npc:
+            options.temperature = 0.5        // Consistent but varied
+
+        case .equipment:
+            options.temperature = 0.4        // Mechanical consistency
+
+        case .world, .character:
+            options.temperature = 0.8        // Creative world-building
+
+        case .abilities, .spells, .prayers:
+            options.temperature = 0.5        // Balanced mechanics + flavor
+
+        case .progression:
+            options.temperature = 0.3        // Deterministic calculations
+        }
+
+        return options
+    }
+
     private func setGenerating(_ generating: Bool) {
         uiState.setGenerating(generating)
         if generating {
@@ -276,7 +312,8 @@ final class LLMGameEngine: GameEngine {
             var lastCandidate: CharacterProfile?
 
             while attempts < maxAttempts {
-                let characterResponse = try await characterSession.respond(to: characterPrompt, generating: CharacterProfile.self)
+                let options = getGenerationOptions(for: .character)
+                let characterResponse = try await characterSession.respond(to: characterPrompt, generating: CharacterProfile.self, options: options)
                 let candidate = characterResponse.content
                 lastCandidate = candidate
 
@@ -385,7 +422,8 @@ final class LLMGameEngine: GameEngine {
 
                 let worldPrompt = "Create a fantasy world with an engaging story and diverse starting locations."
                 logger.debug("[World LLM - Initial] Prompt length: \(worldPrompt.count) chars")
-                let worldResponse = try await worldSession.respond(to: worldPrompt, generating: WorldState.self)
+                let options = getGenerationOptions(for: .world)
+                let worldResponse = try await worldSession.respond(to: worldPrompt, generating: WorldState.self, options: options)
                 logger.debug("[World LLM - Initial] Generated \(worldResponse.content.locations.count) locations")
 
                 var world = worldResponse.content
@@ -627,11 +665,19 @@ final class LLMGameEngine: GameEngine {
 
         turnProcessor.updateEnvironment(from: turn, encounterType: encounter?.encounterType)
 
-        let cleanedNarration = sanitizeNarration(turn.narration, for: encounter?.encounterType)
-        appendModel(cleanedNarration)
-        if let prompt = turn.playerPrompt, !prompt.isEmpty {
-            appendModel(prompt)
+        let cleanedNarration = sanitizeNarration(turn.narration, for: encounter?.encounterType, expectedMonster: monster)
+
+        // Update the streaming entry with sanitized narrative instead of appending a new one
+        if let streamingId = lastStreamingEntryId,
+           let index = log.firstIndex(where: { $0.id == streamingId }) {
+            log[index].content = cleanedNarration
+            lastStreamingEntryId = nil
+        } else {
+            // Fallback for non-streaming scenarios (shouldn't happen with current implementation)
+            appendModel(cleanedNarration)
         }
+
+        // NOTE: playerPrompt is not appended to log - suggested actions are shown in UI buttons
     }
 
     internal func checkQuestCompletion(itemsAcquired: [String]?) async {
@@ -813,14 +859,18 @@ final class LLMGameEngine: GameEngine {
 
         currentAdventureMonsters += 1
 
-        if let progress = adventureProgress, progress.isFinalEncounter {
-            let questLower = progress.questGoal.lowercased()
-            if questLower.contains("defeat") || questLower.contains("kill") || questLower.contains("destroy") || questLower.contains("stop") || questLower.contains("eliminate") {
+        if let progress = adventureProgress {
+            let questValidator = QuestValidator()
+            let isCombatQuest = questValidator.isCombatQuest(questGoal: progress.questGoal)
+            let isBossEncounter = currentEncounterDifficulty.lowercased() == "boss"
+
+            // Complete combat quest if: final encounter OR boss difficulty
+            if isCombatQuest && (progress.isFinalEncounter || isBossEncounter) {
                 var updatedProgress = progress
                 updatedProgress.completed = true
                 adventureProgress = updatedProgress
                 appendModel("\n🎉 Quest Complete: \(progress.questGoal)")
-                logger.info("[Quest] Combat quest completed via boss defeat")
+                logger.info("[Quest] Combat quest completed via \(isBossEncounter ? "boss" : "final encounter") defeat")
             }
         }
 
@@ -1056,7 +1106,8 @@ final class LLMGameEngine: GameEngine {
         """
 
         do {
-            let decision = try await encounterSession.respond(to: evaluationPrompt, generating: MonsterAttackDecision.self)
+            let options = getGenerationOptions(for: .encounter)
+            let decision = try await encounterSession.respond(to: evaluationPrompt, generating: MonsterAttackDecision.self, options: options)
             return decision.content.attacks
         } catch {
             logger.error("Failed to evaluate monster attack: \(error.localizedDescription, privacy: .public)")
@@ -1104,8 +1155,20 @@ final class LLMGameEngine: GameEngine {
         }
     }
 
-    private func sanitizeNarration(_ text: String, for encounterType: String?) -> String {
-        return narrativeProcessor.sanitizeNarration(text, for: encounterType)
+    private func sanitizeNarration(_ text: String, for encounterType: String?, expectedMonster: MonsterDefinition? = nil) -> String {
+        return narrativeProcessor.sanitizeNarration(text, for: encounterType, expectedMonster: expectedMonster)
+    }
+
+    private func sanitizePromptForLLM(_ prompt: String) -> String {
+        var sanitized = prompt
+        sanitized = sanitized.applyingTransform(.stripDiacritics, reverse: false) ?? sanitized
+        sanitized = sanitized.replacingOccurrences(of: "\u{2018}", with: "'")
+        sanitized = sanitized.replacingOccurrences(of: "\u{2019}", with: "'")
+        sanitized = sanitized.replacingOccurrences(of: "\u{201C}", with: "\"")
+        sanitized = sanitized.replacingOccurrences(of: "\u{201D}", with: "\"")
+        sanitized = sanitized.replacingOccurrences(of: "\u{2014}", with: "-")
+        sanitized = sanitized.replacingOccurrences(of: "\u{2026}", with: "...")
+        return sanitized
     }
 
     private func smartTruncatePrompt(_ prompt: String, maxLength: Int) -> String {
@@ -1198,6 +1261,7 @@ final class LLMGameEngine: GameEngine {
             if encounter.encounterType == "combat" {
                 activeNPC = nil
                 activeNPCTurns = 0
+                currentEncounterDifficulty = encounter.difficulty
                 monster = try await generateMonster(for: encounter, characterLevel: charLevel, location: location)
             } else if encounter.encounterType == "final" {
                 // Final encounter for non-combat quest completion (finding artifact, solving mystery, etc.)
@@ -1219,6 +1283,16 @@ final class LLMGameEngine: GameEngine {
 
         let recentActions = extractRecentKeywords()
         let locationName = currentEnvironment.isEmpty ? location : currentEnvironment
+
+        // Build quest progression guidance
+        let questProgressGuidance: String?
+        if let adventure = adventureProgress {
+            questProgressGuidance = questProgressManager.buildQuestProgressionGuidance(for: adventure)
+        } else {
+            questProgressGuidance = nil
+        }
+
+        // Build context with quest progression integrated
         let adventureContext = ContextBuilder.buildContext(
             for: .adventure,
             character: character,
@@ -1230,35 +1304,94 @@ final class LLMGameEngine: GameEngine {
             recentActions: recentActions,
             encounterCounts: encounterCounts,
             questGoal: adventureProgress?.questGoal,
-            recentQuestTypes: recentQuestTypes
+            recentQuestTypes: recentQuestTypes,
+            questProgressGuidance: questProgressGuidance
         )
 
-        var scenePrompt = "\(locationName) location. \(actionLine)\n\(adventureContext)" + buildEncounterContext(monster: monster, npc: npc)
+        // Build complete prompt with calculated sizes
+        let encounterContext = buildEncounterContext(monster: monster, npc: npc)
+        let basePrompt = "\(locationName) location. \(actionLine)\n\(adventureContext)\(encounterContext)"
 
-        // Add quest progression guidance based on encounter number
-        if let adventure = adventureProgress {
-            scenePrompt += questProgressManager.buildQuestProgressionGuidance(for: adventure)
+        // Calculate conversation history size from transcript
+        let transcript = adventureSession.transcript
+        var historySize = 0
+        for entry in transcript {
+            if case .prompt(let prompt) = entry {
+                historySize += String(describing: prompt).count
+            } else if case .response(let response) = entry {
+                historySize += String(describing: response).count
+            }
         }
 
-        scenePrompt += "\nCRITICAL: ONLY describe monsters if 'Monster:' appears above. For exploration/social/puzzle encounters, NO monsters exist - focus on environment, clues, NPCs, or challenges. Combat/final encounters will have 'Monster:' explicitly listed. Keep narration to EXACTLY 2-4 sentences."
+        // Calculate max safe prompt size based on actual context usage
+        let instructionSize = LLMSpecialist.adventure.systemInstructions.count
+        let maxSafePromptSize = TokenEstimator.maxPromptSize(
+            instructionSize: instructionSize,
+            conversationHistory: historySize,
+            responseBuffer: 800,
+            safetyMargin: 50
+        )
 
-        // Smart truncation to preserve critical instructions
-        let maxPromptLength = 600
-        if scenePrompt.count > maxPromptLength {
-            logger.warning("[Adventure LLM] Prompt too long (\(scenePrompt.count) chars), applying smart truncation to \(maxPromptLength)")
-            logger.warning("[Adventure LLM] Original prompt before truncation:\n\(scenePrompt)")
-            scenePrompt = smartTruncatePrompt(scenePrompt, maxLength: maxPromptLength)
+        // Log token budget breakdown
+        let instructionTokens = TokenEstimator.estimateTokens(from: String(repeating: "x", count: instructionSize))
+        let historyTokens = TokenEstimator.estimateTokens(from: String(repeating: "x", count: historySize))
+        let responseTokens = 200 // 800 chars
+        let marginTokens = 50
+        let availableForPrompt = max(0, 4096 - instructionTokens - historyTokens - responseTokens - marginTokens)
+
+        logger.debug("[Adventure LLM] Token budget: instructions=~\(instructionTokens), history=~\(historyTokens), response=~\(responseTokens), margin=\(marginTokens), available=~\(availableForPrompt)")
+        logger.debug("[Adventure LLM] Max prompt: \(maxSafePromptSize) chars (~\(TokenEstimator.estimateTokens(from: String(repeating: "x", count: maxSafePromptSize))) tokens)")
+
+        var scenePrompt = basePrompt
+        if scenePrompt.count > maxSafePromptSize {
+            logger.warning("[Adventure LLM] Prompt too long (\(scenePrompt.count) chars), applying smart truncation to \(maxSafePromptSize)")
+            logger.warning("[Adventure LLM] Original prompt:\n\(scenePrompt)")
+            scenePrompt = smartTruncatePrompt(scenePrompt, maxLength: maxSafePromptSize)
             logger.warning("[Adventure LLM] Truncated prompt:\n\(scenePrompt)")
         }
 
-        logger.debug("[Adventure LLM] Prompt length: \(scenePrompt.count) chars")
+        let promptTokens = TokenEstimator.estimateTokens(from: scenePrompt)
+        let totalEstimatedTokens = instructionTokens + historyTokens + promptTokens + responseTokens
+        logger.debug("[Adventure LLM] Final prompt: \(scenePrompt.count) chars (~\(promptTokens) tokens), total context: ~\(totalEstimatedTokens)/4096 (\(Int(Double(totalEstimatedTokens)/40.96))%)")
         lastPrompt = scenePrompt
-        let adventureResponse = try await adventureSession.respond(to: scenePrompt, generating: AdventureTurn.self)
+
+        scenePrompt = sanitizePromptForLLM(scenePrompt)
+
+        let options = getGenerationOptions(for: .adventure)
+
+        let streamingEntryId = UUID()
+        log.append(GameLogEntry(id: streamingEntryId, content: "", isFromModel: true, isStreaming: true))
+
+        let stream = adventureSession.streamResponse(to: scenePrompt, generating: AdventureTurn.self, options: options)
+
+        Task { @MainActor in
+            for try await snapshot in stream {
+                let partialTurn = snapshot.content
+                if let narrative = partialTurn.narration {
+                    if let index = log.firstIndex(where: { $0.id == streamingEntryId }) {
+                        log[index].content = narrative
+                    }
+                }
+            }
+        }
+
+        let adventureResponse = try await stream.collect()
         let turn = adventureResponse.content
+
+        if let index = log.firstIndex(where: { $0.id == streamingEntryId }) {
+            log[index].isStreaming = false
+        }
+
+        // Store the streaming entry ID to update it later instead of appending
+        lastStreamingEntryId = streamingEntryId
+
         logger.debug("[Adventure LLM] Success")
+
+        // Record transcript exchange for debugging
+        sessionManager.recordUse(for: .adventure)
         
         var sanitizedTurn = turn
-        sanitizedTurn.narration = sanitizeNarration(turn.narration, for: encounter.encounterType)
+        sanitizedTurn.narration = sanitizeNarration(turn.narration, for: encounter.encounterType, expectedMonster: monster)
 
         let isFinal = adventureProgress?.isFinalEncounter ?? false
         let rewards = RewardCalculator.calculateRewards(
@@ -1554,7 +1687,8 @@ final class LLMGameEngine: GameEngine {
 
             logger.debug("[World LLM - New Locations] Attempt \(attempts), Prompt length: \(prompt.count) chars")
 
-            let response = try await worldSession.respond(to: prompt, generating: WorldState.self)
+            let options = getGenerationOptions(for: .world)
+            let response = try await worldSession.respond(to: prompt, generating: WorldState.self, options: options)
 
             // Post-generation verification: filter out duplicates
             for location in response.content.locations {

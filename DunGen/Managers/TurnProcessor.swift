@@ -33,12 +33,15 @@ final class TurnProcessor {
                 }
                 currentProgress.adventureStory = progress.adventureStory
 
-                // For combat quests, only allow code to mark as complete (via boss defeat)
+                // For combat and retrieval quests, only allow code to mark as complete
                 // For other quest types, allow LLM to mark as complete
                 let questValidator = QuestValidator()
                 if questValidator.isCombatQuest(questGoal: currentProgress.questGoal) {
                     // Keep current completed status (don't let LLM override)
                     // Combat quest completion is handled by applyMonsterDefeatRewards
+                } else if questValidator.isRetrievalQuest(questGoal: currentProgress.questGoal) {
+                    // Keep current completed status (don't let LLM override)
+                    // Retrieval quest completion is handled by handleQuestCompletion
                 } else {
                     currentProgress.completed = progress.completed
                 }
@@ -99,6 +102,10 @@ final class TurnProcessor {
 
         engine.appendModel("\n✅ Adventure Complete: \(finalProgress.locationName)")
         engine.adventuresCompleted += 1
+
+        // Log transcript metrics for this adventure
+        engine.sessionManager.logTranscriptMetrics(for: .adventure)
+        engine.sessionManager.logTranscriptMetrics(for: .encounter)
 
         // Track quest type for variety
         let questValidator = QuestValidator()

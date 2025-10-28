@@ -31,18 +31,29 @@ DunGen is an iOS 26 fantasy RPG text adventure game that uses Apple's on-device 
 - **Combat narration sanitization**: Removes combat resolution verbs from narrative (fighting only in combat system)
 - **Combat encounter isolation**: Item purchases/acquisitions blocked during combat to prevent UI conflicts
 - **Quest completion validation**: Character must be alive to complete quests
+- **Code-controlled quest completion**: Combat and retrieval quests can only be marked complete by code (boss defeat or artifact taken), not by LLM
 
 ## Build & Test Commands
 
+**IMPORTANT**: Use `platform=iOS,name=Momo` for ALL tests (Momo is an iPad Pro 11" M5 with iOS 26.0.1 and on-device LLM support)
+
+**Known Issue**: Apple's FoundationModels framework has intermittent "Unsupported language pl" bugs that cause random test failures - prompt sanitization added to mitigate
+
 ```bash
 # Build
-xcodebuild -scheme DunGen -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' build
+xcodebuild -scheme DunGen -destination 'platform=iOS,name=Momo' build
 
-# Run Tests
-xcodebuild test -scheme DunGen -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest'
+# Run ALL Tests
+xcodebuild test -scheme DunGen -destination 'platform=iOS,name=Momo'
+
+# Run LLM Integration Tests
+xcodebuild test -scheme DunGen -destination 'platform=iOS,name=Momo' -only-testing:DunGenTests/FullAdventureIntegrationTest
 
 # Run Single Test
-xcodebuild test -scheme DunGen -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' -only-testing:DunGenTests/TestClassName/testMethodName
+xcodebuild test -scheme DunGen -destination 'platform=iOS,name=Momo' -only-testing:DunGenTests/TestClassName/testMethodName
+
+# Check LLM Availability (diagnostic)
+xcodebuild test -scheme DunGen -destination 'platform=iOS,name=Momo' -only-testing:DunGenTests/LLMAvailabilityTest
 ```
 
 ## Project Structure
@@ -61,11 +72,15 @@ DunGen/
 │   ├── MonsterGenerator.swift        # Monster selection + affix application
 │   ├── LootGenerator.swift           # Item type/rarity + affix application
 │   ├── NPCRegistry.swift             # NPC persistence
-│   ├── SpecialistSessionManager.swift # LLM session management (resets every 15 turns)
+│   ├── SpecialistSessionManager.swift # LLM session management with token tracking
 │   ├── GameStatePersistence.swift    # Save/load system
 │   ├── LevelingService.swift         # XP and leveling logic
 │   ├── RewardCalculator.swift        # Code-based XP/gold/damage calculations
-│   └── ContextBuilder.swift          # Tiered context generation per LLM
+│   ├── ContextBuilder.swift          # Tiered context generation per LLM with quest progression
+│   ├── QuestProgressManager.swift    # Quest stage guidance and completion logic
+│   └── NarrativeProcessor.swift      # Narrative sanitization and smart truncation
+├── Utilities/
+│   └── TokenEstimator.swift          # Token estimation and context usage analysis
 ├── Models/
 │   ├── WorldModels.swift         # AdventureType, WorldState, AdventureProgress, AdventureSummary
 │   ├── CharacterModels.swift     # CharacterProfile, RaceModifiers, LevelReward
@@ -132,7 +147,7 @@ Each specialist has a focused responsibility to maintain coherent gameplay:
 
 **Key Design Principles:**
 - Specialists work in sequence during `advanceScene()`
-- Session resets: Every 15 turns via `SpecialistSessionManager` (Adventure: 6 uses, Equipment: 3 uses, Encounter: 5 uses)
+- Session resets: Per-specialist via `SpecialistSessionManager` (Adventure: 8 uses, Equipment: 10 uses, Encounter: 15 uses, Monsters/NPC: 15 uses, Others: 20 uses)
 - **Tiered context system** - Each LLM receives minimal relevant context via `ContextBuilder`
 - **Code-based rewards** - XP/gold/damage calculated by `RewardCalculator`, no LLM variance
 - **Encounter variety enforcement** - no consecutive combat, 3+ between traps (code-enforced via count tracking)
@@ -220,27 +235,107 @@ Each specialist has a focused responsibility to maintain coherent gameplay:
 - **Base Item Types**: Weapons (Sword, Axe, Mace, Dagger, Spear, Bow, Staff, Wand), Armor (Chestplate, Helmet, Gauntlets, Boots, Shield, Cloak, Bracers), Accessories (Ring, Amulet, Belt, Talisman, Pendant, Brooch)
 - **Duplicate Prevention**: Checks existing inventory for duplicate item names
 
-### Context Window Protection
+### Context Window Management
 
-**CRITICAL: Apple's on-device LLM has a ~2000 character context window INCLUDING instruction files**
+**Apple's on-device LLM context window: 4096 TOKENS (per TN3193)**
 
-**Safeguards to prevent prompt overflow:**
+**Token Budget Allocation:**
+- Total: 4096 tokens
+- Conversion: 1 token ≈ 4 characters
+- Budget breakdown per turn:
+  - System instructions: ~90 tokens (static)
+  - Conversation history: grows with each exchange (past prompts + responses)
+  - Current prompt: dynamic (calculated)
+  - Upcoming response: ~200 tokens (reserved)
+  - Safety margin: 50 tokens
+
+**Example Calculation (Adventure LLM, Turn 5):**
+```
+Total budget:          4096 tokens
+- Instructions:         -234 tokens (936 chars)
+- History (4 exchanges): -1136 tokens (4544 chars: 4 prompts ~600 chars + 4 responses ~536 chars)
+- Response buffer:      -200 tokens (800 chars, strictly enforced)
+- Safety margin:         -50 tokens
+= Available for prompt: 2476 tokens ≈ 9,904 chars
+
+As history grows, available prompt space shrinks:
+Turn 1: ~3600 tokens available
+Turn 4: ~2850 tokens available
+Turn 6: Session reset triggered (6 uses ≈ 3400 tokens used)
+
+With 6-9 encounters per adventure, session resets mid-quest are expected.
+
+⚠️ Response length must be strictly enforced - observed responses reached 425 tokens
+without constraints, exceeding the 200 token budget and risking context overflow.
+```
+
+**Per-Specialist Limits:**
+
+| Specialist | Reset After | Tokens/Exchange | Prompt Limit |
+|------------|-------------|-----------------|--------------|
+| Adventure | 6 uses | ~568 | Dynamic (calc) |
+| Encounter | 15 uses | ~253 | 1000 chars |
+| Monster | 15 uses | ~253 | 1000 chars |
+| NPC | 15 uses | ~253 | 1000 chars |
+| Equipment | 10 uses | ~380 | 1500 chars |
+| Others | 20 uses | ~190 | 750 chars |
+
+**Context Management Strategies:**
 
 1. **Instruction File Compression** - Aggressively reduced specialist instructions:
-   - Adventure: 359 chars (was 7,575 - 95% reduction)
-   - Encounter: 340 chars (was 1,885 - 82% reduction)
-   - Progression: 563 chars (was 4,310 - 87% reduction)
-2. **Dynamic Prompt Truncation** - Max 600 characters (smart truncation prioritizes: player action, encounter type, CRITICAL instructions, quest stage; then adds character stats, location, quest as space allows)
-3. **Total Prompt Size** - Worst case per turn: 600 (dynamic) + 11 (instructions) = 611 chars
-4. **Session History Management** - Adventure session resets after 6 uses (max 3600 chars accumulated before reset)
-5. **Inventory Limit** - 20-slot maximum with UI-based management
-6. **Location Cap** - Maximum 50 locations total
-7. **User Input Truncation** - Player actions limited to 500 characters
-8. **Action History Truncation** - Recent actions truncated to 200 characters each
-9. **Post-Generation Verification** - Locations, NPCs, abilities/spells generated without full lists, then verified
-10. **Global Session Reset** - Every 15 turns to clear all conversation history
-11. **Affix Tracking** - Only last 10 affixes sent to LLMs (not full history)
-12. **Equipment Generation** - Max 3 retry attempts with error catching to prevent infinite loops
+   - Adventure: 936 chars (~234 tokens, was 7,575 - 97% reduction)
+   - Encounter: 340 chars (~85 tokens, was 1,885 - 82% reduction)
+   - Progression: 563 chars (~140 tokens, was 4,310 - 87% reduction)
+2. **Strict Response Length Enforcement** - Adventure LLM constrained to prevent token overflow:
+   - **⚠️ NARRATIVE LENGTH**: 2-4 SHORT sentences ONLY (max 400 chars)
+   - Explicit "Stop after 4 sentences. NO extra paragraphs" instruction
+   - JSON output format reminder to prevent extra text in response
+   - Observed: Some responses reach ~425 tokens without strict constraints
+3. **Dynamic Prompt Sizing** - Adventure LLM uses `TokenEstimator` to calculate max safe prompt size based on:
+   - Instruction size (~769 chars = ~192 tokens)
+   - Conversation history (all past prompts + responses from transcript)
+   - Response buffer (800 chars = ~200 tokens for upcoming response)
+   - Safety margin (50 tokens)
+   - Formula: `available_for_current_prompt = 4096 - instructions - history - upcoming_response - margin`
+   - Logs detailed token budget breakdown each turn
+4. **Integrated Quest Progression** - Quest guidance built into `ContextBuilder` instead of appended after (prevents truncation)
+5. **Critical Instructions in System Prompt** - Moved monster/combat rules from per-prompt to adventure.txt (saves ~100 chars per prompt)
+6. **Token Estimation Utility** - `TokenEstimator` provides:
+   - Token count estimation (chars ÷ 4)
+   - Context usage analysis with warnings
+   - Max safe prompt size calculation
+   - Remaining token tracking
+6. **Session-Aware Resets** - Each specialist resets based on token budget:
+   - Adventure: 9 uses (was 8, recalculated with new system)
+   - Equipment: 10 uses
+   - Encounter/Monster/NPC: 15 uses
+   - Others: 20 uses
+7. **Enhanced Transcript Metrics** - `SpecialistSessionManager` logs:
+   - Token estimates for prompts/responses
+   - Total token usage (X/4096)
+   - Percentage used with warnings at 75%/85%/95%
+   - Response size tracking
+8. **Smart Prompt Truncation** - `NarrativeProcessor.smartTruncatePrompt()` prioritizes:
+   - Critical instructions (⚠️ markers, STAGE-, NEW ADVENTURE)
+   - Quest variety (AVOID QUEST TYPES)
+   - Player action and encounter type
+   - Character/monster/NPC info
+   - Drops: action history, encounter statistics
+9. **GenerationOptions per Specialist** - Fine-tuned temperature:
+   - Adventure: temp 0.9 (creative storytelling)
+   - Encounter: temp 0.6 (balanced variety)
+   - Monster/NPC: temp 0.5 (consistent but varied)
+   - Equipment: temp 0.4 (mechanical consistency)
+   - World/Character: temp 0.8 (creative world-building)
+   - Abilities/Spells/Prayers: temp 0.5 (balanced mechanics + flavor)
+   - Progression: temp 0.3 (deterministic calculations)
+10. **Inventory Limit** - 20-slot maximum with UI-based management
+11. **Location Cap** - Maximum 50 locations total
+12. **User Input Truncation** - Player actions limited to 500 characters
+13. **Action History Truncation** - Recent actions truncated to 200 characters each
+14. **Post-Generation Verification** - Locations, NPCs, abilities/spells generated without full lists, then verified
+15. **Global Session Reset** - Every 15 turns to clear all conversation history (backup safeguard)
+16. **Affix Tracking** - Only last 10 affixes sent to LLMs (not full history)
 
 ### Core Components
 
@@ -269,28 +364,59 @@ Each specialist has a focused responsibility to maintain coherent gameplay:
 - Monster damage: 2-8 HP per attack
 
 **SpecialistSessionManager** (`Managers/SpecialistSessionManager.swift`)
-- Manages 11 separate `LanguageModelSession` instances
-- Global reset: Every 15 turns to clear all session history
-- Per-specialist usage limits (auto-reset when reached):
-  - Adventure specialist: 10 uses (maintains narrative coherence)
-  - Equipment specialist: 3 uses (prevents affix repetition)
-  - Encounter specialist: 5 uses (variety enforcement)
-  - Other specialists: 10 uses
+- Manages 8 separate `LanguageModelSession` instances
+- Global reset: Every 15 turns to clear all session history (backup safeguard)
+- Per-specialist usage limits (token-budget aware, auto-reset when reached):
+  - Adventure: 12 uses (~316 tokens/exchange)
+  - Encounter: 15 uses (~253 tokens/exchange)
+  - Monster/NPC: 15 uses (~253 tokens/exchange)
+  - Equipment: 10 uses (~380 tokens/exchange)
+  - Others: 20 uses (~190 tokens/exchange)
+- Transcript logging for debugging and metrics
+- Token usage warnings when approaching 4096 limit
 
 ## Game Flow
 
 ### Adventure Structure
 - Each adventure: `questGoal`, `locationName`, `adventureStory`
-- 7-12 encounters per adventure
+- 6-9 encounters per adventure
 - Progress tracked: `currentEncounter` / `totalEncounters`
 - Stats tracked: XP gained, gold earned, monsters defeated
+
+### Quest Progression Stages
+
+Quest pacing is controlled by `QuestProgressManager` based on encounter progress:
+
+**Stage Thresholds (for 6-9 encounter quests):**
+- **Early (< 50%)**: Encounters 1-2 (6-enc) or 1-4 (9-enc)
+  - Guidance: "Intro clues/NPCs/hints. Show obstacles, NO artifact yet."
+  - Purpose: Establish quest, build atmosphere, introduce challenges
+
+- **Mid (50-84%)**: Encounters 3-4 (6-enc) or 5-7 (9-enc)
+  - Guidance: "Hint at item location. Build tension."
+  - Purpose: Show progress, provide clues about objective location
+
+- **Late (85-99%)**: Encounter 5 (6-enc) or 8 (9-enc)
+  - Guidance: "Show item/location clearly. Prepare for finale."
+  - Purpose: Reveal objective location, set up final encounter
+
+- **Final (100%)**: Encounter 6 (6-enc) or 9 (9-enc)
+  - Guidance: Quest-specific completion instructions
+  - Purpose: Present objective for completion
+
+**Example (6-encounter retrieval quest):**
+1. Enc 1-2 (Early): Hints about ancient ruins, locals mention artifact rumors
+2. Enc 3-4 (Mid): Find map fragment, discover ruins entrance
+3. Enc 5 (Late): Enter ruins, see artifact on pedestal
+4. Enc 6 (Final): Present artifact, offer "Take [artifact]" action
 
 ### Quest Types
 Quest type is inferred from keywords in the `questGoal` text. Each type has specific final encounter handling:
 
 1. **Retrieval Quests** (find, retrieve, locate, discover)
    - Final encounter: "final" type (non-combat)
-   - Completion: Present artifact/item, mark completed=true when player takes it
+   - Completion: Present artifact/item, LLM MUST offer "Take [artifact]" action, code marks completed=true when player takes it
+   - Code-controlled: LLM cannot mark as complete, only TurnProcessor.handleQuestCompletion() can
    - Example: "Find the lost amulet" → Present amulet → Player "Take the amulet" → Quest complete
 
 2. **Combat Quests** (defeat, kill, destroy, stop)
@@ -506,6 +632,7 @@ All game state is persisted to JSON file (`gameState.json`) for save/load contin
 - `LLMGameEngine` used directly for integration tests (device only)
 - Unit tests for game logic (mock mode)
 - Integration tests for LLM behavior (device only)
+- Transcript-based tests for LLM prompt/response validation
 - Level progression tests
 - Character history tests
 - Quest type validation tests
@@ -517,6 +644,8 @@ All game state is persisted to JSON file (`gameState.json`) for save/load contin
 - `FullAdventureIntegrationTest.swift` - Integration tests for complete adventures
 - `EngineLevelingIntegrationTests.swift` - Tests XP and leveling
 - `GameStatePersistenceTests.swift` - Tests save/load functionality
+- `TranscriptIntegrationTests.swift` - Tests using Apple's Transcript API to validate LLM behavior
+- `TranscriptTestHelpers.swift` - Utility methods for transcript analysis in tests
 
 ### Test Isolation Requirements
 ⚠️ **Critical**: LLM mode tests share `SystemLanguageModel.default` resource and can interfere with each other when run as a suite.
@@ -551,5 +680,50 @@ Tests using `LLMGameEngine` directly must call `setupManagers()`:
 let engine = LLMGameEngine(levelingService: DefaultLevelingService())
 engine.setupManagers() // Required to initialize TurnProcessor, etc.
 ```
+
+### Transcript Testing
+The game uses Apple's `Transcript` API to validate LLM behavior and establish feedback loops for improvements.
+
+**TranscriptTestHelpers Utility:**
+- `verifyPromptContains()` - Check if keyword appears in any prompt
+- `verifyAllPromptsContain()` - Check if keyword appears in ALL prompts
+- `getLastPrompt()` - Get most recent prompt text
+- `getLastResponse()` - Get most recent response text
+- `getPromptHistory()` - Get all prompts chronologically
+- `getPromptsMissing()` - Find prompts missing a keyword
+- `analyzeContextUsage()` - Get character-based metrics (size, count, over-limit warnings)
+- `analyzeTokenUsage()` - Get token-based analysis (estimates tokens, % of 4096 budget used)
+- `estimateTokens()` - Convert characters to estimated token count (÷4 approximation)
+- `entryCount()`, `promptCount()`, `averagePromptSize()`, `maxPromptSize()` - Basic metrics
+
+**Example Test:**
+```swift
+@Test("Quest context maintained", .enabled(if: isLLMAvailable()))
+func testQuestContext() async throws {
+    try? await Task.sleep(for: .milliseconds(500))
+    let engine = MockGameEngine(mode: .llm)
+    await setupGameWithAdventure(engine, preferredType: .village)
+
+    let questGoal = engine.adventureProgress?.questGoal ?? ""
+
+    for i in 1...5 {
+        await engine.submitPlayer(input: "explore")
+
+        let transcript = engine.getTranscript(for: .adventure)
+        let hasQuest = TranscriptTestHelpers.verifyPromptContains(
+            transcript: transcript,
+            keyword: questGoal
+        )
+
+        #expect(hasQuest, "Quest missing from prompt in turn \(i)")
+    }
+}
+```
+
+**Automatic Logging:**
+- `SpecialistSessionManager` logs transcript metrics after each use
+- `TurnProcessor` logs metrics on adventure completion
+- Metrics tracked: entry count, prompt count, avg/max size, token estimates, over-limit counts
+- Warnings logged when transcript approaches 4096 token limit (85%+ usage)
 
 See `TESTING.md` for complete testing guide.

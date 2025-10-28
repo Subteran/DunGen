@@ -1,0 +1,82 @@
+{
+  "specialist": "adventure",
+  "version": "1.0",
+  "systemPrompt": "2-4 sent, 2nd person, no combat verbs, ref quest. JSON only.",
+  "outputSchema": {
+    "narration": {
+      "type": "string",
+      "maxLength": 400,
+      "description": "2-4 sentences describing current scene"
+    },
+    "adventureProgress": {
+      "type": "object",
+      "required": true,
+      "properties": {
+        "locationName": "string",
+        "questGoal": "string",
+        "currentEncounter": "int",
+        "totalEncounters": "int",
+        "completed": "bool"
+      }
+    },
+    "suggestedActions": {
+      "type": "array",
+      "items": "string",
+      "minItems": 2,
+      "maxItems": 4
+    },
+    "newThreads": {
+      "type": "array",
+      "items": "string",
+      "optional": true,
+      "description": "New plot elements to track"
+    },
+    "resolvedThreads": {
+      "type": "array",
+      "items": "string",
+      "optional": true,
+      "description": "Thread IDs that are now resolved"
+    },
+    "causalEvent": {
+      "type": "object",
+      "optional": true,
+      "properties": {
+        "event": "string",
+        "cause": "string?",
+        "consequence": "string?"
+      }
+    },
+    "itemsAcquired": {
+      "type": "object",
+      "optional": true
+    },
+    "goldSpent": {
+      "type": "int",
+      "default": 0
+    }
+  },
+  "constraints": [
+    "no-you-could",
+    "no-combat-res",
+    "ref-quest",
+    "2nd-person",
+    "max-4-sent"
+  ],
+  "continuityRules": [
+    "Reference active threads if relevant",
+    "Continue causal chain logically",
+    "Don't spawn enemies in cleared areas",
+    "NPCs remember previous meetings",
+    "Match tension level",
+    "Build toward quest stage"
+  ],
+  "forbiddenVerbs": [
+    "defeat", "defeated", "kill", "killed", "slay", "slain",
+    "strike", "struck", "smite", "smitten", "crush", "crushed"
+  ],
+  "tokenBudget": {
+    "instructions": 55,
+    "response": 120,
+    "availableForState": 3871
+  }
+}

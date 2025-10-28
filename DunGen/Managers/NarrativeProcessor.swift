@@ -1,7 +1,7 @@
 import Foundation
 
 final class NarrativeProcessor {
-    func sanitizeNarration(_ text: String, for encounterType: String?) -> String {
+    func sanitizeNarration(_ text: String, for encounterType: String?, expectedMonster: MonsterDefinition? = nil) -> String {
         let forbidden = ["defeat", "defeated", "kill", "killed", "slay", "slain", "strike", "struck", "smite", "smitten", "crush", "crushed", "stab", "stabbed", "shoot", "shot", "damage", "wound", "wounded"]
         var sanitized = text
         if let type = encounterType, type == "combat" || type == "final" {
@@ -11,7 +11,37 @@ final class NarrativeProcessor {
         }
 
         sanitized = removeActionSuggestions(from: sanitized)
+        sanitized = validateMonsterReferences(in: sanitized, expectedMonster: expectedMonster)
         return sanitized
+    }
+
+    private func validateMonsterReferences(in text: String, expectedMonster: MonsterDefinition?) -> String {
+        guard let monster = expectedMonster else { return text }
+
+        // Extract monster name components for matching
+        let expectedWords = Set(monster.fullName.lowercased().split(separator: " ").map(String.init))
+        let monsterKeywords = ["goblin", "orc", "skeleton", "zombie", "rat", "spider", "wolf", "dragon", "demon", "troll", "ogre", "bandit", "cultist", "undead", "beast", "wraith", "ghoul", "vampire"]
+
+        var lines = text.components(separatedBy: "\n")
+        lines = lines.map { line in
+            let lower = line.lowercased()
+
+            // Check if line mentions a monster keyword
+            for keyword in monsterKeywords {
+                if lower.contains(keyword) {
+                    // Check if it's the expected monster
+                    let hasExpectedWord = expectedWords.contains { lower.contains($0) }
+                    if !hasExpectedWord {
+                        // Line mentions a different monster - replace with generic description
+                        return line.replacingOccurrences(of: "A ", with: "You see something in the shadows. ", options: .caseInsensitive)
+                            .replacingOccurrences(of: "An ", with: "Movement ahead. ", options: .caseInsensitive)
+                    }
+                }
+            }
+            return line
+        }
+
+        return lines.joined(separator: "\n")
     }
 
     private func removeActionSuggestions(from text: String) -> String {
@@ -28,9 +58,17 @@ final class NarrativeProcessor {
                                   lower.contains("will you") ||
                                   lower.contains("do you") ||
                                   lower.contains("would you") ||
+                                  lower.contains("could you") ||
+                                  lower.contains("should you") ||
                                   lower.contains("what do you") ||
                                   lower.contains("what will you") ||
-                                  lower.contains("how do you")
+                                  lower.contains("how do you") ||
+                                  lower.contains("perhaps you") ||
+                                  lower.contains("maybe you") ||
+                                  lower.contains("you have the option") ||
+                                  lower.contains("you have a choice") ||
+                                  lower.contains("options:") ||
+                                  lower.contains("choices:")
 
             let isQuestionToPlayer = trimmed.hasSuffix("?") && (
                 lower.contains("you") ||

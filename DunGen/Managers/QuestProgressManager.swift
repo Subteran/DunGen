@@ -15,10 +15,12 @@ final class QuestProgressManager {
         var guidance = ""
         let progressPercent = Double(nextEncounter) / Double(adventure.totalEncounters)
 
-        if progressPercent <= 0.4 {
-            guidance += "\nSTAGE-EARLY: Intro clues/NPCs/hints for '\(adventure.questGoal)'. Show obstacles."
-        } else if progressPercent <= 0.85 {
-            guidance += "\nSTAGE-MID: Advance '\(adventure.questGoal)'. Retrieval: show item/location. Combat: show boss/lair. Make progress."
+        if progressPercent < 0.5 {
+            guidance += "\nSTAGE-EARLY: Intro clues/NPCs/hints for '\(adventure.questGoal)'. Show obstacles, NO artifact yet."
+        } else if progressPercent < 0.85 {
+            guidance += "\nSTAGE-MID: Advance '\(adventure.questGoal)'. Retrieval: hint at item location. Combat: hint at boss/lair. Build tension."
+        } else if progressPercent < 1.0 {
+            guidance += "\nSTAGE-LATE: Almost at goal. Retrieval: show item/location clearly. Combat: reveal boss/lair. Prepare for finale."
         }
 
         if nextEncounter >= adventure.totalEncounters {

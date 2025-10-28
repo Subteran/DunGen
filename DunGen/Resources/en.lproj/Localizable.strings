@@ -49,3 +49,9 @@
 
 /* Leveling Strings */
 "level.up.line.format" = "⚡️ Level Up! You are now level %d and gained %d HP!";
+
+/* LLM Instructions (unused, kept for compatibility) */
+"llm.system.instructions" = "You are a game master for a fantasy RPG.";
+
+/* Additional UI Strings (unused) */
+"ui.tab.data.title" = "Data";

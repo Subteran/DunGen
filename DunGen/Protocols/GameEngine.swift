@@ -9,27 +9,30 @@ struct PendingTransaction: Codable, Equatable {
 
 struct GameLogEntry: Identifiable, Equatable, Codable {
     let id: UUID
-    let content: String
+    var content: String
     let isFromModel: Bool
+    var isStreaming: Bool
     let showCharacterSprite: Bool
     let characterForSprite: CharacterProfile?
     let showMonsterSprite: Bool
     let monsterForSprite: MonsterDefinition?
 
-    init(content: String, isFromModel: Bool, showCharacterSprite: Bool = false, characterForSprite: CharacterProfile? = nil, showMonsterSprite: Bool = false, monsterForSprite: MonsterDefinition? = nil) {
+    init(content: String, isFromModel: Bool, isStreaming: Bool = false, showCharacterSprite: Bool = false, characterForSprite: CharacterProfile? = nil, showMonsterSprite: Bool = false, monsterForSprite: MonsterDefinition? = nil) {
         self.id = UUID()
         self.content = content
         self.isFromModel = isFromModel
+        self.isStreaming = isStreaming
         self.showCharacterSprite = showCharacterSprite
         self.characterForSprite = characterForSprite
         self.showMonsterSprite = showMonsterSprite
         self.monsterForSprite = monsterForSprite
     }
 
-    init(id: UUID, content: String, isFromModel: Bool, showCharacterSprite: Bool = false, characterForSprite: CharacterProfile? = nil, showMonsterSprite: Bool = false, monsterForSprite: MonsterDefinition? = nil) {
+    init(id: UUID, content: String, isFromModel: Bool, isStreaming: Bool = false, showCharacterSprite: Bool = false, characterForSprite: CharacterProfile? = nil, showMonsterSprite: Bool = false, monsterForSprite: MonsterDefinition? = nil) {
         self.id = id
         self.content = content
         self.isFromModel = isFromModel
+        self.isStreaming = isStreaming
         self.showCharacterSprite = showCharacterSprite
         self.characterForSprite = characterForSprite
         self.showMonsterSprite = showMonsterSprite

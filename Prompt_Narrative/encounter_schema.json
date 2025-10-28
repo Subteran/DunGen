@@ -1,0 +1,34 @@
+{
+  "specialist": "encounter",
+  "version": "1.0",
+  "systemPrompt": "Choose type + diff. Vary, no 2x combat, 3+ btw traps. JSON only.",
+  "outputSchema": {
+    "encounterType": {
+      "type": "string",
+      "enum": ["combat", "social", "exploration", "puzzle", "trap", "stealth", "chase", "final"],
+      "description": "Type of encounter"
+    },
+    "difficulty": {
+      "type": "string",
+      "enum": ["easy", "normal", "hard", "boss"],
+      "description": "Difficulty level"
+    }
+  },
+  "constraints": [
+    "no-consecutive-combat",
+    "3-between-traps",
+    "final-at-100pct",
+    "boss-for-combat-quests"
+  ],
+  "varietyRules": [
+    "No 2 combat in a row",
+    "At least 3 encounters between traps",
+    "Match encounter to location theme",
+    "Scale difficulty to character level"
+  ],
+  "tokenBudget": {
+    "instructions": 25,
+    "response": 50,
+    "availableForState": 3971
+  }
+}

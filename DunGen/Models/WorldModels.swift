@@ -43,7 +43,7 @@ struct AdventureProgress: Codable, Equatable {
     var questGoal: String
     @Guide(description: "Current encounter number (1-based)")
     var currentEncounter: Int
-    @Guide(description: "Total encounters planned for this adventure (7-12)", .range(7...12))
+    @Guide(description: "Total encounters planned for this adventure (6-9)", .range(6...9))
     var totalEncounters: Int
     @Guide(description: "Whether the quest objective has been achieved (defeated boss, claimed artifact, rescued target, etc.)")
     var completed: Bool

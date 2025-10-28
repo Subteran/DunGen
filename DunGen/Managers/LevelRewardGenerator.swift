@@ -79,7 +79,10 @@ final class LevelRewardGenerator {
 
             logger.debug("[Level Reward] Attempt \(attempts), Prompt length: \(prompt.count) chars")
 
-            let response = try await session.respond(to: prompt, generating: LevelReward.self)
+            var options = GenerationOptions()
+            options.temperature = 0.5        // Balanced mechanics + flavor
+
+            let response = try await session.respond(to: prompt, generating: LevelReward.self, options: options)
             let reward = response.content.name
 
             if !existingRewards.contains(reward) {

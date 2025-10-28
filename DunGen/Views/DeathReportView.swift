@@ -1,5 +1,6 @@
 import SwiftUI
 import MessageUI
+import FoundationModels
 
 struct DeathReportView: View {
     let report: CharacterDeathReport
@@ -153,14 +154,22 @@ struct DeathReportView: View {
             .navigationBarTitleDisplayMode(.inline)
             .sheet(isPresented: $showMailComposer) {
                 if MFMailComposeViewController.canSendMail() {
+                    let stateURL = getGameStateURL()
                     MailComposeView(
                         subject: "DunGen Death Report",
                         messageBody: buildDeathReportText(),
-                        isPresented: $showMailComposer
+                        isPresented: $showMailComposer,
+                        attachmentURL: stateURL
                     )
                 }
             }
         }
+    }
+
+    private func getGameStateURL() -> URL? {
+        let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let fileURL = documentsDirectory.appendingPathComponent("gameState.json")
+        return FileManager.default.fileExists(atPath: fileURL.path) ? fileURL : nil
     }
 
     private func buildDeathReportText() -> String {
@@ -231,8 +240,32 @@ struct DeathReportView: View {
             text += "\(prefix) \(entry.content)\n"
         }
 
+        if let llmEngine = engine as? LLMGameEngine {
+            text += "\n📜 LLM TRANSCRIPTS:\n"
+            for specialist in LLMSpecialist.allCases {
+                if let transcript = llmEngine.sessionManager.getTranscript(for: specialist) {
+                    let entries = Array(transcript)
+                    text += "\n[\(specialist.rawValue.uppercased())] - \(entries.count) entries:\n"
+                    for (index, entry) in entries.enumerated() {
+                        text += formatTranscriptEntry(entry, index: index + 1)
+                    }
+                }
+            }
+        }
+
         text += "\n========== END DUMP ==========\n"
         print("\n" + text)
+    }
+
+    private func formatTranscriptEntry(_ entry: Transcript.Entry, index: Int) -> String {
+        if case .prompt(let prompt) = entry {
+            let promptText = String(describing: prompt)
+            return "  \(index). PROMPT (\(promptText.count) chars): \(promptText.prefix(100))...\n"
+        } else if case .response(let response) = entry {
+            let responseText = String(describing: response)
+            return "  \(index). RESPONSE (\(responseText.count) chars): \(responseText.prefix(100))...\n"
+        }
+        return ""
     }
     #endif
 }

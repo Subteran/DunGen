@@ -19,7 +19,8 @@ struct ContextBuilder {
         recentActions: String? = nil,
         encounterCounts: [String: Int]? = nil,
         questGoal: String? = nil,
-        recentQuestTypes: [String]? = nil
+        recentQuestTypes: [String]? = nil,
+        questProgressGuidance: String? = nil
     ) -> String {
 
         switch specialist {
@@ -51,7 +52,8 @@ struct ContextBuilder {
                 difficulty: difficulty,
                 recentActions: recentActions,
                 encounterCounts: encounterCounts,
-                recentQuestTypes: recentQuestTypes
+                recentQuestTypes: recentQuestTypes,
+                questProgressGuidance: questProgressGuidance
             )
 
         case .equipment:
@@ -100,7 +102,8 @@ struct ContextBuilder {
         difficulty: String?,
         recentActions: String?,
         encounterCounts: [String: Int]?,
-        recentQuestTypes: [String]?
+        recentQuestTypes: [String]?,
+        questProgressGuidance: String?
     ) -> String {
         var lines: [String] = []
 
@@ -137,6 +140,11 @@ struct ContextBuilder {
             if let questTypes = recentQuestTypes, !questTypes.isEmpty {
                 lines.append("AVOID QUEST TYPES: \(questTypes.joined(separator: ", "))")
             }
+        }
+
+        // Add quest progression guidance if available
+        if let guidance = questProgressGuidance, !guidance.isEmpty {
+            lines.append(guidance)
         }
 
         return lines.joined(separator: "\n")

@@ -70,7 +70,12 @@ final class CombatManager {
             gameEngine?.appendModel("✅ \(monster.fullName) defeated!")
             monstersDefeated += 1
 
-            gameEngine?.applyMonsterDefeatRewards(monster: monster)
+            // Check if player also died from earlier damage
+            if char.hp <= 0 {
+                gameEngine?.checkDeath()
+            } else {
+                gameEngine?.applyMonsterDefeatRewards(monster: monster)
+            }
 
             inCombat = false
             currentMonster = nil

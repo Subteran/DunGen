@@ -49,7 +49,10 @@ final class NPCGenerator {
 
             logger.debug("[NPC LLM] Attempt \(attempts), Prompt length: \(prompt.count) chars")
 
-            let response = try await session.respond(to: prompt, generating: NPCDefinition.self)
+            var options = GenerationOptions()
+            options.temperature = 0.5        // Consistent but varied
+
+            let response = try await session.respond(to: prompt, generating: NPCDefinition.self, options: options)
             let candidate = response.content
 
             if !existingNPCNames.contains(candidate.name) {
@@ -65,7 +68,9 @@ final class NPCGenerator {
         }
 
         logger.warning("[NPC LLM] Failed to generate unique NPC after \(maxAttempts) attempts, using last generated")
-        var npc = try await session.respond(to: "Location: \(location). Create a new NPC.", generating: NPCDefinition.self).content
+        var options = GenerationOptions()
+        options.temperature = 0.5
+        var npc = try await session.respond(to: "Location: \(location). Create a new NPC.", generating: NPCDefinition.self, options: options).content
         npc.location = location
         npc.interactionCount = 0
         npcRegistry.registerNPC(npc, location: location)

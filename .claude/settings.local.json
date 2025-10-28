@@ -25,7 +25,19 @@
       "Bash(awk:*)",
       "Read(///**)",
       "Bash(sort:*)",
-      "Bash(xargs:*)"
+      "Bash(xargs:*)",
+      "WebSearch",
+      "WebFetch(domain:www.createwithswift.com)",
+      "WebFetch(domain:www.apple.com)",
+      "Bash(xcrun swift:*)",
+      "WebFetch(domain:machinelearning.apple.com)",
+      "WebFetch(domain:arxiv.org)",
+      "Read(//Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/System/Library/Frameworks/FoundationModels.framework/**)",
+      "Bash(rg:*)",
+      "Bash(defaults read:*)",
+      "Bash(timeout:*)",
+      "Bash(xcrun simctl list:*)",
+      "Bash(xcrun xctrace:*)"
     ],
     "deny": [],
     "ask": []
