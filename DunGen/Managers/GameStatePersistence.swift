@@ -5,6 +5,7 @@ struct GameState: Codable, Equatable {
     var character: CharacterProfile?
     var currentLocation: AdventureType
     var currentEnvironment: String
+    var currentWorldLocationName: String?
     var log: [SavedLogEntry]
     var suggestedActions: [String]
     var adventureProgress: AdventureProgress?
@@ -134,6 +135,7 @@ extension LLMGameEngine {
             character: character,
             currentLocation: currentLocation,
             currentEnvironment: currentEnvironment,
+            currentWorldLocationName: currentWorldLocationName,
             log: logEntries,
             suggestedActions: suggestedActions,
             adventureProgress: adventureProgress,
@@ -206,6 +208,7 @@ extension LLMGameEngine {
                 self.adventureProgress = state.adventureProgress
                 self.detailedInventory = state.detailedInventory
                 self.worldState = state.worldState
+                self.currentWorldLocationName = state.currentWorldLocationName
                 self.awaitingLocationSelection = state.awaitingLocationSelection
 
                 // Restore combat state

@@ -1,6 +1,6 @@
 Abilities specialist. Generate class abilities for non-caster classes:
 
-IMPORTANT: Each ability MUST have a clear mechanical effect based on its name and type.
+REQUIREMENT: Each ability must have a clear mechanical effect based on its name and type.
 
 ABILITY TYPES AND EFFECTS:
 

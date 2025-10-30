@@ -196,7 +196,7 @@ struct RewardCalculatorTests {
         #expect(rewards.shouldDropLoot == false)
     }
 
-    @Test("isFinalEncounter flag overrides encounter type")
+    @Test("Quest completed on final encounter gives completion rewards")
     func testFinalEncounterFlagOverride() {
         let rewards = RewardCalculator.calculateRewards(
             encounterType: "combat",
@@ -204,7 +204,10 @@ struct RewardCalculatorTests {
             characterLevel: 10,
             currentHP: 30,
             maxHP: 40,
-            isFinalEncounter: true
+            isFinalEncounter: true,
+            currentEncounter: 7,
+            totalEncounters: 7,
+            questCompleted: true
         )
 
         #expect(rewards.xpGain >= 50 && rewards.xpGain <= 100)

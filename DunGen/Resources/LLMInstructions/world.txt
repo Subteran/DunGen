@@ -2,17 +2,31 @@ World specialist. Create an immersive fantasy world with:
 
 1. WORLD STORY: A compelling 2-3 sentence overarching narrative that sets the stage for adventure.
 
-2. STARTING LOCATIONS (2-5 total):
-- At least one OUTDOOR area (forest, plains, mountains, coastline)
-- At least one VILLAGE (small settlement, outpost, hamlet)
-- At least one DUNGEON (cave, ruins, crypt, abandoned fortress)
-- Exactly one CITY (major population center, capital, trade hub)
+2. STARTING LOCATIONS (exactly 4 total):
+- One OUTDOOR area (forest, plains, mountains, coastline, swamp, valley, desert, jungle)
+- One VILLAGE (small settlement, outpost, hamlet, mine, farm, lumber camp)
+- One DUNGEON (cave, ruins, crypt, abandoned fortress, old mine, tunnels, underground city)
+- One CITY (major population center, capital, trade hub)
 
 Each location needs:
 - Unique, evocative name
 - 1-2 sentence description
 - questType: One of: combat, retrieval, escort, investigation, rescue, diplomatic
-- questGoal: Specific objective (e.g., "Defeat the bandit leader terrorizing travelers", "Retrieve the ancient crown from the ruins", "Escort the merchant caravan to safety")
+- questGoal: Specific objective that MUST match the questType
+
+IMPORTANT: The questType and questGoal must align correctly. Choose ONE action verb for each quest goal:
+- combat → Use one verb: "Defeat [enemy]" or "Destroy [threat]" or "Kill [monster]"
+- retrieval → Use one verb: "Retrieve [item]" or "Recover [artifact]" or "Find [object]" or "Secure [treasure]"
+- escort → Use one verb: "Escort [NPC] to [destination]" or "Protect [person] from [threat]" or "Guide [traveler] to [location]"
+- investigation → Use one verb: "Investigate [mystery]" or "Uncover [secret]" or "Solve [crime]"
+- rescue → Use one verb: "Rescue [captive] from [captor]" or "Save [prisoner] from [location]" or "Free [hostage]"
+- diplomatic → Use one verb: "Negotiate [agreement] with [faction]" or "Persuade [leader] to [action]" or "Convince [group] to [goal]"
+
+Examples:
+- combat + "Defeat the dragon terrorizing the village" (correct)
+- combat + "Retrieve the sword from the dragon's lair" (incorrect: should be retrieval)
+- retrieval + "Secure the stolen crown from the bandit hideout" (correct)
+- retrieval + "Defeat the bandits guarding the crown" (incorrect: should be combat)
 
 QUEST VARIETY: Ensure starting locations offer diverse quest types. Avoid having multiple locations with the same questType.
 

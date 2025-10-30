@@ -9,7 +9,25 @@ final class TurnProcessor {
 
     func processAdventureProgress(turn: AdventureTurn) {
         guard let engine = gameEngine else { return }
-        guard let progress = turn.adventureProgress else { return }
+
+        var progress: AdventureProgress
+        if let turnProgress = turn.adventureProgress {
+            progress = turnProgress
+        } else {
+            if engine.adventureProgress == nil, let location = engine.worldState?.locations.first(where: { $0.name == engine.currentEnvironment }) {
+                logger.warning("[Quest] LLM failed to provide adventureProgress - creating fallback from location quest goal")
+                progress = AdventureProgress(
+                    locationName: location.name,
+                    adventureStory: location.description,
+                    questGoal: location.questGoal,
+                    currentEncounter: 1,
+                    totalEncounters: Int.random(in: 6...9),
+                    completed: false
+                )
+            } else {
+                return
+            }
+        }
 
         if var currentProgress = engine.adventureProgress {
             // Check if this is a new adventure (different location or quest)
@@ -21,6 +39,10 @@ final class TurnProcessor {
                 // Replace with new adventure progress entirely
                 var initialProgress = progress
                 initialProgress.encounterSummaries = []
+
+                // IMPORTANT: Initialize encounter counts (LLM no longer provides these)
+                initialProgress.currentEncounter = 1
+                initialProgress.totalEncounters = Int.random(in: 6...9)
 
                 // Extract quest objective from quest goal
                 if let location = engine.worldState?.locations.first(where: { $0.name == progress.locationName }) {
@@ -64,11 +86,19 @@ final class TurnProcessor {
                     currentProgress.completed = progress.completed
                 }
 
+                // IMPORTANT: Don't let LLM override encounter counts or static fields - these are code-managed
+                // locationName, questGoal, adventureStory, currentEncounter, totalEncounters are preserved from existing progress
+                // Only completed status and recentNarratives are updated from LLM
+
                 engine.adventureProgress = currentProgress
             }
         } else {
             var initialProgress = progress
             initialProgress.encounterSummaries = []
+
+            // IMPORTANT: Initialize encounter counts (LLM no longer provides these)
+            initialProgress.currentEncounter = 1
+            initialProgress.totalEncounters = Int.random(in: 6...9)
 
             // Extract quest objective from quest goal
             if let location = engine.worldState?.locations.first(where: { $0.name == progress.locationName }) {
@@ -211,15 +241,6 @@ final class TurnProcessor {
         engine.totalGoldEarned += engine.currentAdventureGold
         engine.totalMonstersDefeated += engine.currentAdventureMonsters
 
-        // Mark location as completed (don't remove it)
-        if var world = engine.worldState {
-            if let index = world.locations.firstIndex(where: { $0.name == finalProgress.locationName }) {
-                world.locations[index].completed = true
-                engine.worldState = world
-                logger.info("[Quest] Marked location '\(finalProgress.locationName)' as completed")
-            }
-        }
-
         engine.combatManager.pendingMonster = nil
         engine.activeNPC = nil
         engine.activeNPCTurns = 0
@@ -281,7 +302,10 @@ final class TurnProcessor {
                     justLeveledUp = true
                     engine.appendModel(outcome.logLine)
                     if outcome.needsNewAbility {
-                        await engine.generateLevelReward(for: character.className, level: outcome.newLevel ?? 1)
+                        let baseLevel = (outcome.newLevel ?? 1) - outcome.levelsGained + 1
+                        for levelOffset in 0..<outcome.levelsGained {
+                            await engine.generateLevelReward(for: character.className, level: baseLevel + levelOffset)
+                        }
                     }
                 } else {
                     engine.appendModel("✨ Gained \(clampedXP) XP!")
@@ -295,7 +319,10 @@ final class TurnProcessor {
                 justLeveledUp = true
                 engine.appendModel(outcome.logLine)
                 if outcome.needsNewAbility {
-                    await engine.generateLevelReward(for: character.className, level: outcome.newLevel ?? 1)
+                    let baseLevel = (outcome.newLevel ?? 1) - outcome.levelsGained + 1
+                    for levelOffset in 0..<outcome.levelsGained {
+                        await engine.generateLevelReward(for: character.className, level: baseLevel + levelOffset)
+                    }
                 }
             }
         }

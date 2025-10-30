@@ -1,23 +1,46 @@
 import Foundation
+import OSLog
 
 final class NarrativeProcessor {
+    private let logger = Logger(subsystem: "com.yourcompany.DunGen", category: "NarrativeProcessor")
+
     func sanitizeNarration(_ text: String, for encounterType: String?, expectedMonster: MonsterDefinition? = nil) -> String {
-        let forbidden = ["defeat", "defeated", "kill", "killed", "slay", "slain", "strike", "struck", "smite", "smitten", "crush", "crushed", "stab", "stabbed", "shoot", "shot", "damage", "wound", "wounded"]
-        var sanitized = text
-        if let type = encounterType, type == "combat" || type == "final" {
-            for word in forbidden {
-                sanitized = sanitized.replacingOccurrences(of: word, with: "confront", options: [.caseInsensitive, .regularExpression])
-            }
+        // Only remove spurious characters from malformed LLM output
+        // Trust the LLM to generate appropriate narrative
+        let cleaned = removeSpuriousCharacters(from: text)
+
+        if cleaned.isEmpty && !text.isEmpty {
+            logger.warning("[Sanitization] Entire narrative was removed! Original length: \(text.count)")
+            logger.warning("[Sanitization] Original text: \(text.prefix(200))...")
+            return text // Return original if we accidentally deleted everything
         }
 
-        sanitized = removeActionSuggestions(from: sanitized)
-        sanitized = validateMonsterReferences(in: sanitized, expectedMonster: expectedMonster)
-        sanitized = removeSpuriousCharacters(from: sanitized)
-        return sanitized
+        return cleaned
     }
 
     private func removeSpuriousCharacters(from text: String) -> String {
         var cleaned = text
+
+        // FIRST: Remove everything after common JSON markers that appear mid-narrative
+        // This handles cases like "narrative text... Monster: Chilling Goblin... ItemsAcquired: [], adventureProgress: {"
+        let jsonMarkers = [
+            "Monster:",
+            "Combat:",
+            "ItemsAcquired:",
+            "itemsAcquired:",
+            "adventureProgress:",
+            "playerPrompt:",
+            "suggestedActions:",
+            "currentEnvironment:",
+            "goldSpent:"
+        ]
+
+        for marker in jsonMarkers {
+            if let range = cleaned.range(of: marker) {
+                cleaned = String(cleaned[..<range.lowerBound])
+                break
+            }
+        }
 
         // Remove stray JSON characters that might appear from malformed LLM output
         // Remove standalone curly braces (not part of emoji or formatting)
@@ -30,85 +53,55 @@ final class NarrativeProcessor {
         cleaned = cleaned.replacingOccurrences(of: "\n[\n", with: "\n")
         cleaned = cleaned.replacingOccurrences(of: "\n]\n", with: "\n")
 
+        // Remove JSON field names that leak into narrative
+        cleaned = cleaned.replacingOccurrences(of: "\"narration\"\\s*:\\s*\"", with: "", options: .regularExpression)
+        cleaned = cleaned.replacingOccurrences(of: "\"playerPrompt\"\\s*:\\s*\"", with: "", options: .regularExpression)
+        cleaned = cleaned.replacingOccurrences(of: "\"suggestedActions\"\\s*:\\s*", with: "", options: .regularExpression)
+        cleaned = cleaned.replacingOccurrences(of: "\"currentEnvironment\"\\s*:\\s*\"", with: "", options: .regularExpression)
+
+        // Remove lines that are CLEARLY JSON structure (be conservative)
+        var lines = cleaned.components(separatedBy: "\n")
+        lines = lines.filter { line in
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+
+            // Only filter lines that are EXACT JSON field names at the start
+            // Must start with the pattern to avoid false positives in narrative
+            let jsonFieldStarts = [
+                "\"narration\":",
+                "\"playerPrompt\":",
+                "\"suggestedActions\":",
+                "\"currentEnvironment\":",
+                "\"adventureProgress\":",
+                "\"itemsAcquired\":",
+                "\"goldSpent\":",
+                // Also check for unquoted versions (malformed JSON)
+                "narration:",
+                "playerPrompt:",
+                "suggestedActions:",
+                "currentEnvironment:",
+                "adventureProgress:",
+                "itemsAcquired:",
+                "goldSpent:",
+            ]
+
+            for pattern in jsonFieldStarts {
+                if trimmed.lowercased().hasPrefix(pattern.lowercased()) {
+                    return false
+                }
+            }
+
+            // Filter out lines that are pure JSON syntax (exact match only)
+            if trimmed == "{" || trimmed == "}" || trimmed == "[" || trimmed == "]" || trimmed == "," {
+                return false
+            }
+
+            return true
+        }
+        cleaned = lines.joined(separator: "\n")
+
         return cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private func validateMonsterReferences(in text: String, expectedMonster: MonsterDefinition?) -> String {
-        guard let monster = expectedMonster else { return text }
-
-        // Extract monster name components for matching
-        let expectedWords = Set(monster.fullName.lowercased().split(separator: " ").map(String.init))
-        let monsterKeywords = ["goblin", "orc", "skeleton", "zombie", "rat", "spider", "wolf", "dragon", "demon", "troll", "ogre", "bandit", "cultist", "undead", "beast", "wraith", "ghoul", "vampire"]
-
-        var lines = text.components(separatedBy: "\n")
-        lines = lines.map { line in
-            let lower = line.lowercased()
-
-            // Check if line mentions a monster keyword
-            for keyword in monsterKeywords {
-                if lower.contains(keyword) {
-                    // Check if it's the expected monster
-                    let hasExpectedWord = expectedWords.contains { lower.contains($0) }
-                    if !hasExpectedWord {
-                        // Line mentions a different monster - replace sentence with generic description
-                        let trimmed = line.trimmingCharacters(in: .whitespaces)
-                        if trimmed.hasPrefix("A ") || trimmed.hasPrefix("a ") {
-                            return "You see something in the shadows."
-                        } else if trimmed.hasPrefix("An ") || trimmed.hasPrefix("an ") {
-                            return "Movement ahead."
-                        } else {
-                            // If not starting with article, replace the whole sentence
-                            return "A threat approaches."
-                        }
-                    }
-                }
-            }
-            return line
-        }
-
-        return lines.joined(separator: "\n")
-    }
-
-    private func removeActionSuggestions(from text: String) -> String {
-        var lines = text.components(separatedBy: "\n")
-
-        lines = lines.filter { line in
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            let lower = trimmed.lowercased()
-
-            let hasActionPattern = lower.contains("you could") ||
-                                  lower.contains("you can") ||
-                                  lower.contains("you may") ||
-                                  lower.contains("you might") ||
-                                  lower.contains("will you") ||
-                                  lower.contains("do you") ||
-                                  lower.contains("would you") ||
-                                  lower.contains("could you") ||
-                                  lower.contains("should you") ||
-                                  lower.contains("what do you") ||
-                                  lower.contains("what will you") ||
-                                  lower.contains("how do you") ||
-                                  lower.contains("perhaps you") ||
-                                  lower.contains("maybe you") ||
-                                  lower.contains("you have the option") ||
-                                  lower.contains("you have a choice") ||
-                                  lower.contains("options:") ||
-                                  lower.contains("choices:")
-
-            let isQuestionToPlayer = trimmed.hasSuffix("?") && (
-                lower.contains("you") ||
-                lower.starts(with: "will") ||
-                lower.starts(with: "do") ||
-                lower.starts(with: "would") ||
-                lower.starts(with: "what") ||
-                lower.starts(with: "how")
-            )
-
-            return !hasActionPattern && !isQuestionToPlayer
-        }
-
-        return lines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
-    }
 
     func smartTruncatePrompt(_ prompt: String, maxLength: Int) -> String {
         if prompt.count <= maxLength {

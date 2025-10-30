@@ -184,10 +184,10 @@ struct TranscriptIntegrationTests {
         }
     }
 
-    // MARK: - Compression Effectiveness Tests
+    // MARK: - Context Label Tests
 
-    @Test("Compressed context labels appear in prompts", .enabled(if: Self.isLLMAvailable()))
-    func testCompressedLabels() async throws {
+    @Test("Natural language context labels appear in prompts", .enabled(if: Self.isLLMAvailable()))
+    func testNaturalLanguageLabels() async throws {
         try? await Task.sleep(for: .milliseconds(500))
         let engine = LLMGameEngine(levelingService: DefaultLevelingService())
         engine.setupManagers()
@@ -198,12 +198,12 @@ struct TranscriptIntegrationTests {
 
         let transcript = engine.getTranscript(for: .adventure)
         if let lastPrompt = TranscriptTestHelpers.getLastPrompt(from: transcript) {
-            // Verify compressed labels are used
-            let hasCompressedLabels = lastPrompt.contains("Char:") ||
-                                      lastPrompt.contains("Loc:") ||
-                                      lastPrompt.contains("Enc:")
+            // Verify natural language labels are used
+            let hasNaturalLabels = lastPrompt.contains("Character:") ||
+                                    lastPrompt.contains("Location:") ||
+                                    lastPrompt.contains("Encounter Type:")
 
-            #expect(hasCompressedLabels, "Prompt should use compressed labels (Char:, Loc:, Enc:)")
+            #expect(hasNaturalLabels, "Prompt should use natural language labels (Character:, Location:, Encounter Type:)")
         }
     }
 

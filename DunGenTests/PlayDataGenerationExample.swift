@@ -21,7 +21,7 @@ struct PlayDataGenerationExample {
     /// - Strategy: Balanced (random action selection)
     ///
     /// Output: One JSON file with narrative samples, encounter breakdown, and completion stats
-    @Test("Generate single adventure playthrough", .disabled("Long running - enable manually for data generation"))
+    @Test("Generate single adventure playthrough")
     @MainActor
     func testSingleAdventure() async throws {
         let playTest = AdventurePlayTest()
@@ -53,7 +53,7 @@ struct PlayDataGenerationExample {
     /// Output: 10 JSON files with full narrative data
     ///
     /// Run time: ~5-10 minutes depending on device performance
-    @Test("Generate 10 adventures for data analysis", .disabled("Long running - enable manually for data generation"))
+    @Test("Generate 10 adventures for data analysis")
     @MainActor
     func testGenerate10Adventures() async throws {
         let playTest = AdventurePlayTest()

@@ -13,7 +13,7 @@ struct QuestCompletionTests {
         turnProcessor.gameEngine = engine
         let questValidator = QuestValidator()
 
-        engine.adventureProgress = AdventureProgress(
+        var progress = AdventureProgress(
             locationName: "Ancient Temple",
             adventureStory: "Find the artifact",
             questGoal: "Retrieve the sacred artifact",
@@ -22,15 +22,17 @@ struct QuestCompletionTests {
             completed: false,
             encounterSummaries: []
         )
+        progress.questObjective = "sacred artifact"
+        engine.adventureProgress = progress
 
         let turn = AdventureTurn(
-            narration: "You see a glowing artifact resting on a pedestal in the center of the chamber.",
             adventureProgress: engine.adventureProgress,
             playerPrompt: nil,
             suggestedActions: ["Take the artifact", "Examine the pedestal"],
             currentEnvironment: "Temple Chamber",
             itemsAcquired: nil,
-            goldSpent: nil
+            goldSpent: nil,
+            narration: "You see a glowing artifact resting on a pedestal in the center of the chamber."
         )
 
         await turnProcessor.handleQuestCompletion(
@@ -50,7 +52,7 @@ struct QuestCompletionTests {
         turnProcessor.gameEngine = engine
         let questValidator = QuestValidator()
 
-        engine.adventureProgress = AdventureProgress(
+        var progress = AdventureProgress(
             locationName: "Ancient Temple",
             adventureStory: "Find the artifact",
             questGoal: "Retrieve the sacred artifact",
@@ -59,19 +61,21 @@ struct QuestCompletionTests {
             completed: false,
             encounterSummaries: []
         )
+        progress.questObjective = "sacred artifact"
+        engine.adventureProgress = progress
 
         let turn = AdventureTurn(
-            narration: "You see a glowing artifact resting on a pedestal in the center of the chamber.",
             adventureProgress: engine.adventureProgress,
             playerPrompt: nil,
             suggestedActions: ["Take the artifact", "Examine the pedestal"],
             currentEnvironment: "Temple Chamber",
             itemsAcquired: nil,
-            goldSpent: nil
+            goldSpent: nil,
+            narration: "You see a glowing artifact resting on a pedestal in the center of the chamber."
         )
 
         await turnProcessor.handleQuestCompletion(
-            playerAction: "Take the artifact",
+            playerAction: "Take the sacred artifact",
             turn: turn,
             questValidator: questValidator
         )
@@ -87,7 +91,7 @@ struct QuestCompletionTests {
         turnProcessor.gameEngine = engine
         let questValidator = QuestValidator()
 
-        engine.adventureProgress = AdventureProgress(
+        var progress = AdventureProgress(
             locationName: "Ancient Temple",
             adventureStory: "Find the artifact",
             questGoal: "Retrieve the sacred artifact",
@@ -96,15 +100,17 @@ struct QuestCompletionTests {
             completed: false,
             encounterSummaries: []
         )
+        progress.questObjective = "sacred artifact"
+        engine.adventureProgress = progress
 
         let turn = AdventureTurn(
-            narration: "📦 Acquired: Sacred Artifact\n\nYou carefully lift the artifact from the pedestal.",
             adventureProgress: engine.adventureProgress,
             playerPrompt: nil,
             suggestedActions: ["Continue"],
             currentEnvironment: "Temple Chamber",
             itemsAcquired: nil,
-            goldSpent: nil
+            goldSpent: nil,
+            narration: "📦 Acquired: Sacred Artifact\n\nYou carefully lift the artifact from the pedestal."
         )
 
         await turnProcessor.handleQuestCompletion(
@@ -135,13 +141,13 @@ struct QuestCompletionTests {
         )
 
         let turn = AdventureTurn(
-            narration: "You find a clue about the artifact's location.",
             adventureProgress: engine.adventureProgress,
             playerPrompt: nil,
             suggestedActions: ["Continue searching"],
             currentEnvironment: "Temple Hallway",
             itemsAcquired: nil,
-            goldSpent: nil
+            goldSpent: nil,
+            narration: "You find a clue about the artifact's location."
         )
 
         await turnProcessor.handleQuestCompletion(
@@ -172,13 +178,13 @@ struct QuestCompletionTests {
         )
 
         let turn = AdventureTurn(
-            narration: "The dragon roars and prepares to attack.",
             adventureProgress: engine.adventureProgress,
             playerPrompt: nil,
             suggestedActions: ["Attack", "Flee"],
             currentEnvironment: "Dragon's Den",
             itemsAcquired: nil,
-            goldSpent: nil
+            goldSpent: nil,
+            narration: "The dragon roars and prepares to attack."
         )
 
         await turnProcessor.handleQuestCompletion(
@@ -198,35 +204,37 @@ struct QuestCompletionTests {
         turnProcessor.gameEngine = engine
         let questValidator = QuestValidator()
 
-        let testCases: [(action: String, shouldComplete: Bool, description: String)] = [
-            ("Grab the amulet", true, "grab + amulet"),
-            ("Collect the crown", true, "collect + crown"),
-            ("Retrieve the scroll", true, "retrieve + scroll"),
-            ("Get the gem", true, "get + gem"),
-            ("Examine the orb", false, "examine + orb (no completion verb)"),
-            ("Walk to the artifact", false, "walk + artifact (no completion verb)"),
-            ("Take it", false, "take without artifact mention")
+        let testCases: [(action: String, objective: String, shouldComplete: Bool, description: String)] = [
+            ("Grab the amulet", "amulet", true, "grab + amulet"),
+            ("Collect the crown", "crown", true, "collect + crown"),
+            ("Retrieve the scroll", "scroll", true, "retrieve + scroll"),
+            ("Get the gem", "gem", true, "get + gem"),
+            ("Examine the orb", "orb", false, "examine + orb (no completion verb)"),
+            ("Walk to the artifact", "artifact", false, "walk + artifact (no completion verb)"),
+            ("Take it", "artifact", false, "take without artifact mention")
         ]
 
-        for (action, shouldComplete, description) in testCases {
-            engine.adventureProgress = AdventureProgress(
+        for (action, objective, shouldComplete, description) in testCases {
+            var progress = AdventureProgress(
                 locationName: "Test Location",
                 adventureStory: "Find item",
-                questGoal: "Find the lost relic",
+                questGoal: "Find the lost \(objective)",
                 currentEncounter: 5,
                 totalEncounters: 5,
                 completed: false,
                 encounterSummaries: []
             )
+            progress.questObjective = objective
+            engine.adventureProgress = progress
 
             let turn = AdventureTurn(
-                narration: "You see the item you've been searching for.",
                 adventureProgress: engine.adventureProgress,
                 playerPrompt: nil,
                 suggestedActions: ["Take it"],
                 currentEnvironment: "Chamber",
                 itemsAcquired: nil,
-                goldSpent: nil
+                goldSpent: nil,
+                narration: "You see the item you've been searching for."
             )
 
             await turnProcessor.handleQuestCompletion(

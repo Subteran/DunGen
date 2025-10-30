@@ -28,7 +28,8 @@ struct ContextBuilder {
         switch specialist {
         case .encounter:
             return buildEncounterContext(
-                encounterCounts: encounterCounts
+                encounterCounts: encounterCounts,
+                questGoal: adventure?.questGoal
             )
 
         case .monsters:
@@ -72,17 +73,24 @@ struct ContextBuilder {
         }
     }
 
-    private static func buildEncounterContext(encounterCounts: [String: Int]?) -> String {
-        guard let counts = encounterCounts, !counts.isEmpty else {
-            return "First encounter"
+    private static func buildEncounterContext(encounterCounts: [String: Int]?, questGoal: String?) -> String {
+        var context = ""
+
+        if let counts = encounterCounts, !counts.isEmpty {
+            let total = counts.values.reduce(0, +)
+            let topTypes = counts.sorted { $0.value > $1.value }.prefix(3)
+                .map { "\($0.key): \($0.value)" }
+                .joined(separator: ", ")
+            context = "Total encounters: \(total) (\(topTypes))"
+        } else {
+            context = "First encounter"
         }
 
-        let total = counts.values.reduce(0, +)
-        let topTypes = counts.sorted { $0.value > $1.value }.prefix(3)
-            .map { "\($0.key): \($0.value)" }
-            .joined(separator: ", ")
+        if let goal = questGoal, !goal.isEmpty {
+            context += "\nQuest: \(goal)"
+        }
 
-        return "Total encounters: \(total) (\(topTypes))"
+        return context
     }
 
     private static func buildMonsterContext(
@@ -90,11 +98,11 @@ struct ContextBuilder {
         difficulty: String,
         characterLevel: Int
     ) -> String {
-        return "Loc: \(location)\nDiff: \(difficulty)\nLvl: \(characterLevel)"
+        return "Location: \(location)\nDifficulty: \(difficulty)\nCharacter Level: \(characterLevel)"
     }
 
     private static func buildNPCContext(location: String, difficulty: String) -> String {
-        return "Loc: \(location)\nDiff: \(difficulty)"
+        return "Location: \(location)\nDifficulty: \(difficulty)"
     }
 
     private static func buildAdventureContext(
@@ -114,33 +122,34 @@ struct ContextBuilder {
         var lines: [String] = []
 
         if let character = character {
-            lines.append("Char: \(character.name) L\(characterLevel) \(character.className) HP:\(character.hp) G:\(character.gold)")
+            lines.append("Character: \(character.name), Level \(characterLevel) \(character.className), HP: \(character.hp), Gold: \(character.gold)")
         }
 
-        lines.append("Loc: \(location)")
+        lines.append("Location: \(location)")
 
         if let adventure = adventure {
             lines.append("Quest: \(adventure.questGoal)")
+            lines.append("Progress: Encounter \(adventure.currentEncounter) of \(adventure.totalEncounters)")
         } else if let questGoal = locationQuestGoal {
-            lines.append("NEW ADVENTURE - Use EXACT questGoal: \(questGoal)")
+            lines.append("NEW ADVENTURE - FIRST ENCOUNTER - Use EXACT questGoal: \(questGoal)")
         } else {
-            lines.append("NEW ADVENTURE - Generate new quest goal for this location")
+            lines.append("NEW ADVENTURE - FIRST ENCOUNTER - Generate new quest goal for this location")
         }
 
         if let type = encounterType, let diff = difficulty {
-            lines.append("Enc: \(type) (\(diff))")
+            lines.append("Encounter Type: \(type) (difficulty: \(diff))")
         }
 
-        if let actions = recentActions, !actions.isEmpty {
-            lines.append("Recent: \(actions)")
-        }
+        // NOTE: With extended Adventure session (12 uses), the SDK transcript maintains
+        // full conversation history automatically. We no longer need to manually pass:
+        // - Recent actions (SDK remembers all player actions)
+        // - Previous narratives (SDK remembers all responses)
+        // - Encounter counts (SDK has full conversation history)
+        // This simplification prevents redundant context and token waste.
 
-        if let counts = encounterCounts, !counts.isEmpty {
-            let total = counts.values.reduce(0, +)
-            let summary = counts.sorted { $0.value > $1.value }.prefix(3)
-                .map { "\($0.value) \($0.key)" }
-                .joined(separator: ", ")
-            lines.append("Hist: \(total) enc (\(summary))")
+        // Only include variety hint on previous narrative (not full text - SDK has it)
+        if let adventure = adventure, !adventure.recentNarratives.isEmpty {
+            lines.append("Prev narrative: \(String(adventure.recentNarratives.last?.prefix(60) ?? ""))")
         }
 
         // Add recent quest types for new quest generation (only if no current quest)
@@ -171,6 +180,6 @@ struct ContextBuilder {
         characterClass: String,
         difficulty: String
     ) -> String {
-        return "Char: L\(characterLevel) \(characterClass)\nDiff: \(difficulty)"
+        return "Character: Level \(characterLevel) \(characterClass)\nDifficulty: \(difficulty)"
     }
 }

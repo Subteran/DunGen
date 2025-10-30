@@ -108,6 +108,10 @@ final class LLMGameEngine: GameEngine {
         get { adventureState.currentEnvironment }
         set { adventureState.currentEnvironment = newValue }
     }
+    var currentWorldLocationName: String? {
+        get { adventureState.currentWorldLocationName }
+        set { adventureState.currentWorldLocationName = newValue }
+    }
 
     var isGenerating: Bool {
         get { uiState.isGenerating }
@@ -219,7 +223,8 @@ final class LLMGameEngine: GameEngine {
 
         switch specialist {
         case .adventure:
-            options.temperature = 0.9        // Creative storytelling
+            options.temperature = 0.7              // Balanced creativity with coherence
+            options.maximumResponseTokens = 400    // AdventureTurn struct (~200 tokens) + narrative (~150 tokens) + buffer
 
         case .encounter:
             options.temperature = 0.6        // Balanced variety
@@ -471,14 +476,29 @@ final class LLMGameEngine: GameEngine {
             return
         }
 
-        let truncatedInput = input.count > 500 ? String(input.prefix(500)) : input
+        // Sanitize player input for safety
+        let sanitizedInput: String
+        if awaitingCustomCharacterName {
+            // Character name uses strict sanitization (handled in PlayerInputHandler)
+            sanitizedInput = input
+        } else {
+            // Player actions use more permissive sanitization
+            switch InputSanitizer.sanitizePlayerAction(input) {
+            case .valid(let safe):
+                sanitizedInput = safe
+            case .rejected(let reason):
+                appendModel("❌ \(reason)")
+                setGenerating(false)
+                return
+            }
+        }
 
         setGenerating(true)
         updateSuggestedActions([])
-        appendPlayer(truncatedInput)
+        appendPlayer(sanitizedInput)
 
         if awaitingCustomCharacterName {
-            if await inputHandler.handleCharacterNameInput(truncatedInput, partialCharacter: partialCharacter) {
+            if await inputHandler.handleCharacterNameInput(sanitizedInput, partialCharacter: partialCharacter) {
                 setGenerating(false)
                 return
             }
@@ -489,7 +509,7 @@ final class LLMGameEngine: GameEngine {
         guard character != nil else { return }
 
         if let pendingMonster = combatManager.pendingMonster {
-            if let result = await inputHandler.handleFleeFromPendingMonster(truncatedInput, pendingMonster: pendingMonster) {
+            if let result = await inputHandler.handleFleeFromPendingMonster(sanitizedInput, pendingMonster: pendingMonster) {
                 if case .continueToAdvanceScene(let action) = result {
                     do {
                         try await advanceScene(kind: currentLocation, playerAction: action)
@@ -506,7 +526,7 @@ final class LLMGameEngine: GameEngine {
         }
 
         if let transaction = pendingTransaction {
-            if let result = await inputHandler.handlePendingTransaction(truncatedInput, transaction: transaction) {
+            if let result = await inputHandler.handlePendingTransaction(sanitizedInput, transaction: transaction) {
                 if case .continueToAdvanceScene(let action) = result {
                     do {
                         try await advanceScene(kind: currentLocation, playerAction: action)
@@ -523,7 +543,7 @@ final class LLMGameEngine: GameEngine {
         }
 
         if let pendingMonster = combatManager.pendingMonster {
-            if let result = await inputHandler.handlePendingMonsterCombat(truncatedInput, pendingMonster: pendingMonster) {
+            if let result = await inputHandler.handlePendingMonsterCombat(sanitizedInput, pendingMonster: pendingMonster) {
                 if case .continueToAdvanceScene = result {
                 } else {
                     saveState()
@@ -534,7 +554,7 @@ final class LLMGameEngine: GameEngine {
         }
 
         if let trap = pendingTrap {
-            if let result = await inputHandler.handlePendingTrap(truncatedInput, trap: trap) {
+            if let result = await inputHandler.handlePendingTrap(sanitizedInput, trap: trap) {
                 if case .continueToAdvanceScene(let action) = result {
                     do {
                         try await advanceScene(kind: currentLocation, playerAction: action)
@@ -550,7 +570,7 @@ final class LLMGameEngine: GameEngine {
             }
         }
 
-        if let result = await inputHandler.handleActiveCombat(truncatedInput) {
+        if let result = await inputHandler.handleActiveCombat(sanitizedInput) {
             if case .continueToAdvanceScene(let action) = result {
                 do {
                     try await advanceScene(kind: currentLocation, playerAction: action)
@@ -565,7 +585,7 @@ final class LLMGameEngine: GameEngine {
             return
         }
 
-        if let result = await inputHandler.handleLocationSelection(truncatedInput) {
+        if let result = await inputHandler.handleLocationSelection(sanitizedInput) {
             if case .continueToAdvanceScene(let action) = result {
                 do {
                     try await advanceScene(kind: currentLocation, playerAction: action)
@@ -581,7 +601,7 @@ final class LLMGameEngine: GameEngine {
         }
 
         do {
-            try await advanceScene(kind: currentLocation, playerAction: truncatedInput)
+            try await advanceScene(kind: currentLocation, playerAction: sanitizedInput)
             saveState()
         } catch {
             logger.error("\(error.localizedDescription, privacy: .public)")
@@ -654,6 +674,14 @@ final class LLMGameEngine: GameEngine {
                 npc: npc
             )
             adventureProgress?.encounterSummaries.append(summary)
+
+            // Store recent narrative for variety enforcement (truncate to ~400 chars)
+            let narrativeSnippet = String(turn.narration.prefix(400))
+            adventureProgress?.recentNarratives.append(narrativeSnippet)
+            // Keep only last 2 narratives
+            if let count = adventureProgress?.recentNarratives.count, count > 2 {
+                adventureProgress?.recentNarratives.removeFirst()
+            }
         }
 
         await turnProcessor.handleFinalEncounterCompletion(encounterSummaryGenerator: generateEncounterSummary)
@@ -908,13 +936,21 @@ final class LLMGameEngine: GameEngine {
             let isCombatQuest = questValidator.isCombatQuest(questGoal: progress.questGoal)
             let isBossEncounter = currentEncounterDifficulty.lowercased() == "boss"
 
-            // Complete combat quest if: final encounter OR boss difficulty
-            if isCombatQuest && (progress.isFinalEncounter || isBossEncounter) {
+            // Check if this monster is the actual boss for this quest
+            let isQuestBoss = worldState?.locations.first(where: { $0.name == progress.locationName })?.bossMonster?.fullName == monster.fullName
+
+            // Complete combat quest if: final encounter OR (boss difficulty AND is the quest boss)
+            if isCombatQuest && (progress.isFinalEncounter || (isBossEncounter && isQuestBoss)) {
                 var updatedProgress = progress
                 updatedProgress.completed = true
                 adventureProgress = updatedProgress
                 appendModel("\n🎉 Quest Complete: \(progress.questGoal)")
-                logger.info("[Quest] Combat quest completed via \(isBossEncounter ? "boss" : "final encounter") defeat")
+                logger.info("[Quest] Combat quest completed via \(isBossEncounter && isQuestBoss ? "quest boss" : "final encounter") defeat")
+
+                // Generate adventure summary after quest completion
+                Task { @MainActor in
+                    await generateAdventureSummary(progress: updatedProgress)
+                }
             }
         }
 
@@ -930,9 +966,11 @@ final class LLMGameEngine: GameEngine {
             appendModel(outcome.logLine)
             if outcome.needsNewAbility {
                 let className = char.className
-                let newLevel = outcome.newLevel ?? 1
+                let baseLevel = (outcome.newLevel ?? 1) - outcome.levelsGained + 1
                 Task {
-                    await generateLevelReward(for: className, level: newLevel)
+                    for levelOffset in 0..<outcome.levelsGained {
+                        await generateLevelReward(for: className, level: baseLevel + levelOffset)
+                    }
                 }
             }
         } else {
@@ -1024,9 +1062,11 @@ final class LLMGameEngine: GameEngine {
                 appendModel(outcome.logLine)
                 if outcome.needsNewAbility {
                     let className = char.className
-                    let newLevel = outcome.newLevel ?? 1
+                    let baseLevel = (outcome.newLevel ?? 1) - outcome.levelsGained + 1
                     Task {
-                        await generateLevelReward(for: className, level: newLevel)
+                        for levelOffset in 0..<outcome.levelsGained {
+                            await generateLevelReward(for: className, level: baseLevel + levelOffset)
+                        }
                     }
                 }
             } else {
@@ -1175,10 +1215,14 @@ final class LLMGameEngine: GameEngine {
             return
         }
 
-        // Check if this is the final encounter based on adventure progress
-        if let adventure = adventureProgress, adventure.isFinalEncounter {
-            // Don't enforce variety on final encounters - respect the quest type requirements
-            return
+        // Check if this is OR WILL BE the final encounter
+        if let adventure = adventureProgress {
+            let nextEncounter = adventure.currentEncounter + 1
+            let willBeFinalEncounter = nextEncounter >= adventure.totalEncounters
+            if adventure.isFinalEncounter || willBeFinalEncounter {
+                // Don't enforce variety on final encounters - respect the quest type requirements
+                return
+            }
         }
 
         // Prevent consecutive combat unless it's a final encounter
@@ -1447,11 +1491,14 @@ final class LLMGameEngine: GameEngine {
         logger.debug("[Adventure LLM] Max prompt: \(maxSafePromptSize) chars (~\(TokenEstimator.estimateTokens(from: String(repeating: "x", count: maxSafePromptSize))) tokens)")
 
         var scenePrompt = basePrompt
+
+        // With extended session (12 uses) and simplified context, prompts should naturally stay small
+        // Log warning if prompt is unusually large (indicates a bug in context building)
         if scenePrompt.count > maxSafePromptSize {
-            logger.warning("[Adventure LLM] Prompt too long (\(scenePrompt.count) chars), applying smart truncation to \(maxSafePromptSize)")
-            logger.warning("[Adventure LLM] Original prompt:\n\(scenePrompt)")
-            scenePrompt = smartTruncatePrompt(scenePrompt, maxLength: maxSafePromptSize)
-            logger.warning("[Adventure LLM] Truncated prompt:\n\(scenePrompt)")
+            logger.error("[Adventure LLM] ⚠️ Prompt unexpectedly large (\(scenePrompt.count) chars, limit: \(maxSafePromptSize))")
+            logger.error("[Adventure LLM] This indicates redundant context - SDK transcript already maintains history!")
+            logger.error("[Adventure LLM] Prompt: \(scenePrompt)")
+            // Continue without truncation - let it fail to surface the bug
         }
 
         let promptTokens = TokenEstimator.estimateTokens(from: scenePrompt)
@@ -1479,8 +1526,23 @@ final class LLMGameEngine: GameEngine {
             }
         }
 
-        let adventureResponse = try await stream.collect()
-        let turn = adventureResponse.content
+        let adventureResponse: AdventureTurn
+        do {
+            let response = try await stream.collect()
+            adventureResponse = response.content
+            logger.debug("[Adventure LLM] Successfully collected response")
+        } catch {
+            logger.error("[Adventure LLM] Failed to collect/deserialize: \(error.localizedDescription)")
+            logger.error("[Adventure LLM] Prompt was: \(scenePrompt)")
+
+            if let index = log.firstIndex(where: { $0.id == streamingEntryId }) {
+                log[index].isStreaming = false
+                log[index].content = "Error: \(error.localizedDescription)"
+            }
+            throw error
+        }
+
+        let turn = adventureResponse
 
         if let index = log.firstIndex(where: { $0.id == streamingEntryId }) {
             log[index].isStreaming = false
@@ -1812,10 +1874,16 @@ final class LLMGameEngine: GameEngine {
     internal func generateAdventureSummary(progress: AdventureProgress) async {
         let notableItems = detailedInventory.suffix(5).map { $0.fullName }
 
+        let completionText = progress.adventureStory.isEmpty ? "Quest completed at \(progress.locationName)" : progress.adventureStory
+
+        logger.info("[Summary] Creating summary: XP=\(self.currentAdventureXP), Gold=\(self.currentAdventureGold), Monsters=\(self.currentAdventureMonsters)")
+        logger.info("[Summary] Quest: '\(progress.questGoal)' at \(progress.locationName)")
+        logger.info("[Summary] Encounters: \(progress.currentEncounter), Items: \(notableItems.count)")
+
         let summary = AdventureSummary(
             locationName: progress.locationName,
             questGoal: progress.questGoal,
-            completionSummary: progress.adventureStory,
+            completionSummary: completionText,
             encountersCompleted: progress.currentEncounter,
             totalXPGained: currentAdventureXP,
             totalGoldEarned: currentAdventureGold,
@@ -1823,8 +1891,27 @@ final class LLMGameEngine: GameEngine {
             monstersDefeated: currentAdventureMonsters
         )
 
+        logger.info("[Summary] Summary created successfully, setting adventureSummary property")
+        if var world = worldState {
+            let locationNameToMark = currentWorldLocationName ?? progress.locationName
+            if let index = world.locations.firstIndex(where: { $0.name == locationNameToMark }) {
+                world.locations[index].completed = true
+                worldState = world
+                logger.info("[Quest] Marked location '\(locationNameToMark)' as completed")
+            } else {
+                logger.warning("[Quest] Could not find location '\(locationNameToMark)' to mark as completed")
+            }
+        }
+
         adventureSummary = summary
-        delegate?.engineNeedsLocationSelection(summary: summary)
+        logger.info("[Summary] Set adventureSummary property, value is now: \(self.adventureSummary != nil ? "SET" : "NIL")")
+        saveState()
+
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(100))
+            logger.info("[Summary] Calling delegate to show summary sheet")
+            delegate?.engineNeedsLocationSelection(summary: summary)
+        }
     }
 
     // MARK: - Logging helpers

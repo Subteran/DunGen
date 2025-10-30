@@ -4,25 +4,25 @@ import Foundation
 
 struct NarrativeProcessorTests {
 
-    @Test("Sanitize narration removes combat verbs for combat encounters")
+    @Test("Sanitize narration preserves narrative text for combat encounters")
     func testSanitizeNarrationCombat() {
         let processor = NarrativeProcessor()
         let text = "You defeated the goblin and killed it."
         let sanitized = processor.sanitizeNarration(text, for: "combat")
 
-        #expect(sanitized.contains("defeated") == false)
-        #expect(sanitized.contains("killed") == false)
-        #expect(sanitized.contains("confront"))
+        #expect(sanitized.contains("defeated"))
+        #expect(sanitized.contains("killed"))
+        #expect(sanitized == text)
     }
 
-    @Test("Sanitize narration removes combat verbs for final encounters")
+    @Test("Sanitize narration preserves narrative text for final encounters")
     func testSanitizeNarrationFinal() {
         let processor = NarrativeProcessor()
         let text = "You struck the dragon with your sword."
         let sanitized = processor.sanitizeNarration(text, for: "final")
 
-        #expect(sanitized.contains("struck") == false)
-        #expect(sanitized.contains("confront"))
+        #expect(sanitized.contains("struck"))
+        #expect(sanitized == text)
     }
 
     @Test("Sanitize narration preserves text for non-combat encounters")
@@ -34,14 +34,15 @@ struct NarrativeProcessorTests {
         #expect(sanitized == text)
     }
 
-    @Test("Sanitize narration is case insensitive")
-    func testSanitizeNarrationCaseInsensitive() {
+    @Test("Sanitize narration removes spurious JSON characters")
+    func testSanitizeNarrationRemovesJSON() {
         let processor = NarrativeProcessor()
-        let text = "You DEFEATED the enemy and KILLED it."
+        let text = "You defeated the enemy.\n{\n\"narration\": \"extra text\""
         let sanitized = processor.sanitizeNarration(text, for: "combat")
 
-        #expect(sanitized.lowercased().contains("defeated") == false)
-        #expect(sanitized.lowercased().contains("killed") == false)
+        #expect(sanitized.contains("{") == false)
+        #expect(sanitized.contains("\"narration\"") == false)
+        #expect(sanitized.contains("defeated"))
     }
 
     @Test("Smart truncate preserves prompt under max length")
@@ -53,18 +54,18 @@ struct NarrativeProcessorTests {
         #expect(truncated == prompt)
     }
 
-    @Test("Smart truncate preserves critical lines")
-    func testSmartTruncatePreservesCritical() {
+    @Test("Smart truncate preserves warning emoji lines")
+    func testSmartTruncatePreservesWarnings() {
         let processor = NarrativeProcessor()
         let prompt = """
         Some random text
-        CRITICAL: This must be kept
+        ⚠ This must be kept
         More random text
         Another line
         """
         let truncated = processor.smartTruncatePrompt(prompt, maxLength: 50)
 
-        #expect(truncated.contains("CRITICAL"))
+        #expect(truncated.contains("⚠"))
     }
 
     @Test("Smart truncate preserves quest stage lines")
@@ -72,12 +73,12 @@ struct NarrativeProcessorTests {
         let processor = NarrativeProcessor()
         let prompt = """
         Random text
-        QUEST STAGE - EARLY: Important info
+        STAGE-EARLY: Important info
         More text
         """
         let truncated = processor.smartTruncatePrompt(prompt, maxLength: 60)
 
-        #expect(truncated.contains("QUEST STAGE"))
+        #expect(truncated.contains("STAGE-"))
     }
 
     @Test("Smart truncate preserves short quest lines")

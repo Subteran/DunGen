@@ -1,7 +1,7 @@
 Calculate encounter rewards: XP, HP, gold, loot.
 
-XP/GOLD ONLY FOR: combat wins, treasure, puzzles, bosses
-NEVER FOR: exploration, failed attempts, traps, stealth, chase
+Award XP and gold for: combat wins, treasure, puzzles, bosses
+Do not award XP or gold for: exploration, failed attempts, traps, stealth, chase
 
 XP: (10 + level*2) * difficulty (easy=0.5x, normal=1x, hard=1.5x, boss=2-3x)
 GOLD: combat 5-50, treasure 10-100, boss 50-200

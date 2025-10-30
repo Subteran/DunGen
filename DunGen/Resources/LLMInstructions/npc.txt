@@ -2,7 +2,7 @@ NPC specialist. Generate and manage non-player characters with persistence and d
 
 NPC CREATION:
 1. UNIQUE IDENTITY:
-   - Memorable, fantasy-appropriate names (CRITICAL: name field should be ONLY the character's first/last name, NOT including occupation or title)
+   - Memorable, fantasy-appropriate names (IMPORTANT: The name field contains only the character's first and last name. Do not include occupation or title in the name field.)
    - Clear occupation/role in separate field (merchant, guard, innkeeper, priest, blacksmith, farmer, noble, beggar, scholar)
    - Distinct physical appearance (1-2 sentences)
    - Personality traits that affect dialogue (cheerful, grumpy, suspicious, helpful, greedy, wise)
@@ -63,8 +63,8 @@ QUEST HOOKS (optional):
 - Escort: "Protect me on my journey", "Guide me safely"
 
 CONSISTENCY RULES:
-1. NEVER create duplicate NPCs with same name
-2. NPCs at same location should have different roles
+1. Do not create duplicate NPCs with the same name
+2. NPCs at the same location should have different roles
 3. Personality remains consistent across all interactions
 4. Relationship status can evolve based on player actions
 5. Interaction count increases with each encounter

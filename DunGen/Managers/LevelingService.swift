@@ -9,6 +9,7 @@ protocol LevelingServiceProtocol {
 struct LevelUpOutcome {
     let didLevelUp: Bool
     let newLevel: Int?
+    let levelsGained: Int
     let hpGain: Int
     let statPointsGained: Int
     let logLine: String
@@ -42,19 +43,32 @@ final class DefaultLevelingService: LevelingServiceProtocol {
         let newLevel = level(forXP: character.xp)
 
         if newLevel > oldLevel {
-            let hpGain = rollHPGain(constitution: character.attributes.constitution)
-            character.maxHP += hpGain
+            let levelsGained = newLevel - oldLevel
+            var totalHPGain = 0
+            var totalStatPoints = 0
+
+            for _ in 0..<levelsGained {
+                let hpGain = rollHPGain(constitution: character.attributes.constitution)
+                totalHPGain += hpGain
+                character.maxHP += hpGain
+
+                let statPointsToAward = Int.random(in: 1...3)
+                totalStatPoints += statPointsToAward
+                applyStatPoints(statPointsToAward, to: &character)
+            }
+
             character.hp = character.maxHP
 
-            let statPointsToAward = Int.random(in: 1...3)
-            applyStatPoints(statPointsToAward, to: &character)
+            let logLine = levelsGained > 1
+                ? String(format: "⚡️ Level Up! You are now level %d and gained %d HP! (+%d levels)", newLevel, totalHPGain, levelsGained)
+                : String(format: L10n.levelUpLineFormat, newLevel, totalHPGain)
 
-            let logLine = String(format: L10n.levelUpLineFormat, newLevel, hpGain)
             return LevelUpOutcome(
                 didLevelUp: true,
                 newLevel: newLevel,
-                hpGain: hpGain,
-                statPointsGained: statPointsToAward,
+                levelsGained: levelsGained,
+                hpGain: totalHPGain,
+                statPointsGained: totalStatPoints,
                 logLine: logLine,
                 needsNewAbility: true
             )
@@ -62,6 +76,7 @@ final class DefaultLevelingService: LevelingServiceProtocol {
             return LevelUpOutcome(
                 didLevelUp: false,
                 newLevel: nil,
+                levelsGained: 0,
                 hpGain: 0,
                 statPointsGained: 0,
                 logLine: "",

@@ -336,23 +336,28 @@ struct FullAdventureIntegrationTest {
             await engine.continueNewGame(usedNames: [])
         }
 
-        // Select first location
-        if engine.awaitingLocationSelection, let firstLocation = engine.worldState?.locations.first {
-            print("📍 Location: \(firstLocation.name)")
-            await engine.submitPlayer(input: firstLocation.name)
+        // Find and select a combat quest location
+        var selectedCombatLocation: WorldLocation?
+        if engine.awaitingLocationSelection, let locations = engine.worldState?.locations {
+            selectedCombatLocation = locations.first(where: { $0.questType.lowercased() == "combat" })
+            if let combatLoc = selectedCombatLocation {
+                print("📍 Location: \(combatLoc.name) (Combat Quest)")
+                print("🎯 Quest: \(combatLoc.questGoal)")
+                await engine.submitPlayer(input: combatLoc.name)
+            } else {
+                // Fallback to first location if no combat quest found
+                let firstLocation = locations.first!
+                print("⚠️  No combat quest found, using: \(firstLocation.name)")
+                await engine.submitPlayer(input: firstLocation.name)
+            }
         }
 
-        // Force-create a combat quest to ensure we test boss combat mechanics
-        var progress = try #require(engine.adventureProgress, "Adventure should have started")
+        let progress = try #require(engine.adventureProgress, "Adventure should have started")
+        let isCombatQuest = selectedCombatLocation?.questType.lowercased() == "combat"
 
-        // Override quest goal to be a combat quest
-        progress.questGoal = "Eliminate the hobgoblin"
-        engine.adventureProgress = progress
-
-        print("🎯 Quest (Force-Created): \(progress.questGoal)")
-        print("⚔️  This is a COMBAT quest - final encounter MUST have boss monster")
-
-        let isCombatQuest = true
+        if isCombatQuest {
+            print("⚔️  This is a COMBAT quest - final encounter MUST have boss monster")
+        }
 
         var turnCount = 0
         let maxTurns = (progress.totalEncounters * 3) + 5

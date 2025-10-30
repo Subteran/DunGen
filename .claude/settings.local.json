@@ -37,7 +37,9 @@
       "Bash(defaults read:*)",
       "Bash(timeout:*)",
       "Bash(xcrun simctl list:*)",
-      "Bash(xcrun xctrace:*)"
+      "Bash(xcrun xctrace:*)",
+      "Read(//Users/giant/Projects/NarrativeGen/**)",
+      "Bash(/dev/null)"
     ],
     "deny": [],
     "ask": []

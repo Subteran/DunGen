@@ -94,6 +94,42 @@ final class AdventurePlayTest {
         while turnCount < maxTurns && !questCompleted && survivedToEnd {
             turnCount += 1
 
+            // Check if healing is needed before taking action
+            if shouldUseHealing(engine: engine) {
+                if let healingAction = getHealingAction(engine: engine) {
+                    logger.info("[PlayTest] Turn \(turnCount): \(healingAction) (auto-healing)")
+                    await engine.submitPlayer(input: healingAction)
+
+                    // Log the healing turn
+                    if let lastLog = engine.log.last {
+                        gameplayLogger.logEncounter(
+                            encounterNumber: engine.adventureProgress?.currentEncounter ?? 0,
+                            encounterType: "healing",
+                            difficulty: "normal",
+                            playerAction: healingAction,
+                            llmPrompt: "",
+                            llmResponse: lastLog.content,
+                            questStage: "HEALING"
+                        )
+                    }
+
+                    // Update stats after healing
+                    if let char = engine.character {
+                        gameplayLogger.updateStats(
+                            level: engine.getCharacterLevel(),
+                            hp: char.hp,
+                            xpGained: engine.currentAdventureXP,
+                            goldEarned: engine.currentAdventureGold,
+                            monstersDefeated: engine.currentAdventureMonsters,
+                            itemsCollected: engine.itemsCollected
+                        )
+                    }
+
+                    // Don't continue to normal action this turn
+                    continue
+                }
+            }
+
             let action = await selectAction(for: strategy, engine: engine, turn: turnCount)
 
             logger.info("[PlayTest] Turn \(turnCount): \(action)")
@@ -208,6 +244,27 @@ final class AdventurePlayTest {
         case .exploratory:
             return ["Examine the area", "Search thoroughly", "Investigate", "Look for clues"].randomElement()!
         }
+    }
+
+    private func shouldUseHealing(engine: LLMGameEngine) -> Bool {
+        guard let character = engine.character else { return false }
+        let hpPercent = Double(character.hp) / Double(character.maxHP)
+        return hpPercent < 0.5
+    }
+
+    private func getHealingAction(engine: LLMGameEngine) -> String? {
+        guard let character = engine.character else { return nil }
+
+        let healingItems = character.inventory.filter { item in
+            let nameLower = item.lowercased()
+            return nameLower.contains("potion") || nameLower.contains("bandage")
+        }
+
+        if let healingItem = healingItems.first {
+            return "Use \(healingItem)"
+        }
+
+        return nil
     }
 
     private func failedResult(characterClass: CharacterClass = .warrior, race: String = "Human", questType: QuestType = .combat) -> PlayTestResult {

@@ -48,7 +48,7 @@ struct CharacterProfile: Codable, Equatable {
 
 @Generable(description: "A new character ability, spell, or prayer")
 struct LevelReward: Codable {
-    @Guide(description: "Name of the new ability, spell, or prayer")
+    @Guide(description: "Descriptive name for the new ability, spell, or prayer. Must be thematic and evocative (e.g., 'Vital Strike', 'Shadow Step', 'Divine Shield'), NOT generic placeholders like 'LevelReward' or 'NewAbility'.")
     var name: String
 }
 

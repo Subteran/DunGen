@@ -37,8 +37,8 @@ CHARACTER ELEMENTS:
    - XP: 0 starting experience
    - Gold: 5-25 starting coins
 
-7. STARTING EQUIPMENT: Class-appropriate items PLUS mandatory healing items
-   CRITICAL: ALL characters MUST start with these healing items:
+7. STARTING EQUIPMENT: Class-appropriate items plus mandatory healing items
+   REQUIRED: All characters must start with these healing items:
    - 3 Healing Potions (heals 5-10 HP each)
    - 3 Bandages (heals 2 HP each)
 
@@ -62,4 +62,4 @@ CHARACTER ELEMENTS:
    - Healer/Paladin: 1-3 divine prayers (healing, protection, holy power)
    - Druid: 1-3 nature spells (animal affinity, plant growth, weather)
    - Necromancer: 1-3 death spells (raise skeleton, life drain, fear)
-   - All others: EMPTY list (NOT even one item)
+   - All other classes: Empty list (provide an empty array, do not include any spells)

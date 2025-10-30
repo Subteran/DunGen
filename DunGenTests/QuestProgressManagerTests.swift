@@ -88,8 +88,8 @@ struct QuestProgressManagerTests {
 
         let guidance = manager.buildQuestProgressionGuidance(for: progress)
 
-        #expect(guidance.contains("EARLY"))
-        #expect(guidance.contains("clues"))
+        #expect(guidance.contains("STAGE-EARLY"))
+        #expect(guidance.contains("Intro clues"))
         #expect(guidance.contains(progress.questGoal))
     }
 
@@ -108,8 +108,8 @@ struct QuestProgressManagerTests {
 
         let guidance = manager.buildQuestProgressionGuidance(for: progress)
 
-        #expect(guidance.contains("MIDDLE"))
-        #expect(guidance.contains("advance"))
+        #expect(guidance.contains("STAGE-MID"))
+        #expect(guidance.contains("Advance"))
         #expect(guidance.contains(progress.questGoal))
     }
 
@@ -128,8 +128,8 @@ struct QuestProgressManagerTests {
 
         let guidance = manager.buildQuestProgressionGuidance(for: progress)
 
-        #expect(guidance.contains("CRITICAL"), "Guidance should contain CRITICAL")
-        #expect(guidance.contains("FINAL ENCOUNTER"), "Guidance should contain FINAL ENCOUNTER, got: \(guidance)")
+        #expect(guidance.contains("⚠"), "Guidance should contain warning emoji")
+        #expect(guidance.contains("FINAL ENC"), "Guidance should contain FINAL ENC, got: \(guidance)")
         #expect(guidance.contains(progress.questGoal), "Guidance should contain quest goal")
     }
 
@@ -148,8 +148,8 @@ struct QuestProgressManagerTests {
 
         let guidance = manager.buildQuestProgressionGuidance(for: progress)
 
-        #expect(guidance.contains("EXTENDED FINALE"), "Guidance should contain EXTENDED FINALE")
-        #expect(guidance.contains("extra turn 1/3"), "Guidance should contain 'extra turn 1/3', got: \(guidance)")
+        #expect(guidance.contains("FINALE+1"), "Guidance should contain FINALE+1")
+        #expect(guidance.contains("8/7"), "Guidance should contain encounter counter 8/7, got: \(guidance)")
     }
 
     @Test("Final chance guidance warns of quest failure")
@@ -167,9 +167,9 @@ struct QuestProgressManagerTests {
 
         let guidance = manager.buildQuestProgressionGuidance(for: progress)
 
-        #expect(guidance.contains("FINAL CHANCE"))
-        #expect(guidance.contains("LAST opportunity"))
-        #expect(guidance.contains("quest fails"))
+        #expect(guidance.contains("LAST CHANCE"))
+        #expect(guidance.contains("FINAL chance"))
+        #expect(guidance.contains("Fail if not done"))
     }
 
     @Test("Completed quest guidance includes completion message")
@@ -187,7 +187,7 @@ struct QuestProgressManagerTests {
 
         let guidance = manager.buildQuestProgressionGuidance(for: progress)
 
-        #expect(guidance.contains("QUEST COMPLETED"))
+        #expect(guidance.contains("QUEST DONE"))
         #expect(guidance.contains(progress.questGoal))
         #expect(guidance.contains("achieved"))
     }
@@ -208,7 +208,7 @@ struct QuestProgressManagerTests {
         let guidance = manager.buildQuestProgressionGuidance(for: progress)
 
         #expect(guidance.contains("artifact"))
-        #expect(guidance.contains("takes/claims"))
+        #expect(guidance.contains("taken"))
     }
 
     @Test("Combat quest completion instructions mention boss fight")

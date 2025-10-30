@@ -61,15 +61,25 @@ final class SpecialistSessionManager {
         let usageLimit: Int
         switch specialist {
         case .adventure:
-            // Instructions: ~936 chars (~234 tokens)
-            // Prompt: ~600 chars (~150 tokens)
-            // Response: ~1000 chars (~250 tokens) - LLM often exceeds 200 despite instructions
-            // Exchange: ~634 tokens
-            // Available: 4096 - 234 - 250 = 3612 tokens
-            // Max uses: 3612 / 634 = 5.69 ≈ 5 uses
-            usageLimit = 5
+            // Extended session for full adventure continuity
+            // Instructions: ~1084 chars (~271 tokens) compressed with key rules
+            // Prompt: ~425 chars (~106 tokens) - minimal context
+            // Response: ~1,600 chars (~400 tokens) with maximumResponseTokens=400
+            // Exchange: ~506 tokens (prompt + response)
+            // Available: 4096 - 271 - 400 (response) - 50 (margin) = 3375 tokens
+            // Max uses: 3375 / 506 = 6.7 uses
+            // LIMIT: 7 uses (covers most 6-7 encounter adventures)
+            // Rationale: SDK transcript maintains conversation history.
+            //            @Generable schema provides output structure automatically.
+            usageLimit = 7
         case .encounter:
-            // ~253 tokens/exchange (1000 chars) = 15 uses max
+            // Instructions: ~4,766 chars (~1,191 tokens) with enhanced encounter.txt
+            // Prompt: ~60 chars (~15 tokens) - minimal context
+            // Response: ~50 chars (~12 tokens) - just type + difficulty
+            // Exchange: ~27 tokens (prompt + response, not counting instructions)
+            // Available: 4096 - 1191 - 50 (response buffer) = 2855 tokens
+            // Max uses: 2855 / 27 = 105 uses
+            // PRACTICAL LIMIT: 15 uses (plenty of headroom, resets rarely)
             usageLimit = 15
         case .equipment:
             // ~380 tokens/exchange (1500 chars) = 10 uses max

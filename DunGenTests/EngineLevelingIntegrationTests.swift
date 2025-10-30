@@ -23,11 +23,13 @@ struct EngineLevelingIntegrationTests {
 
         // WHEN a turn arrives that grants enough XP to level up
         let turn = AdventureTurn(
-            narration: "You best a rival and learn from the duel.",
             adventureProgress: nil,
             playerPrompt: "What do you do next?",
             suggestedActions: ["Continue exploring", "Rest"],
-            currentEnvironment: "Training Grounds"
+            currentEnvironment: "Training Grounds",
+            itemsAcquired: nil,
+            goldSpent: 0,
+            narration: "You best a rival and learn from the duel."
         )
 
         let rewards = ProgressionRewards(

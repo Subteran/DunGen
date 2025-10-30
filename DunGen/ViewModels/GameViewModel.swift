@@ -1,9 +1,11 @@
 import Foundation
 import SwiftUI
+import OSLog
 
 @MainActor
 @Observable
 final class GameViewModel: GameEngineDelegate {
+    private let logger = Logger(subsystem: "com.yourcompany.DunGen", category: "GameViewModel")
     private(set) var engine: LLMGameEngine
 
     var isGenerating: Bool = false
@@ -56,7 +58,12 @@ final class GameViewModel: GameEngineDelegate {
     }
 
     func engineNeedsLocationSelection(summary: AdventureSummary) {
+        logger.info("[ViewModel] engineNeedsLocationSelection called with summary: \(summary.questGoal)")
+        logger.info("[ViewModel] Current engine.adventureSummary is: \(self.engine.adventureSummary != nil ? "SET" : "NIL")")
+        logger.info("[ViewModel] Current adventureSummary computed property is: \(self.adventureSummary != nil ? "SET" : "NIL")")
+        logger.info("[ViewModel] Setting showingAdventureSummary to true")
         showingAdventureSummary = true
+        logger.info("[ViewModel] showingAdventureSummary is now: \(self.showingAdventureSummary)")
     }
 
     func engineNeedsCustomCharacterName(partialCharacter: CharacterProfile) {

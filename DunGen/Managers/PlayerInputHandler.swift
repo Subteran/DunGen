@@ -16,13 +16,15 @@ final class PlayerInputHandler {
         guard let engine = gameEngine else { return false }
         guard var partial = partialCharacter else { return false }
 
-        let trimmedName = input.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedName.isEmpty else {
-            engine.appendModel("Please enter a valid name.")
+        // Sanitize character name
+        switch InputSanitizer.sanitizeCharacterName(input) {
+        case .valid(let sanitizedName):
+            partial.name = sanitizedName
+        case .rejected(let reason):
+            engine.appendModel("❌ \(reason)")
             return false
         }
 
-        partial.name = trimmedName
 
         let modifiers = RaceModifiers.modifiers(for: partial.race)
         partial.attributes = modifiers.apply(to: partial.attributes)
@@ -231,6 +233,7 @@ final class PlayerInputHandler {
         // Set new location
         engine.currentLocation = selectedLocation.locationType
         engine.currentEnvironment = selectedLocation.name
+        engine.currentWorldLocationName = selectedLocation.name
         engine.awaitingLocationSelection = false
 
         if var world = engine.worldState {

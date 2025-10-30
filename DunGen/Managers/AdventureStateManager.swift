@@ -14,6 +14,7 @@ final class AdventureStateManager {
 
     var currentLocation: AdventureType = .outdoor
     var currentEnvironment: String = ""
+    var currentWorldLocationName: String?
 
     var narrativeState: NarrativeState = NarrativeState()
 
@@ -25,6 +26,7 @@ final class AdventureStateManager {
         adventureSummary = nil
         showingAdventureSummary = false
         currentEnvironment = ""
+        currentWorldLocationName = nil
         narrativeState = NarrativeState()
     }
 

@@ -64,17 +64,17 @@ final class LevelRewardGenerator {
         while attempts < maxAttempts {
             attempts += 1
 
-            var prompt = "Character: Level \(level) \(className). Generate a single new \(rewardList). Provide only the name of the \(rewardList)."
+            var prompt = "Character: Level \(level) \(className). Generate a single new \(rewardList) with a thematic, evocative name (NOT generic placeholders). Examples: 'Vital Strike', 'Shadow Step', 'Divine Shield', 'Arcane Burst', 'Nature's Grasp'."
 
             if !existingRewards.isEmpty {
                 let recentRewards = Array(existingRewards.prefix(5)).joined(separator: ", ")
                 prompt += " Already has: \(recentRewards)."
             }
 
-            prompt += " Generate a unique \(rewardList) appropriate for this level and class."
+            prompt += " Generate a unique, descriptive \(rewardList) name appropriate for this level and class."
 
             if attempts > 1 {
-                prompt += " AVOID duplicates."
+                prompt += " AVOID duplicates and generic names."
             }
 
             logger.debug("[Level Reward] Attempt \(attempts), Prompt length: \(prompt.count) chars")

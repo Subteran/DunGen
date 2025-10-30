@@ -1,8 +1,10 @@
 import SwiftUI
 import SwiftData
 import MessageUI
+import OSLog
 
 struct GameView: View {
+    private let logger = Logger(subsystem: "com.yourcompany.DunGen", category: "GameView")
     @State private var viewModel: GameViewModel
     @State private var input: String = ""
     @State private var showNewGameConfirmation = false
@@ -103,6 +105,7 @@ struct GameView: View {
         }
         .sheet(isPresented: $viewModel.showingAdventureSummary) {
             if let summary = viewModel.adventureSummary {
+                let _ = logger.info("[GameView] Presenting AdventureSummarySheet with summary: \(summary.questGoal)")
                 AdventureSummarySheetView(
                     summary: summary,
                     onNextLocation: {
@@ -115,6 +118,10 @@ struct GameView: View {
                 )
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
+            } else {
+                let _ = logger.warning("[GameView] Sheet presented but adventureSummary is NIL!")
+                Text("No summary available")
+                    .foregroundStyle(.red)
             }
         }
         .sheet(isPresented: $showMailComposer) {
@@ -360,9 +367,9 @@ struct GameView: View {
             if viewModel.character == nil || viewModel.characterDied {
                 let usedNames = getUsedCharacterNames()
                 await viewModel.startNewGame(preferredType: viewModel.currentLocation, usedNames: usedNames)
-            } else if viewModel.character != nil && viewModel.suggestedActions.isEmpty && !viewModel.inCombat && !viewModel.awaitingWorldContinue {
-                await viewModel.submitPlayer(input: "continue")
             }
+            // NOTE: Removed auto-continue logic - it was causing unwanted auto-advance on app resume
+            // If suggestedActions is empty after load, the player should manually advance
         }
     }
 
